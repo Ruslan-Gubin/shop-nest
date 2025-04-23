@@ -10,7 +10,7 @@ export class AppController {
     return this.appService.getHello();
   }
 
-  @Get()
+  @Get('connect')
   connect(): { status: string; data: null; message: string } {
     return {
       status: 'success',
