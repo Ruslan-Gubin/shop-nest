@@ -9,4 +9,13 @@ export class AppController {
   getHello(): string {
     return this.appService.getHello();
   }
+
+  @Get()
+  connect(): { status: string; data: null; message: string } {
+    return {
+      status: 'success',
+      data: null,
+      message: 'Соединение востановленно',
+    };
+  }
 }
