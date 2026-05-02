@@ -1,36 +1,73 @@
-import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { ProductModule } from 'src/product/product.module';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { Module } from "@nestjs/common";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { APP_GUARD } from "@nestjs/core";
+import { JwtModule } from "@nestjs/jwt";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { AuthModule } from "src/auth/auth.module";
+import { JwtGuard } from "src/auth/guards/jwt.guard";
+import { ProductModule } from "src/product/product.module";
+import { UsersModule } from "src/users/users.module";
+import { AppController } from "./app.controller";
+import { AppService } from "./app.service";
+import { CategoryModule } from "src/category/category.module";
+import { PriceTypeModule } from "src/price-type/price-type.module";
+import { CartDiscountsModule } from "src/cart-discounts/cart-discounts.module";
+import { PromotionsModule } from "src/promotions/promotions.module";
+import { PriceFillModule } from "src/price-fill/price-fill.module";
+import { PriceRangeModule } from "src/price-range/price-range.module";
+
+const isDev = process.env.npm_lifecycle_event === "start:dev";
 
 @Module({
-  imports: [
-    ProductModule,
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        entities: [],
-        host: configService.get<string>('NEO_DB_HOST'),
-        port: configService.get('NEO_DB_PORT'),
-        username: configService.get<string>('NEO_DB_USERNAME'),
-        password: configService.get<string>('NEO_DB_PASSWORD'),
-        database: configService.get<string>('NEO_DB_DATABASE'),
-        autoLoadEntities: true,
-        synchronize: true, //remove production
-        extra: {
-          ssl: true,
-        },
-      }),
-      inject: [ConfigService],
-    }),
-  ],
-  controllers: [AppController],
-  providers: [AppService],
+	imports: [
+		JwtModule.register({}),
+		AuthModule,
+		ProductModule,
+		UsersModule,
+		CategoryModule,
+		PriceTypeModule,
+		CartDiscountsModule,
+		PromotionsModule,
+		PriceFillModule,
+		PriceRangeModule,
+		ConfigModule.forRoot({
+			isGlobal: true,
+		}),
+		TypeOrmModule.forRootAsync({
+			imports: [ConfigModule],
+			useFactory: (configService: ConfigService) => ({
+				type: "postgres",
+				entities: [],
+				host: isDev ? "localhost" : configService.get<string>("NEO_DB_HOST"),
+				port: isDev ? 5432 : configService.get("NEO_DB_PORT"),
+				username: isDev
+					? "postgres"
+					: configService.get<string>("NEO_DB_USERNAME"),
+				database: isDev
+					? "postgres"
+					: configService.get<string>("NEO_DB_DATABASE"),
+				password: isDev
+					? "123456"
+					: configService.get<string>("NEO_DB_PASSWORD"),
+				autoLoadEntities: true,
+				synchronize: true, //remove production
+				ssl: {
+					rejectUnauthorized: false,
+				},
+				extra: {
+					ssl: false,
+				},
+			}),
+			inject: [ConfigService],
+		}),
+	],
+	controllers: [AppController],
+	providers: [
+		{
+			provide: APP_GUARD,
+			useClass: JwtGuard,
+		},
+		AppService,
+	],
 })
-export class AppModule {}
+export class AppModule { }
