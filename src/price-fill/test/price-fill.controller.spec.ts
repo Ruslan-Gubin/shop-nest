@@ -3,6 +3,7 @@ import { PriceFillController } from "../price-fill.controller";
 import { PriceFillService } from "../price-fill.service";
 import { RolesGuard } from "../../auth/guards/roles.guard";
 import { PriceFill } from "../entities/price-fill.entity";
+import { UpdatePriceFillDto } from "../dto/update-price-fill.dto";
 
 describe("PriceFillController", () => {
   let controller: PriceFillController;
@@ -136,9 +137,7 @@ describe("PriceFillController", () => {
 
   describe("update", () => {
     it("должен обновить правило", async () => {
-      const updateDto = {
-        price_type_id: 1,
-        price_range_id: 1,
+      const updateDto: UpdatePriceFillDto = {
         percent: 90,
       };
 
@@ -152,9 +151,7 @@ describe("PriceFillController", () => {
     });
 
     it("должен вернуть ошибку при обновлении", async () => {
-      const updateDto = {
-        price_type_id: 1,
-        price_range_id: 1,
+      const updateDto: UpdatePriceFillDto = {
         percent: 90,
       };
 

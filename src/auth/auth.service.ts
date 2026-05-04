@@ -12,7 +12,7 @@ export class AuthService {
   constructor(
     private readonly jwt: JwtService,
     private usersService: UsersService,
-  ) { }
+  ) {}
 
   async signUp(createUserDto: CreateUserDto): Promise<Tokens> {
     const user = await this.usersService.create(createUserDto);

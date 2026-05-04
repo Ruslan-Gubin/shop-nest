@@ -55,6 +55,8 @@ export class PriceFillController {
     @Param("id") id: string,
     @Body() updatePriceFillDto: UpdatePriceFillDto,
   ): Promise<ResponseData<null>> {
+    console.log("update item");
+    console.log("id:", id, "percent:", updatePriceFillDto.percent);
     try {
       await this.priceFillService.update(Number(id), updatePriceFillDto);
 
