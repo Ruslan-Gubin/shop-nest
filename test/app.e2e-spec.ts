@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { TypeOrmModule } from "@nestjs/typeorm";
 
 describe("AppModule Configuration", () => {
   let module: TestingModule;
@@ -144,3 +143,4 @@ describe("Module Structure", () => {
     expect(hasAppController).toBe(true);
   });
 });
+

@@ -14,75 +14,84 @@ export class Product {
   @Column({ type: "varchar", default: "", name: "name" })
   name: string;
 
-  @Column({ type: "varchar", default: "", name: "title" })
-  title: string;
-
-  @Column({ type: "int", default: 0, name: "price" })
-  price: number;
-
-  @Column({ type: "int", default: 0, name: "count" })
-  count: number;
-
   @Column({ type: "varchar", default: "", name: "code" })
   code: string;
 
-  @Column({ type: "int", default: 0, name: "old_price" })
-  old_price: number;
+  @Column({ type: "int", nullable: true, default: null, name: "brand_id" })
+  brand_id: number;
 
-  @Column({ type: "int", default: 0, name: "discount" })
-  discount: number;
+  @Column({ type: "int", nullable: true, default: null, name: "category_id" })
+  category_id: number;
 
   @Column({ type: "varchar", default: "", name: "description" })
   description: string;
 
-  @Column({ type: "boolean", default: false, name: "on_save" })
-  on_save: boolean;
+  @Column({ type: "varchar", default: "", name: "country" })
+  country: string;
 
-  @Column({ type: "boolean", default: true, name: "is_stock" })
-  is_stock: boolean;
+  @Column({ type: "varchar", default: "", name: "product_type" })
+  product_type: string;
 
-  @Column({ type: "boolean", default: false, name: "is_hit" })
-  is_hit: boolean;
+  @Column({ type: "varchar", default: "", name: "equipment" })
+  equipment: string;
 
-  @Column({ type: "int", default: 0, name: "rating" })
-  rating: number;
+  @Column({ type: "int", nullable: true, default: null, name: "weight" })
+  weight: number;
 
-  @Column({ type: "varchar", default: "", name: "unit" })
-  unit: string;
+  @Column({ type: "int", nullable: true, default: null, name: "height" })
+  height: number;
 
-  @Column({ type: "varchar", default: "", name: "color" })
-  color: string;
+  @Column({ type: "int", nullable: true, default: null, name: "length" })
+  length: number;
 
-  @Column({ type: "int", default: null, name: "department_id" })
-  department_id: number | null;
+  @Column({ type: "int", nullable: true, default: null, name: "width" })
+  width: number;
 
-  @Column({ type: "int", default: 0, name: "category_id" })
-  category_id: number;
+  @Column({ type: "int", nullable: true, default: null, name: "purchase_price" })
+  purchase_price: number;
 
-  @Column({ type: "int", default: 0, name: "brand_id" })
-  brand_id: number;
+  // @Column({ type: "int", default: 0, name: "discount" })
+  // discount: number;
 
-  @Column({ type: "varchar", default: "", name: "options" })
-  options: string;
+  // @Column({ type: "boolean", default: false, name: "on_save" })
+  // on_save: boolean;
 
-  @Column({ type: "int", default: 0, name: "buy_count" })
-  buy_count: number;
+  // @Column({ type: "boolean", default: true, name: "is_stock" })
+  // is_stock: boolean;
 
-  @Column({ type: "int", default: 0, name: "views" })
-  views: number;
+  // @Column({ type: "boolean", default: false, name: "is_hit" })
+  // is_hit: boolean;
 
-  @Column({ type: "varchar", default: "", name: "main_photo" })
-  main_photo: string;
+  // @Column({ type: "int", default: 0, name: "rating" })
+  // rating: number;
 
-  @Column({ type: "varchar", default: "", name: "additional_photos" })
-  additional_photos: string;
+  // @Column({ type: "varchar", default: "", name: "unit" })
+  // unit: string;
+
+  // @Column({ type: "varchar", default: "", name: "color" })
+  // color: string;
+
+  // @Column({ type: "int", default: null, name: "department_id" })
+  // department_id: number | null;
+
+  // @Column({ type: "varchar", default: "", name: "options" })
+  // options: string;
+
+  // @Column({ type: "int", default: 0, name: "buy_count" })
+  // buy_count: number;
+
+  // @Column({ type: "int", default: 0, name: "views" })
+  // views: number;
+
+  // @Column({ type: "varchar", default: "", name: "main_photo" })
+  // main_photo: string;
+
+  // @Column({ type: "varchar", default: "", name: "additional_photos" })
+  // additional_photos: string;
 
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;
 
   @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
   updated_at: Date | null;
-
-  // @ManyToOne(() => Category)
-  // category_id: Category;
 }

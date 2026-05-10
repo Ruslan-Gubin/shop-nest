@@ -15,6 +15,7 @@ import { CartDiscountsModule } from "src/cart-discounts/cart-discounts.module";
 import { PromotionsModule } from "src/promotions/promotions.module";
 import { PriceFillModule } from "src/price-fill/price-fill.module";
 import { PriceRangeModule } from "src/price-range/price-range.module";
+import { ProductPriceModule } from "src/product-price/product-price.module";
 
 const isDev = process.env.npm_lifecycle_event === "start:dev";
 
@@ -30,6 +31,7 @@ const isDev = process.env.npm_lifecycle_event === "start:dev";
 		PromotionsModule,
 		PriceFillModule,
 		PriceRangeModule,
+		ProductPriceModule,
 		ConfigModule.forRoot({
 			isGlobal: true,
 		}),
