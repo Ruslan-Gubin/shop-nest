@@ -11,7 +11,7 @@ import {
 
 export class CreateProductDto {
   @IsString()
-  @MaxLength(50, { message: "Максимум 50 символов" })
+  @MaxLength(255, { message: "Максимум 255 символов" })
   @MinLength(2, { message: "Название должно содержать минимум 2 символа" })
   @IsNotEmpty({ message: "Введите название" })
   name: string;
