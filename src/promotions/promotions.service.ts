@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { FindOperator, LessThanOrEqual, MoreThanOrEqual, Like, type Repository } from "typeorm";
+import { FindOperator, ILike, LessThanOrEqual, MoreThanOrEqual, type Repository } from "typeorm";
 import { CreatePromotionDto } from "./dto/create-promotion.dto";
 import { UpdatePromotionDto } from "./dto/update-promotion.dto";
 import { Promotion } from "./entities/promotion.entity";
@@ -37,7 +37,7 @@ export class PromotionsService {
     const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
 
     if (name) {
-      whereCondition.name = Like(`%${name}%`);
+      whereCondition.name = ILike(`%${name}%`);
     }
 
     if (created_user_id) {
@@ -60,7 +60,7 @@ export class PromotionsService {
     const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
 
     if (name) {
-      whereCondition.name = Like(`%${name}%`);
+      whereCondition.name = ILike(`%${name}%`);
     }
 
     if (created_user_id) {

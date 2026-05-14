@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { FindOperator, Like, type Repository } from "typeorm";
+import { FindOperator, ILike, type Repository } from "typeorm";
 import { CreatePriceTypeDto } from "./dto/create-price-type.dto";
 import { UpdatePriceTypeDto } from "./dto/update-price-type.dto";
 import { PriceType } from "./entities/price-type.entity";
@@ -24,7 +24,7 @@ export class PriceTypeService {
     const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
 
     if (name) {
-      whereCondition.name = Like(`%${name}%`);
+      whereCondition.name = ILike(`%${name}%`);
     }
 
     if (created_user_id) {
@@ -47,7 +47,7 @@ export class PriceTypeService {
     const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
 
     if (name) {
-      whereCondition.name = Like(`%${name}%`);
+      whereCondition.name = ILike(`%${name}%`);
     }
 
     if (created_user_id) {

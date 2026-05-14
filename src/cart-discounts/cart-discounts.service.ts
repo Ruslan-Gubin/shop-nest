@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { FindOperator, Like, type Repository } from "typeorm";
+import { FindOperator, ILike, type Repository } from "typeorm";
 import { CreateCartDiscountDto } from "./dto/create-cart-discount.dto";
 import { UpdateCartDiscountDto } from "./dto/update-cart-discount.dto";
 import { CartDiscount } from "./entities/cart-discount.entity";
@@ -24,7 +24,7 @@ export class CartDiscountsService {
     const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
 
     if (name) {
-      whereCondition.name = Like(`%${name}%`);
+      whereCondition.name = ILike(`%${name}%`);
     }
 
     if (created_user_id) {
@@ -47,7 +47,7 @@ export class CartDiscountsService {
     const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
 
     if (name) {
-      whereCondition.name = Like(`%${name}%`);
+      whereCondition.name = ILike(`%${name}%`);
     }
 
     if (created_user_id) {

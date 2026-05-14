@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { Repository, FindOperator } from "typeorm";
-import { Like } from "typeorm";
+import { ILike } from "typeorm";
 import type { CreateProductDto } from "./dto/create-product.dto";
 import type { UpdateProductDto } from "./dto/update-product.dto";
 import { Product } from "./entities/product.entity";
@@ -25,7 +25,7 @@ export class ProductService {
     const whereCondition: { name?: FindOperator<string> } = {};
 
     if (name) {
-      whereCondition.name = Like(`%${name}%`);
+      whereCondition.name = ILike(`%${name}%`);
     }
 
     return this.productRepository
@@ -44,7 +44,7 @@ export class ProductService {
     const whereCondition: { name?: FindOperator<string> } = {};
 
     if (name) {
-      whereCondition.name = Like(`%${name}%`);
+      whereCondition.name = ILike(`%${name}%`);
     }
 
     return this.productRepository.count({ where: whereCondition }).catch((error) => {

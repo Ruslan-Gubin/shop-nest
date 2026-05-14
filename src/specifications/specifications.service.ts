@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { FindOperator, Like, type Repository } from "typeorm";
+import { FindOperator, ILike, type Repository } from "typeorm";
 import { CreateSpecificationDto } from "./dto/create-specification.dto";
 import { UpdateSpecificationDto } from "./dto/update-specification.dto";
 import { Specification } from "./entities/specification.entity";
@@ -24,7 +24,7 @@ export class SpecificationsService {
     const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
 
     if (name) {
-      whereCondition.name = Like(`%${name}%`);
+      whereCondition.name = ILike(`%${name}%`);
     }
 
     if (created_user_id) {
@@ -47,7 +47,7 @@ export class SpecificationsService {
     const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
 
     if (name) {
-      whereCondition.name = Like(`%${name}%`);
+      whereCondition.name = ILike(`%${name}%`);
     }
 
     if (created_user_id) {
