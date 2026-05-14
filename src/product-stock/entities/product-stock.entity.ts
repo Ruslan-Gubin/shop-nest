@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -14,19 +15,17 @@ export class ProductStock {
   @PrimaryGeneratedColumn({ type: "int", name: "id" })
   id: number;
 
-  @ManyToOne(() => Warehouse, (warehouse) => warehouse.id, {
-    eager: false,
-  })
+  @ManyToOne(() => Warehouse, { onDelete: "SET NULL", eager: false })
+  @JoinColumn({ name: "warehouse_id" })
   warehouse: Warehouse;
 
-  @Column({ type: "int", name: "warehouse_id" })
+  @Column({ type: "int", nullable: true, default: null, name: "warehouse_id" })
   warehouse_id: number;
 
-  @ManyToOne(() => Product, (product) => product.id, {
-    onDelete: "CASCADE",
-    eager: false,
-  })
+  @ManyToOne(() => Product, { onDelete: "CASCADE", eager: false })
+  @JoinColumn({ name: "product_id" })
   product: Product;
+
   @Column({ type: "int", name: "product_id" })
   product_id: number;
 
@@ -51,4 +50,3 @@ export class ProductStock {
   @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
   updated_at: Date | null;
 }
-
