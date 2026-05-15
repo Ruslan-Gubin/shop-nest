@@ -20,6 +20,7 @@ import { SpecificationsModule } from "src/specifications/specifications.module";
 import { ProductSpecificationModule } from "src/product-specification/product-specification.module";
 import { WarehouseModule } from "src/warehouse/warehouse.module";
 import { ProductStockModule } from "src/product-stock/product-stock.module";
+import { OrdersModule } from "src/orders/orders.module";
 
 const isDev = process.env.npm_lifecycle_event === "start:dev";
 
@@ -40,6 +41,7 @@ const isDev = process.env.npm_lifecycle_event === "start:dev";
 		ProductSpecificationModule,
 		WarehouseModule,
 		ProductStockModule,
+		OrdersModule,
 		ConfigModule.forRoot({
 			isGlobal: true,
 		}),
