@@ -4,15 +4,23 @@ import { CreateOrderDto } from "./dto/create-order.dto";
 import { UpdateOrderDto } from "./dto/update-order.dto";
 import { ResponseData, responseData } from "src/helpers/response";
 import { Order } from "./entities/order.entity";
+import { CurrentUser } from "src/auth/decorators/current-user.decorator";
+import { CurrentStrategyUser } from "src/auth/types/current-user";
 
 @Controller("orders")
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post("create")
-  async create(@Body() createOrderDto: CreateOrderDto): Promise<ResponseData<Order | null>> {
+  async create(
+    @Body() createOrderDto: CreateOrderDto,
+    @CurrentUser() user: CurrentStrategyUser,
+  ): Promise<ResponseData<Order | null>> {
     try {
-      const order = await this.ordersService.create(createOrderDto);
+      const order = await this.ordersService.create({
+        ...createOrderDto,
+        create_user_id: user.sub,
+      });
 
       return responseData(order, "success", [], "Заказ успешно создан");
     } catch (error) {

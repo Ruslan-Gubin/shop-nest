@@ -37,6 +37,27 @@ export class Order {
   @Column({ type: "varchar", default: "", name: "rejected_reason" })
   rejected_reason: string;
 
+  @Column({ type: "varchar", default: "", name: "phone" })
+  phone: string;
+
+  @Column({ type: "varchar", default: "", name: "phone_code" })
+  phoneCode: string;
+
+  @Column({ type: "varchar", default: "", name: "recipient_name" })
+  recipient_name: string;
+
+  @Column({ type: "varchar", default: "cash", name: "payment_method" })
+  payment_method: string;
+
+  @Column({ type: "varchar", default: "pickup", name: "method_receipt" })
+  method_receipt: string;
+
+  @Column({ type: "timestamp", nullable: true, name: "date_from" })
+  date_from: Date | null;
+
+  @Column({ type: "timestamp", nullable: true, name: "date_to" })
+  date_to: Date | null;
+
   @Column({ type: "int", default: 0, name: "discount" })
   discount: number;
 
