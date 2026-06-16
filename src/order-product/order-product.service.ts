@@ -18,6 +18,12 @@ export class OrderProductService {
     });
   }
 
+  async getAll() {
+    return this.orderProductRepository.find().catch((error) => {
+      throw `Не удалось получить список товаров заказа, ${error.message}`;
+    });
+  }
+
   async findAll(order_id: string) {
     return this.orderProductRepository
       .find({
@@ -55,3 +61,4 @@ export class OrderProductService {
     });
   }
 }
+

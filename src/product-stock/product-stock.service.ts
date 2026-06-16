@@ -4,6 +4,7 @@ import { FindOperator, Repository } from "typeorm";
 import type { CreateProductStockDto } from "./dto/create-product-stock.dto";
 import type { UpdateProductStockDto } from "./dto/update-product-stock.dto";
 import { ProductStock } from "./entities/product-stock.entity";
+import { CheckingBalancesItemDto } from "./dto/checking-balances.dto";
 
 @Injectable()
 export class ProductStockService {
@@ -83,6 +84,36 @@ export class ProductStockService {
       .catch((error) => {
         throw `Не удалось получить остатки товара по ID продукта, ${error.message}`;
       });
+  }
+
+  async checkStockAvailability(
+    items: CheckingBalancesItemDto[],
+  ): Promise<{ product_id: number; available: number }[]> {
+    const availability: { product_id: number; available: number }[] = [];
+
+    for (const item of items) {
+      const stocks = await this.findByProductId(item.product_id);
+
+      let totalAvailable = 0;
+      let hasNotAccounting = false;
+
+      for (const stock of stocks) {
+        if (!stock.accounting && stock.in_stock) {
+          hasNotAccounting = true;
+          continue;
+        }
+        totalAvailable += stock.quantity - stock.reserved;
+      }
+
+      if (!hasNotAccounting && totalAvailable < item.quantity) {
+        availability.push({
+          product_id: item.product_id,
+          available: totalAvailable,
+        });
+      }
+    }
+
+    return availability;
   }
 
   async findByWarehouseId(warehouse_id: number) {
@@ -169,4 +200,3 @@ export class ProductStockService {
     });
   }
 }
-

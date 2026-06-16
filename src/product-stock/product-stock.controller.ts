@@ -12,6 +12,7 @@ import {
 import { ProductStockService } from "./product-stock.service";
 import { CreateProductStockDto } from "./dto/create-product-stock.dto";
 import { UpdateProductStockDto } from "./dto/update-product-stock.dto";
+import { CheckingBalancesItemDto } from "./dto/checking-balances.dto";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { ResponseData, responseData } from "src/helpers/response";
@@ -24,11 +25,26 @@ export class ProductStockController {
   @Post("create")
   @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
-  async create(@Body() createProductStockDto: CreateProductStockDto): Promise<ResponseData<ProductStock | null>> {
+  async create(
+    @Body() createProductStockDto: CreateProductStockDto,
+  ): Promise<ResponseData<ProductStock | null>> {
     try {
       const productStock = await this.productStockService.create(createProductStockDto);
 
       return responseData(productStock, "success", [], "Остатки товара успешно добавлены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Post("checking-balances")
+  async checkingBalances(
+    @Body() items: CheckingBalancesItemDto[],
+  ): Promise<ResponseData<{ product_id: number; available: number }[] | null>> {
+    try {
+      const stocksAvailability = await this.productStockService.checkStockAvailability(items);
+
+      return responseData(stocksAvailability, "success", [], "Получена проверка остатков");
     } catch (error) {
       return responseData(null, "error", [], error);
     }
@@ -71,7 +87,9 @@ export class ProductStockController {
   }
 
   @Get("product/:productId")
-  async findByProductId(@Param("productId") productId: string): Promise<ResponseData<ProductStock[] | null>> {
+  async findByProductId(
+    @Param("productId") productId: string,
+  ): Promise<ResponseData<ProductStock[] | null>> {
     try {
       const stocks = await this.productStockService.findByProductId(Number(productId));
 
@@ -82,7 +100,9 @@ export class ProductStockController {
   }
 
   @Get("warehouse/:warehouseId")
-  async findByWarehouseId(@Param("warehouseId") warehouseId: string): Promise<ResponseData<ProductStock[] | null>> {
+  async findByWarehouseId(
+    @Param("warehouseId") warehouseId: string,
+  ): Promise<ResponseData<ProductStock[] | null>> {
     try {
       const stocks = await this.productStockService.findByWarehouseId(Number(warehouseId));
 
@@ -180,3 +200,4 @@ export class ProductStockController {
     }
   }
 }
+

@@ -1,49 +1,94 @@
-import { IsInt, IsNotEmpty, IsString, Min } from "class-validator";
+import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from "class-validator";
 
-export class CreateOrderProductDto {
+export class OrderProductDto {
   @IsInt({ message: "ID заказа должен быть числом" })
   @IsNotEmpty({ message: "Выберите заказ" })
-  order_id: number;
+  product_id: number;
 
-  @IsString({ message: "Название товара должно быть строкой" })
-  @IsNotEmpty({ message: "Введите название товара" })
-  product_name: string;
-
-  @IsString({ message: "Код товара должен быть строкой" })
-  product_code: string;
-
-  @IsString({ message: "Описание товара должно быть строкой" })
-  product_description: string;
-
-  @IsString({ message: "Изображение товара должно быть строкой" })
-  product_image: string;
-
-  @IsString({ message: "Страна должна быть строкой" })
-  product_country: string;
-
-  @IsString({ message: "Тип товара должен быть строкой" })
-  product_type: string;
-
-  @IsString({ message: "Комплектация должна быть строкой" })
-  product_equipment: string;
-
-  @IsInt({ message: "Вес должен быть числом" })
-  product_weight: number | null;
-
-  @IsInt({ message: "Высота должна быть числом" })
-  product_height: number | null;
-
-  @IsInt({ message: "Длина должна быть числом" })
-  product_length: number | null;
-
-  @IsInt({ message: "Ширина должна быть числом" })
-  product_width: number | null;
-
-  @IsInt({ message: "Количество должно быть целым числом" })
+  @IsInt({ message: "Количество должен быть числом" })
   @Min(1, { message: "Количество не может быть меньше 1" })
   quantity: number;
 
-  @IsInt({ message: "Цена должна быть целым числом" })
-  @Min(0, { message: "Цена не может быть меньше 0" })
+  @IsInt({ message: "ID заказа должен быть числом" })
+  @IsNotEmpty({ message: "Выберите заказ" })
+  order_id: number;
+}
+
+export class CreateOrderProductDto {
+  @IsInt({ message: "ID товара должно быть числом" })
+  @IsNotEmpty({ message: "Необходимо ID товара" })
+  product_id: number;
+
+  @Min(0, { message: "ID Не может быть отрицательным" })
+  @IsInt({ message: "ID заказа должно быть числом" })
+  order_id: number;
+
+  @IsString({ message: "Название товара должно быть строкой" })
+  @IsNotEmpty({ message: "Необходимо название товара" })
+  name: string;
+
+  @IsString({ message: "Код товара должен быть строкой" })
+  code: string;
+
+  @IsOptional()
+  @Min(0, { message: "Не может быть отрицательным" })
+  @IsInt({ message: "Бренд ID должно быть числом" })
+  brand_id: number;
+
+  @IsOptional()
+  @Min(0, { message: "Не может быть отрицательным" })
+  @IsInt({ message: "Категория ID должна быть числом" })
+  category_id: number;
+
+  @IsString()
+  @IsOptional()
+  description: string;
+
+  @IsOptional()
+  @IsString({ message: "Страна должна быть строкой" })
+  @MaxLength(100, { message: "Максимум 100 символов" })
+  country: string;
+
+  @IsOptional()
+  @IsString({ message: "Вид товара должен быть строкой" })
+  @MaxLength(100, { message: "Максимум 100 символов" })
+  product_type: string;
+
+  @IsOptional()
+  @IsString({ message: "Состав товара должен быть строкой" })
+  @MaxLength(100, { message: "Максимум 100 символов" })
+  equipment: string;
+
+  @IsOptional()
+  @Min(0, { message: "Значение не может быть отрицательным" })
+  @IsInt({ message: "Вес должен быть числом" })
+  weight: number;
+
+  @IsOptional()
+  @Min(0, { message: "Значение не может быть отрицательным" })
+  @IsInt({ message: "Высота должна быть числом" })
+  height: number;
+
+  @IsOptional()
+  @Min(0, { message: "Значение не может быть отрицательным" })
+  @IsInt({ message: "Длина должна быть числом" })
+  length: number;
+
+  @IsOptional()
+  @Min(0, { message: "Значение не может быть отрицательным" })
+  @IsInt({ message: "Ширина должна быть числом" })
+  width: number;
+
+  @IsOptional()
+  @Min(0, { message: "Закупочная цена не может быть отрицательной" })
+  @IsInt({ message: "Закупочная цена должна быть числом" })
+  purchase_price: number;
+
+  @Min(0, { message: "Цена не может быть отрицательной" })
+  @IsInt({ message: "Цена должна быть числом" })
   price: number;
+
+  @Min(1, { message: "Количество не может быть отрицательной" })
+  @IsInt({ message: "Количество должна быть числом" })
+  quantity: number;
 }

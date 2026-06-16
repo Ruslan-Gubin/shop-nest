@@ -15,14 +15,14 @@ export class ProductPrice {
   @PrimaryGeneratedColumn({ type: "int", name: "id" })
   id: number;
 
-  @ManyToOne(() => Product, { onDelete: "CASCADE" })
+  @ManyToOne(() => Product, { onDelete: "CASCADE", eager: false })
   @JoinColumn({ name: "product_id" })
   product: Product;
 
   @Column({ type: "int", name: "product_id" })
   product_id: number;
 
-  @ManyToOne(() => PriceType, { onDelete: "CASCADE" })
+  @ManyToOne(() => PriceType, { onDelete: "CASCADE", eager: false })
   @JoinColumn({ name: "price_type_id" })
   price_type: PriceType;
 

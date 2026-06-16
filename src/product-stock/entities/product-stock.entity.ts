@@ -42,7 +42,7 @@ export class ProductStock {
   in_stock: boolean;
 
   @Column({ type: "boolean", default: true, name: "accounting" })
-  accounting: boolean; // TODO remove Учёт
+  accounting: boolean;
 
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;

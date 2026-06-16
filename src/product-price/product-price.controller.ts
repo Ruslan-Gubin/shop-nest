@@ -6,6 +6,8 @@ import { ResponseData, responseData } from "src/helpers/response";
 import { ProductPrice } from "./entities/product-price.entity";
 import { CreateProductPriceDto } from "./dto/create-product-price.dto";
 import { UpdateProductPriceDto } from "./dto/update-product-price.dto";
+import { CurrentStrategyUser } from "src/auth/types/current-user";
+import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 
 @Controller("product-price")
 export class ProductPriceController {
@@ -34,6 +36,29 @@ export class ProductPriceController {
       const productPrices = await this.productPriceService.findAll(product_id);
 
       return responseData(productPrices, "success", [], "Список цен товаров получен");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("for-user/:product_id")
+  async getProductPricesForUser(
+    @Param("product_id") product_id: string,
+    @CurrentUser() user: CurrentStrategyUser,
+  ): Promise<ResponseData<{ price: number; minQuantity: number }[] | null>> {
+    try {
+      const productPrices = await this.productPriceService.getProductPricesForUser(
+        "user",
+        // user.role,
+        product_id,
+      );
+
+      return responseData(
+        productPrices,
+        "success",
+        [],
+        "Список цен товара для пользователя получен",
+      );
     } catch (error) {
       return responseData(null, "error", [], error);
     }

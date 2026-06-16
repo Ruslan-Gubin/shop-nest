@@ -47,4 +47,3 @@ export class PriceType {
   @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
   updated_at: Date | null;
 }
-
