@@ -50,6 +50,37 @@ export class ProductStockController {
     }
   }
 
+  @Get("product-available/:product_id")
+  async getProductAvailable(
+    @Param("product_id") product_id: string,
+  ): Promise<ResponseData<{ available: number; accounting: boolean } | null>> {
+    try {
+      const stockAvailable = await this.productStockService.getProductAvailable(Number(product_id));
+
+      return responseData(
+        stockAvailable,
+        "success",
+        [],
+        "Получено максимальное количество остатков для товара",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Post("products-available")
+  async getManyProductsAvailable(
+    @Body() products: number[],
+  ): Promise<ResponseData<Record<string, { available: number; accounting: boolean }> | null>> {
+    try {
+      const stocks = await this.productStockService.getManyProductAvailable(products);
+
+      return responseData(stocks, "success", [], "Получены остатки для списка товаров");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get()
   async findAll(
     @Query("page") page: string,
@@ -200,4 +231,3 @@ export class ProductStockController {
     }
   }
 }
-

@@ -92,28 +92,52 @@ export class ProductStockService {
     const availability: { product_id: number; available: number }[] = [];
 
     for (const item of items) {
-      const stocks = await this.findByProductId(item.product_id);
+      const { available, accounting } = await this.getProductAvailable(item.product_id);
 
-      let totalAvailable = 0;
-      let hasNotAccounting = false;
-
-      for (const stock of stocks) {
-        if (!stock.accounting && stock.in_stock) {
-          hasNotAccounting = true;
-          continue;
-        }
-        totalAvailable += stock.quantity - stock.reserved;
-      }
-
-      if (!hasNotAccounting && totalAvailable < item.quantity) {
+      if (accounting && available < item.quantity) {
         availability.push({
           product_id: item.product_id,
-          available: totalAvailable,
+          available: available,
         });
       }
     }
 
     return availability;
+  }
+
+  async getProductAvailable(
+    product_id: number,
+  ): Promise<{ available: number; accounting: boolean }> {
+    const stocks = await this.findByProductId(product_id);
+
+    return this.getStockParams(stocks);
+  }
+
+  getStockParams(stocks: ProductStock[]): { available: number; accounting: boolean } {
+    let available = 0;
+    let accounting = true;
+
+    for (const stock of stocks) {
+      if (stock.in_stock) {
+        accounting = false;
+        continue;
+      }
+      available += stock.quantity - stock.reserved;
+    }
+
+    return { available, accounting };
+  }
+
+  async getManyProductAvailable(
+    products: number[],
+  ): Promise<Record<string, { available: number; accounting: boolean }>> {
+    const stocks: Record<string, { available: number; accounting: boolean }> = {};
+
+    for (const product_id of products) {
+      stocks[String(product_id)] = await this.getProductAvailable(product_id);
+    }
+
+    return stocks;
   }
 
   async findByWarehouseId(warehouse_id: number) {

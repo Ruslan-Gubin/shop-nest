@@ -44,7 +44,15 @@ export class ProductPriceService {
         throw `Не удалось получить список цен товаров, ${error.message}`;
       });
 
+    return this.getProductUserPrices(prices, user_role);
+  }
+
+  getProductUserPrices(
+    prices: ProductPrice[],
+    user_role: string,
+  ): { price: number; minQuantity: number }[] {
     const pricesData: { price: number; minQuantity: number }[] = [];
+
     let bestPrice = 0;
     let bestPriceIndex: number | null = null;
 

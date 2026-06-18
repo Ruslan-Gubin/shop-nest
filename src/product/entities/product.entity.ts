@@ -1,7 +1,10 @@
+import { ProductPrice } from "src/product-price/entities/product-price.entity";
+import { ProductStock } from "src/product-stock/entities/product-stock.entity";
 import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
@@ -50,9 +53,24 @@ export class Product {
   @Column({ type: "int", nullable: true, default: null, name: "purchase_price" })
   purchase_price: number;
 
+  @Column({ type: "int", default: 0, name: "available" })
+  available: number;
+
+  @Column({ type: "boolean", default: false, name: "accounting" })
+  accounting: boolean;
+
+  @Column({ type: "jsonb", default: [], name: "price_list" })
+  price_list: { price: number; minQuantity: number }[];
+
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;
 
   @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
   updated_at: Date | null;
+
+  @OneToMany(() => ProductStock, (productStock) => productStock.product)
+  stocks: ProductStock[];
+
+  @OneToMany(() => ProductPrice, (productPrice) => productPrice.product)
+  prices: ProductPrice[];
 }

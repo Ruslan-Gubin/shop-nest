@@ -16,10 +16,35 @@ import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { ResponseData, responseData } from "src/helpers/response";
 import { Product } from "./entities/product.entity";
+import { CurrentStrategyUser } from "src/auth/types/current-user";
+import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 
 @Controller("product")
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
+
+  @Get("main-page")
+  async findForMainPage(
+    @Query("page") page: string,
+    @Query("limit") limit: string,
+    @CurrentUser() user: CurrentStrategyUser,
+  ): Promise<
+    ResponseData<{ products: Product[]; totalCount: number; paginationPage: string } | null>
+  > {
+    try {
+      const products = await this.productService.findForMainPage(page, limit, user.role);
+      const totalCount = await this.productService.getTotalCountForMainPage(user.role);
+
+      return responseData(
+        { products, totalCount, paginationPage: page },
+        "success",
+        [],
+        "Товары для главной страницы получены",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
 
   @Post("create")
   @Roles("admin")

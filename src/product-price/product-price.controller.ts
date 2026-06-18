@@ -48,8 +48,7 @@ export class ProductPriceController {
   ): Promise<ResponseData<{ price: number; minQuantity: number }[] | null>> {
     try {
       const productPrices = await this.productPriceService.getProductPricesForUser(
-        "user",
-        // user.role,
+        user.role,
         product_id,
       );
 
