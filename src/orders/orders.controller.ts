@@ -15,11 +15,12 @@ export class OrdersController {
   async create(
     @Body() createOrderDto: CreateOrderDto,
     @CurrentUser() user: CurrentStrategyUser,
-  ): Promise<ResponseData<Order | null>> {
+  ): Promise<ResponseData<any | null>> {
     try {
       const order = await this.ordersService.create({
         ...createOrderDto,
         create_user_id: user.sub,
+        user_role: user.role,
       });
 
       return responseData(order, "success", [], "Заказ успешно создан");

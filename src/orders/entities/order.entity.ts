@@ -58,8 +58,23 @@ export class Order {
   @Column({ type: "timestamp", nullable: true, name: "date_to" })
   date_to: Date | null;
 
-  @Column({ type: "int", default: 0, name: "discount" })
-  discount: number;
+  @Column({ type: "int", default: 0, name: "discount_quantity" })
+  discount_quantity: number;
+
+  @Column({ type: "varchar", default: "", name: "discount_name" })
+  discount_name: string;
+
+  @Column({ type: "int", default: 0, name: "discount_percent" })
+  discount_percent: number;
+
+  @Column({ type: "int", default: 0, name: "discount_total" })
+  discount_total: number;
+
+  @Column({ type: "int", default: 0, name: "subtotal" })
+  subtotal: number;
+
+  @Column({ type: "int", default: 0, name: "total" })
+  total: number;
 
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;

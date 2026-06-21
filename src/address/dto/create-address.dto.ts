@@ -1,9 +1,4 @@
-import {
-  IsEnum,
-  IsNumber,
-  IsOptional,
-  IsString,
-} from "class-validator";
+import { IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
 
 export class CreateAddressDto {
   @IsEnum(["pickup", "courier"], {
@@ -47,5 +42,5 @@ export class CreateAddressDto {
 
   @IsOptional()
   @IsNumber({}, { message: "ID склада должно быть числом" })
-  warehouse_id: number;
+  warehouse_id: number | null;
 }

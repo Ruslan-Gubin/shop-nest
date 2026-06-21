@@ -5,13 +5,76 @@ import type { CreateProductStockDto } from "./dto/create-product-stock.dto";
 import type { UpdateProductStockDto } from "./dto/update-product-stock.dto";
 import { ProductStock } from "./entities/product-stock.entity";
 import { CheckingBalancesItemDto } from "./dto/checking-balances.dto";
+import { AddressService } from "src/address/address.service";
 
 @Injectable()
 export class ProductStockService {
   constructor(
     @InjectRepository(ProductStock)
     private productStockRepository: Repository<ProductStock>,
+    private readonly addressRepository: AddressService,
   ) {}
+
+  async reservedProductsForOrder(
+    product_id: number,
+    quantity: number,
+    lng: number | undefined,
+    lat: number | undefined,
+  ) {
+    const stocks = await this.findByProductId(product_id);
+
+    const warehouseIds = stocks.map((el) => el.warehouse_id);
+
+    const sortedAddress = await this.addressRepository.sortedWarehouseAddressFromOrder(
+      warehouseIds,
+      lng,
+      lat,
+    );
+
+    let needQuantity = quantity;
+    const reservations: { stock_id: number; quantity: number }[] = [];
+
+    for (let i = 0; i < sortedAddress.length; i++) {
+      const address = sortedAddress[i];
+      const stock = stocks.find((el) => el.warehouse_id === address.warehouse_id);
+      const available = stock ? stock.quantity - stock.reserved : 0;
+
+      if (needQuantity === 0) break;
+
+      if (stock && stock.in_stock) {
+        reservations.push({ stock_id: stock.id, quantity: needQuantity });
+
+        await this.productStockRepository.update(stock.id, {
+          reserved: stock.reserved + needQuantity,
+        });
+
+        needQuantity = 0;
+        break;
+      }
+
+      if (stock && needQuantity > 0 && available > 0) {
+        if (available >= needQuantity) {
+          reservations.push({ stock_id: stock.id, quantity: needQuantity });
+
+          await this.productStockRepository.update(stock.id, {
+            reserved: stock.reserved + needQuantity,
+          });
+
+          needQuantity = 0;
+          break;
+        } else {
+          needQuantity -= available;
+          reservations.push({ stock_id: stock.id, quantity: available });
+
+          await this.productStockRepository.update(stock.id, {
+            reserved: stock.reserved + available,
+          });
+        }
+      }
+    }
+
+    return reservations;
+  }
 
   async create(createProductStockDto: CreateProductStockDto) {
     return this.productStockRepository.save(createProductStockDto).catch((error) => {
@@ -157,14 +220,6 @@ export class ProductStockService {
   }
 
   async updateQuantity(id: number, quantity: number) {
-    const existing = await this.findOne(id);
-    // if (!existing) {
-    //   throw "Остатки товара не найдены";
-    // }
-
-    // const available = quantity - existing.reserved;
-    // const in_stock = available > 0;
-
     return this.productStockRepository.update(id, { quantity }).catch((error) => {
       throw `Не удалось обновить количество остатков товара, ${error.message}`;
     });

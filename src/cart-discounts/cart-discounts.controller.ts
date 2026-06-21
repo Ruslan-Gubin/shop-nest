@@ -69,9 +69,11 @@ export class CartDiscountsController {
   }
 
   @Get("active")
-  async findActive(): Promise<ResponseData<CartDiscount[] | null>> {
+  async findActive(
+    @CurrentUser() user: CurrentStrategyUser,
+  ): Promise<ResponseData<CartDiscount[] | null>> {
     try {
-      const cartDiscounts = await this.cartDiscountsService.findActive();
+      const cartDiscounts = await this.cartDiscountsService.findActive(user.role);
 
       return responseData(
         cartDiscounts,
@@ -124,4 +126,3 @@ export class CartDiscountsController {
     }
   }
 }
-

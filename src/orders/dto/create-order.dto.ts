@@ -1,6 +1,9 @@
 import {
+  ArrayMinSize,
+  IsArray,
   IsDateString,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -9,13 +12,25 @@ import {
   Min,
   MinLength,
   ValidateIf,
+  ValidateNested,
 } from "class-validator";
+import { Type } from "class-transformer";
+import { CreateAddressDto } from "src/address/dto/create-address.dto";
+import { OrderProductDto } from "src/order-product/dto/create-order-product.dto";
+import { USER_ROLES } from "src/auth/constants/roles.const";
 
 export class CreateOrderDto {
   @IsOptional()
   @IsInt({ message: "ID пользователя должно быть числом" })
   @Min(1, { message: "ID пользователя должен быть положительным" })
   create_user_id: number;
+
+  @IsOptional()
+  @IsString({ message: "Роль пользователя должна быть строкой" })
+  @IsIn(USER_ROLES, {
+    message: "Некорректная роль пользователя",
+  })
+  user_role: string;
 
   @ValidateIf((o) => typeof o.phone === "string" && o.phone.length > 0)
   @IsString({ message: "Телефон должен быть строкой" })
@@ -60,4 +75,15 @@ export class CreateOrderDto {
 
   @IsDateString(undefined, { message: "Дата доставки до должна быть корректной датой" })
   date_to: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreateAddressDto)
+  address: CreateAddressDto | null;
+
+  @IsArray({ message: "Товары должны быть массивом" })
+  @ArrayMinSize(1, { message: "Должен быть хотя бы один товар" })
+  @ValidateNested({ each: true })
+  @Type(() => OrderProductDto)
+  products: OrderProductDto[];
 }

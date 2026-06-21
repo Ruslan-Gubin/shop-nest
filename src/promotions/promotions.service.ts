@@ -12,6 +12,24 @@ export class PromotionsService {
     private promotionRepository: Repository<Promotion>,
   ) {}
 
+  async getPromotionForOrder() {
+    const promotions = await this.findActive();
+
+    let discount_percent = 0;
+    let discount_name = "";
+
+    for (let i = 0; i < promotions.length; i++) {
+      const percent = promotions[i].percent;
+
+      if (discount_percent < percent) {
+        discount_percent = percent;
+        discount_name = promotions[i].name;
+      }
+    }
+
+    return { discount_name, discount_percent };
+  }
+
   async create(createPromotionDto: CreatePromotionDto) {
     const dateFrom = new Date(createPromotionDto.date_from);
     const dateTo = new Date(createPromotionDto.date_to);

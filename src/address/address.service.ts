@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository } from "typeorm";
+import { In, type Repository } from "typeorm";
 import type { CreateAddressDto } from "./dto/create-address.dto";
 import type { UpdateAddressDto } from "./dto/update-address.dto";
 import { Address } from "./entities/address.entity";
@@ -11,6 +11,34 @@ export class AddressService {
     @InjectRepository(Address)
     private addressRepository: Repository<Address>,
   ) {}
+
+  async sortedWarehouseAddressFromOrder(
+    warehouseIds: number[],
+    lng: number | undefined,
+    lat: number | undefined,
+  ) {
+    if (typeof lng !== "number" && typeof lat !== "number") {
+      return this.addressRepository.find({
+        where: { warehouse_id: In(warehouseIds) },
+      });
+    }
+
+    return this.addressRepository
+      .createQueryBuilder("a")
+      .where("a.warehouse_id IN (:...warehouseIds)", { warehouseIds })
+      .addSelect(
+        `(6371 * acos(
+        cos(radians(:lat)) * cos(radians(a.lat)) *
+        cos(radians(a.lng) - radians(:lng)) +
+        sin(radians(:lat)) * sin(radians(a.lat))
+      ))`,
+        "distance",
+      )
+      .setParameter("lat", lat)
+      .setParameter("lng", lng)
+      .orderBy("distance", "ASC")
+      .getMany();
+  }
 
   async create(createAddressDto: CreateAddressDto) {
     if (!createAddressDto.order_id && !createAddressDto.warehouse_id) {

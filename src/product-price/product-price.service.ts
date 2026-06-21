@@ -78,12 +78,11 @@ export class ProductPriceService {
       }
     }
 
-    if (isRoleForBestPrice && bestPriceIndex) {
-      const bestPrice = prices[bestPriceIndex];
-      if (bestPrice) {
+    if (isRoleForBestPrice && typeof bestPriceIndex === "number") {
+      if (prices[bestPriceIndex]) {
         pricesData.push({
-          price: bestPrice.price,
-          minQuantity: bestPrice.price_type.minQuantity,
+          price: prices[bestPriceIndex].price,
+          minQuantity: prices[bestPriceIndex].price_type.minQuantity,
         });
       }
     }

@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  ParseArrayPipe,
 } from "@nestjs/common";
 import { ProductService } from "./product.service";
 import { CreateProductDto } from "./dto/create-product.dto";
@@ -41,6 +42,21 @@ export class ProductController {
         [],
         "Товары для главной страницы получены",
       );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("by-ids")
+  async findByIds(
+    @Query("ids", new ParseArrayPipe({ items: Number, separator: "," }))
+    ids: number[],
+    @CurrentUser() user: CurrentStrategyUser,
+  ): Promise<ResponseData<Product[] | null>> {
+    try {
+      const products = await this.productService.findByIds(ids, user.role);
+
+      return responseData(products, "success", [], "Товары получены");
     } catch (error) {
       return responseData(null, "error", [], error);
     }

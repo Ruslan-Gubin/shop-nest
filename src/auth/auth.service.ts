@@ -94,6 +94,7 @@ export class AuthService {
         .signAsync(payload, {
           secret: process.env.JWT_SECRET,
           expiresIn: 60 * 15, // 15 min
+          // expiresIn: 5, // 5 sec
         })
         .then((token) => {
           this.jwt

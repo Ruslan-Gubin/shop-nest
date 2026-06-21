@@ -1,17 +1,32 @@
-import { IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from "class-validator";
+import {
+  IsArray,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  ValidateNested,
+} from "class-validator";
+import { Type } from "class-transformer";
+
+export class ReservationItemDto {
+  @IsInt({ message: "ID остатка должен быть числом" })
+  stock_id: number;
+
+  @IsInt({ message: "Количество должно быть числом" })
+  @Min(1, { message: "Количество должно быть минимум 1" })
+  quantity: number;
+}
 
 export class OrderProductDto {
-  @IsInt({ message: "ID заказа должен быть числом" })
-  @IsNotEmpty({ message: "Выберите заказ" })
+  @IsInt({ message: "ID товара должно быть целым числом" })
+  @Min(1, { message: "ID товара должен быть положительным" })
   product_id: number;
 
-  @IsInt({ message: "Количество должен быть числом" })
-  @Min(1, { message: "Количество не может быть меньше 1" })
+  @IsInt({ message: "Количество должно быть целым числом" })
+  @Min(1, { message: "Количество должно быть минимум 1" })
   quantity: number;
-
-  @IsInt({ message: "ID заказа должен быть числом" })
-  @IsNotEmpty({ message: "Выберите заказ" })
-  order_id: number;
 }
 
 export class CreateOrderProductDto {
@@ -91,4 +106,10 @@ export class CreateOrderProductDto {
   @Min(1, { message: "Количество не может быть отрицательной" })
   @IsInt({ message: "Количество должна быть числом" })
   quantity: number;
+
+  @IsOptional()
+  @IsArray({ message: "Резервации должны быть массивом" })
+  @ValidateNested({ each: true })
+  @Type(() => ReservationItemDto)
+  reservations?: ReservationItemDto[] | null;
 }

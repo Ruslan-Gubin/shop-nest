@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { FindOperator, ILike, type Repository } from "typeorm";
+import { FindOperator, ILike, In, type Repository } from "typeorm";
 import { CreateCartDiscountDto } from "./dto/create-cart-discount.dto";
 import { UpdateCartDiscountDto } from "./dto/update-cart-discount.dto";
 import { CartDiscount } from "./entities/cart-discount.entity";
@@ -11,6 +11,25 @@ export class CartDiscountsService {
     @InjectRepository(CartDiscount)
     private cartDiscountRepository: Repository<CartDiscount>,
   ) {}
+
+  public async getCartDiscountForOrder(total: number, role: string) {
+    const cartDiscounts = await this.findActive(role);
+
+    let discount_percent = 0;
+    let discount_name = "";
+
+    for (let i = 0; i < cartDiscounts.length; i++) {
+      const minSum = cartDiscounts[i].min_sum;
+      const percent = cartDiscounts[i].percent;
+
+      if (total >= minSum && discount_percent < percent) {
+        discount_percent = percent;
+        discount_name = cartDiscounts[i].name;
+      }
+    }
+
+    return { discount_name, discount_percent };
+  }
 
   async create(createCartDiscountDto: CreateCartDiscountDto) {
     return this.cartDiscountRepository.save(createCartDiscountDto).catch((error) => {
@@ -65,10 +84,19 @@ export class CartDiscountsService {
     });
   }
 
-  async findActive() {
-    return this.cartDiscountRepository.find({ where: { is_active: true } }).catch((error) => {
-      throw `Не удалось получить активные скидки на корзину, ${error.message}`;
-    });
+  async findActive(role: string) {
+    let applyToValues =
+      role === "user"
+        ? ["all", "retail"]
+        : role === "admin" || role === "moderator" || role === "wholesaler"
+          ? ["all", "wholesale"]
+          : ["all"];
+
+    return this.cartDiscountRepository
+      .find({ where: { is_active: true, apply_to: In(applyToValues) } })
+      .catch((error) => {
+        throw `Не удалось получить активные скидки на корзину, ${error.message}`;
+      });
   }
 
   async update(id: number, updateCartDiscountDto: UpdateCartDiscountDto) {

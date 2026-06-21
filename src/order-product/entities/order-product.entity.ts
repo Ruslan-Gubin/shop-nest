@@ -60,10 +60,12 @@ export class OrderProduct {
   @Column({ type: "int", default: 0, name: "price" })
   price: number;
 
+  @Column({ type: "jsonb", nullable: true, default: null, name: "reservations" })
+  reservations: { stock_id: number; quantity: number }[] | null;
+
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;
 
   @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
   updated_at: Date | null;
 }
-

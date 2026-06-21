@@ -48,7 +48,7 @@ export class OrderProductController {
         price,
         product_id: orderProductDto.product_id,
         quantity: orderProductDto.quantity,
-        order_id: orderProductDto.order_id,
+        order_id: 1, // get order_id
       });
 
       return responseData(orderProduct, "success", [], "Товар успешно добавлен в заказ");

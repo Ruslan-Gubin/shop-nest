@@ -1,7 +1,9 @@
+import { Address } from "src/address/entities/address.entity";
 import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
@@ -56,3 +58,4 @@ export class Warehouse {
   @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
   updated_at: Date | null;
 }
+
