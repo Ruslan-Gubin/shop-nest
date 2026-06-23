@@ -2,6 +2,7 @@ import {
   IsBoolean,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -15,36 +16,6 @@ export class CreateWarehouseDto {
   @MinLength(2, { message: "Название должно содержать минимум 2 символа" })
   @IsNotEmpty({ message: "Введите название" })
   name: string;
-
-  @IsOptional()
-  @IsString({ message: "Район должен быть строкой" })
-  @MaxLength(100, { message: "Максимум 100 символов" })
-  area: string;
-
-  @IsOptional()
-  @IsString({ message: "Город должен быть строкой" })
-  @MaxLength(100, { message: "Максимум 100 символов" })
-  city: string;
-
-  @IsOptional()
-  @IsString({ message: "Улица должна быть строкой" })
-  @MaxLength(200, { message: "Максимум 200 символов" })
-  street: string;
-
-  @IsOptional()
-  @IsString({ message: "Дом должен быть строкой" })
-  @MaxLength(50, { message: "Максимум 50 символов" })
-  house: string;
-
-  @IsOptional()
-  @IsString({ message: "Почтовый индекс должен быть строкой" })
-  @MaxLength(20, { message: "Максимум 20 символов" })
-  index: string;
-
-  @IsOptional()
-  @IsString({ message: "Офис/квартира должен быть строкой" })
-  @MaxLength(50, { message: "Максимум 50 символов" })
-  office: string;
 
   @IsOptional()
   @IsInt({ message: "ID пользователя должно быть числом" })
@@ -65,6 +36,36 @@ export class CreateWarehouseDto {
   default_warehouse: boolean;
 
   @IsOptional()
-  @IsBoolean({ message: "Публичный должен быть булевым" })
+  @IsBoolean({ message: "Доступ к веб приложению должен быть булевым" })
   is_public: boolean;
+
+  @IsOptional()
+  @IsString()
+  address_name: string;
+
+  @IsOptional()
+  @IsString()
+  place: string;
+
+  @IsNumber({}, { message: "Долгота должна быть числом" })
+  lng: number;
+
+  @IsNumber({}, { message: "Широта должна быть числом" })
+  lat: number;
+
+  @IsOptional()
+  @IsString()
+  entrance: string;
+
+  @IsOptional()
+  @IsString()
+  flat: string;
+
+  @IsOptional()
+  @IsString()
+  floor: string;
+
+  @IsOptional()
+  @IsString()
+  intercom: string;
 }

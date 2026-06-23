@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -16,26 +17,9 @@ export class Warehouse {
   @Column({ type: "varchar", default: "", name: "name" })
   name: string;
 
-  @Column({ type: "varchar", default: "", name: "address" })
-  address: string;
-
-  @Column({ type: "varchar", default: "", name: "area" })
-  area: string;
-
-  @Column({ type: "varchar", default: "", name: "city" })
-  city: string;
-
-  @Column({ type: "varchar", default: "", name: "street" })
-  street: string;
-
-  @Column({ type: "varchar", default: "", name: "house" })
-  house: string;
-
-  @Column({ type: "varchar", default: "", name: "index" })
-  index: string;
-
-  @Column({ type: "varchar", default: "", name: "office" })
-  office: string;
+  @OneToOne(() => Address, { cascade: true, eager: false })
+  @JoinColumn({ name: "address_id" })
+  address: Address | null;
 
   @Column({ type: "int", nullable: true, default: null, name: "create_user_id" })
   create_user_id: number;
@@ -58,4 +42,3 @@ export class Warehouse {
   @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
   updated_at: Date | null;
 }
-

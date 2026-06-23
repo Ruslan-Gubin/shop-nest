@@ -1,6 +1,7 @@
 import { IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
 
 export class CreateAddressDto {
+  @IsOptional()
   @IsEnum(["pickup", "courier"], {
     message: "Тип адреса должен быть pickup или courier",
   })
@@ -36,11 +37,6 @@ export class CreateAddressDto {
   @IsString()
   intercom: string;
 
-  @IsOptional()
-  @IsNumber({}, { message: "ID заказа должно быть числом" })
-  order_id: number;
-
-  @IsOptional()
-  @IsNumber({}, { message: "ID склада должно быть числом" })
-  warehouse_id: number | null;
+  @IsNumber()
+  warehouse_id: number;
 }

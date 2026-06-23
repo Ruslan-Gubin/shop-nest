@@ -19,6 +19,7 @@ export class AddressService {
   ) {
     if (typeof lng !== "number" && typeof lat !== "number") {
       return this.addressRepository.find({
+        //@ts-ignore TODO CHANGE
         where: { warehouse_id: In(warehouseIds) },
       });
     }
@@ -41,16 +42,19 @@ export class AddressService {
   }
 
   async create(createAddressDto: CreateAddressDto) {
-    if (!createAddressDto.order_id && !createAddressDto.warehouse_id) {
-      throw "Адрес должен быть привязан к заказу или к складу";
-    }
-
     return this.addressRepository.save(createAddressDto).catch((error) => {
       throw `Не удалось добавить адрес, ${error.message}`;
     });
   }
 
   async findAll() {
+    //TODO REMOVE
+    // const all = await this.addressRepository.find();
+    //
+    // for (let i = 0; i < all.length; i++) {
+    //   await this.remove(all[i].id);
+    // }
+
     return this.addressRepository.find().catch((error) => {
       throw `Не удалось получить список адресов, ${error.message}`;
     });
@@ -65,6 +69,7 @@ export class AddressService {
   async findByOrder(order_id: number) {
     return this.addressRepository
       .find({
+        //@ts-ignore TODO CHANGE
         where: { order_id },
       })
       .catch((error) => {
@@ -75,6 +80,7 @@ export class AddressService {
   async findByWarehouse(warehouse_id: number) {
     return this.addressRepository
       .find({
+        //@ts-ignore TODO CHANGE
         where: { warehouse_id },
       })
       .catch((error) => {

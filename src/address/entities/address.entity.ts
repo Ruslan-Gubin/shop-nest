@@ -1,12 +1,4 @@
-import {
-  Column,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-} from "typeorm";
-import { Order } from "src/orders/entities/order.entity";
-import { Warehouse } from "src/warehouse/entities/warehouse.entity";
+import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class Address {
@@ -39,18 +31,4 @@ export class Address {
 
   @Column({ type: "varchar", default: "", name: "intercom" })
   intercom: string;
-
-  @ManyToOne(() => Order, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "order_id" })
-  order: Order;
-
-  @Column({ type: "int", nullable: true, name: "order_id" })
-  order_id: number | null;
-
-  @ManyToOne(() => Warehouse, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "warehouse_id" })
-  warehouse: Warehouse;
-
-  @Column({ type: "int", nullable: true, name: "warehouse_id" })
-  warehouse_id: number | null;
 }

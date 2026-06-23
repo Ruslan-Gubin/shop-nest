@@ -70,6 +70,28 @@ export class WarehouseController {
     }
   }
 
+  @Get("default")
+  async findDefault(): Promise<ResponseData<Warehouse | null>> {
+    try {
+      const warehouse = await this.warehouseService.findDefault();
+
+      return responseData(warehouse, "success", [], "Склад по умолчанию получен");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("public")
+  async findPublic(): Promise<ResponseData<Warehouse[] | null>> {
+    try {
+      const warehouses = await this.warehouseService.findPublic();
+
+      return responseData(warehouses, "success", [], "Список активных складов получен");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get(":id")
   async findOne(@Param("id") id: string): Promise<ResponseData<Warehouse | null>> {
     try {
@@ -124,4 +146,3 @@ export class WarehouseController {
     }
   }
 }
-

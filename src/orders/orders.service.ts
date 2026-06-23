@@ -84,6 +84,7 @@ export class OrdersService {
     if (createOrderDto.address !== null && typeof order.id === "number") {
       await this.addressRepository.create({
         ...createOrderDto.address,
+        //@ts-ignore TODO CHANGE
         order_id: order.id,
       });
     }

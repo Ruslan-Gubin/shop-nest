@@ -6,6 +6,8 @@ import type { UpdateProductStockDto } from "./dto/update-product-stock.dto";
 import { ProductStock } from "./entities/product-stock.entity";
 import { CheckingBalancesItemDto } from "./dto/checking-balances.dto";
 import { AddressService } from "src/address/address.service";
+import { Product } from "src/product/entities/product.entity";
+import { Warehouse } from "src/warehouse/entities/warehouse.entity";
 
 @Injectable()
 export class ProductStockService {
@@ -23,7 +25,8 @@ export class ProductStockService {
   ) {
     const stocks = await this.findByProductId(product_id);
 
-    const warehouseIds = stocks.map((el) => el.warehouse_id);
+    const warehouseIds = [123, 124, 125];
+    // const warehouseIds = stocks.map((el) => el.warehouse_id);
 
     const sortedAddress = await this.addressRepository.sortedWarehouseAddressFromOrder(
       warehouseIds,
@@ -36,6 +39,7 @@ export class ProductStockService {
 
     for (let i = 0; i < sortedAddress.length; i++) {
       const address = sortedAddress[i];
+      //@ts-ignore TODO CHANGE
       const stock = stocks.find((el) => el.warehouse_id === address.warehouse_id);
       const available = stock ? stock.quantity - stock.reserved : 0;
 
@@ -76,32 +80,40 @@ export class ProductStockService {
     return reservations;
   }
 
-  async create(createProductStockDto: CreateProductStockDto) {
-    return this.productStockRepository.save(createProductStockDto).catch((error) => {
-      throw `Не удалось добавить остатки товара, ${error.message}`;
-    });
+  async create(payload: CreateProductStockDto) {
+    return await this.productStockRepository
+      .save({
+        quantity: payload.quantity,
+        in_stock: payload.in_stock,
+        warehouse: { id: payload.warehouse_id },
+        product: { id: payload.product_id },
+      })
+      .catch((error) => {
+        throw `Не удалось добавить остатки товара, ${error.message}`;
+      });
   }
 
   async findAll(page: string, limit: string, product_id?: number, warehouse_id?: number) {
     const skip = (Number(page) - 1) * Number(limit);
 
     const whereCondition: {
-      product_id?: FindOperator<number>;
-      warehouse_id?: FindOperator<number>;
+      product?: FindOperator<Product>;
+      warehouse?: FindOperator<Warehouse>;
     } = {};
 
     if (product_id) {
-      whereCondition.product_id = product_id as unknown as FindOperator<number>;
+      whereCondition.product = { id: product_id } as unknown as FindOperator<Product>;
     }
 
     if (warehouse_id) {
-      whereCondition.warehouse_id = warehouse_id as unknown as FindOperator<number>;
+      whereCondition.warehouse = { id: warehouse_id } as unknown as FindOperator<Warehouse>;
     }
 
     return this.productStockRepository
       .find({
         skip,
         take: Number(limit),
+        relations: ["warehouse", "product"],
         where: whereCondition,
         order: { id: "DESC" },
       })
@@ -112,16 +124,16 @@ export class ProductStockService {
 
   async getTotalCount(product_id?: number, warehouse_id?: number) {
     const whereCondition: {
-      product_id?: FindOperator<number>;
-      warehouse_id?: FindOperator<number>;
+      product?: FindOperator<Product>;
+      warehouse?: FindOperator<Warehouse>;
     } = {};
 
     if (product_id) {
-      whereCondition.product_id = product_id as unknown as FindOperator<number>;
+      whereCondition.product = { id: product_id } as unknown as FindOperator<Product>;
     }
 
     if (warehouse_id) {
-      whereCondition.warehouse_id = warehouse_id as unknown as FindOperator<number>;
+      whereCondition.warehouse = { id: warehouse_id } as unknown as FindOperator<Warehouse>;
     }
 
     return this.productStockRepository.count({ where: whereCondition }).catch((error) => {
@@ -142,7 +154,8 @@ export class ProductStockService {
   async findByProductId(product_id: number) {
     return this.productStockRepository
       .find({
-        where: { product_id },
+        relations: ["product", "warehouse"],
+        where: { product: { id: product_id } },
       })
       .catch((error) => {
         throw `Не удалось получить остатки товара по ID продукта, ${error.message}`;
@@ -206,7 +219,7 @@ export class ProductStockService {
   async findByWarehouseId(warehouse_id: number) {
     return this.productStockRepository
       .find({
-        where: { warehouse_id },
+        where: { warehouse: { id: warehouse_id } },
       })
       .catch((error) => {
         throw `Не удалось получить остатки товара по ID склада, ${error.message}`;
@@ -230,20 +243,8 @@ export class ProductStockService {
     if (!existing) {
       throw "Остатки товара не найдены";
     }
-
-    if (existing.available < amount) {
-      throw "Недостаточно доступного количества товара";
-    }
-
-    const newReserved = existing.reserved + amount;
-    const newAvailable = existing.quantity - newReserved;
-
     return this.productStockRepository
-      .update(id, {
-        reserved: newReserved,
-        available: newAvailable,
-        in_stock: newAvailable > 0,
-      })
+      .increment({ id }, "reserved", existing.reserved + amount)
       .catch((error) => {
         throw `Не удалось зарезервировать товар, ${error.message}`;
       });
@@ -260,13 +261,10 @@ export class ProductStockService {
     }
 
     const newReserved = existing.reserved - amount;
-    const newAvailable = existing.quantity - newReserved;
 
     return this.productStockRepository
       .update(id, {
         reserved: newReserved,
-        available: newAvailable,
-        in_stock: newAvailable > 0,
       })
       .catch((error) => {
         throw `Не удалось снять резерв с товара, ${error.message}`;
