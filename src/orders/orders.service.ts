@@ -30,10 +30,10 @@ export class OrdersService {
         createOrderDto.products,
         createOrderDto.user_role,
       );
-
     let discount_total = 0;
     let discount_percent = 0;
     let discount_name = "";
+    let delivery_price = createOrderDto.method_receipt === "courier" ? 100 : 0;
 
     const cartDiscount = await this.cartDiscountsRepository.getCartDiscountForOrder(
       total,
@@ -70,24 +70,27 @@ export class OrdersService {
         payment_method: createOrderDto.payment_method,
         method_receipt: createOrderDto.method_receipt,
         discount_name,
-        discount_quantity,
-        discount_percent,
-        discount_total,
-        subtotal,
-        total: total - discount_total,
+        discount_quantity: Math.floor(discount_quantity),
+        discount_percent: Math.floor(discount_percent),
+        discount_total: Math.floor(discount_total),
+        subtotal: Math.floor(subtotal),
+        total: Math.floor(total - discount_total + delivery_price),
         order_number: "",
+        address: {
+          entrance: createOrderDto.address.entrance,
+          flat: createOrderDto.address.flat,
+          floor: createOrderDto.address.floor,
+          intercom: createOrderDto.address.intercom,
+          name: createOrderDto.address.name,
+          place: createOrderDto.address.place,
+          lng: createOrderDto.address.lng,
+          lat: createOrderDto.address.lat,
+          type: createOrderDto.method_receipt,
+        },
       })
       .catch((error) => {
         throw `Не удалось создать заказ, ${error.message}`;
       });
-
-    if (createOrderDto.address !== null && typeof order.id === "number") {
-      await this.addressRepository.create({
-        ...createOrderDto.address,
-        //@ts-ignore TODO CHANGE
-        order_id: order.id,
-      });
-    }
 
     for (let i = 0; i < products.length; i++) {
       const product = products[i];
@@ -158,8 +161,19 @@ export class OrdersService {
   }
 
   async delete(id: number) {
-    return this.ordersRepository.delete(id).catch((error) => {
+    const order = await this.ordersRepository.findOne({
+      where: { id },
+      relations: ["address"],
+    });
+
+    await this.ordersRepository.delete(id).catch((error) => {
       throw `Не удалось удалить заказ, ${error.message}`;
     });
+
+    if (order?.address?.id) {
+      await this.addressRepository.remove(order.address.id);
+    }
+
+    return null;
   }
 }

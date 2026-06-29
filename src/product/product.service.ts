@@ -7,6 +7,8 @@ import type { UpdateProductDto } from "./dto/update-product.dto";
 import { Product } from "./entities/product.entity";
 import { ProductStockService } from "src/product-stock/product-stock.service";
 import { ProductPriceService } from "src/product-price/product-price.service";
+import { CategoryService } from "src/category/category.service";
+import { SearchService } from "src/search/search.service";
 
 @Injectable()
 export class ProductService {
@@ -15,6 +17,8 @@ export class ProductService {
     private productRepository: Repository<Product>,
     private productStockService: ProductStockService,
     private productPriceService: ProductPriceService,
+    private categoryService: CategoryService,
+    private searchService: SearchService,
   ) {}
 
   public async calculatePricesForOrder(
@@ -153,6 +157,278 @@ export class ProductService {
       });
   }
 
+  async getCatalog({
+    page,
+    limit,
+    role,
+    category_id,
+    search,
+    sort,
+    price_from,
+    price_to,
+    specifications,
+  }: {
+    page: string;
+    limit: string;
+    role: string;
+    category_id?: string;
+    search?: string;
+    sort?: string;
+    price_from?: string;
+    price_to?: string;
+    specifications?: string;
+  }): Promise<{ products: Product[]; totalCount: number; paginationPage: string }> {
+    const take = Number(limit);
+    const skip = (Number(page) - 1) * take;
+
+    const query = this.productRepository
+      .createQueryBuilder("product")
+      .leftJoinAndSelect("product.stocks", "stock")
+      .leftJoinAndSelect("product.prices", "price")
+      .leftJoinAndSelect("price.price_type", "priceType");
+
+    if (category_id) {
+      const categoryIds = await this.categoryService.getCategoryAndAllChildrenIds(
+        Number(category_id),
+      );
+      if (categoryIds.length > 0) {
+        query.andWhere("product.category_id IN (:...categoryIds)", { categoryIds });
+      }
+    }
+
+    if (search) {
+      query.andWhere("(product.name ILIKE :search OR product.description ILIKE :search)", {
+        search: `%${search}%`,
+      });
+    }
+
+    const where = this.buildMainPageWhere(role);
+
+    if (where) {
+      query.andWhere(where);
+    }
+
+    const sortPriceType =
+      role === "admin" || role === "moderator" || role === "wholesaler" ? "MIN" : "MAX";
+
+    if (price_from) {
+      const priceSubQuery = `(SELECT COALESCE(${sortPriceType}(pp.price), 0) FROM product_price pp WHERE pp.product_id = product.id AND pp.price > 0)`;
+      query.andWhere(`${priceSubQuery} >= :price_from`, { price_from: Number(price_from) });
+    }
+
+    if (price_to) {
+      const priceSubQuery = `(SELECT COALESCE(${sortPriceType}(pp.price), 0) FROM product_price pp WHERE pp.product_id = product.id AND pp.price > 0)`;
+      query.andWhere(`${priceSubQuery} <= :price_to`, { price_to: Number(price_to) });
+    }
+
+    if (specifications) {
+      const specGroups = new Map<number, string[]>();
+
+      for (const pair of specifications.split(",")) {
+        if (!pair) continue;
+        const colonIdx = pair.indexOf(":");
+        if (colonIdx === -1) continue;
+        const specId = parseInt(pair.substring(0, colonIdx), 10);
+        const value = pair.substring(colonIdx + 1);
+
+        if (!Number.isNaN(specId) && value) {
+          if (!specGroups.has(specId)) specGroups.set(specId, []);
+          specGroups.get(specId)!.push(value);
+        }
+      }
+
+      let idx = 0;
+
+      for (const [specId, values] of specGroups) {
+        idx++;
+        query.andWhere(
+          `product.id IN (SELECT ps.product_id FROM product_specification ps WHERE ps.specification_id = :specId${idx} AND ps.value IN (:...specValues${idx}))`,
+          { [`specId${idx}`]: specId, [`specValues${idx}`]: values },
+        );
+      }
+    }
+
+    if (sort === "price_up") {
+      query.addSelect(
+        `COALESCE(
+      (SELECT ${sortPriceType}(pp.price) FROM product_price pp WHERE pp.product_id = product.id AND pp.price > 0),
+      999999999
+    )`,
+        "min_price",
+      );
+      query.orderBy("min_price", "ASC");
+    } else if (sort === "price_down") {
+      query.addSelect(
+        `COALESCE(
+      (SELECT ${sortPriceType}(pp.price) FROM product_price pp WHERE pp.product_id = product.id AND pp.price > 0),
+      999999999
+    )`,
+        "min_price",
+      );
+      query.orderBy("min_price", "DESC");
+    } else if (sort === "new") {
+      query.orderBy("product.created_at", "DESC");
+    } else if (sort === "rating") {
+      query.addSelect(
+        `(SELECT COALESCE(AVG(pr.rating), 0) FROM product_review pr WHERE pr.product_id = product.id AND pr.rating > 0)`,
+        "avg_rating",
+      );
+      query.addSelect(
+        `(SELECT COUNT(pr.id) FROM product_review pr WHERE pr.product_id = product.id)`,
+        "review_count",
+      );
+      query.orderBy("avg_rating", "DESC");
+      query.addOrderBy("review_count", "DESC");
+    } else {
+      query.addSelect(
+        `(SELECT COALESCE(SUM(op.quantity), 0)
+          FROM order_product op
+          JOIN "order" o ON o.id = op.order_id
+          WHERE op.product_id = product.id
+          AND o.status = 'completed')`,
+        "popularity_score",
+      );
+      query.orderBy("popularity_score", "DESC");
+      query.addOrderBy("product.views", "DESC");
+    }
+
+    query.skip(skip).take(take);
+
+    const [products, totalCount] = await query.getManyAndCount().catch((error) => {
+      throw `Не удалось получить список товаров, ${error.message}`;
+    });
+
+    for (const product of products) {
+      const stockParams = this.productStockService.getStockParams(product.stocks);
+      product.available = stockParams.available;
+      product.accounting = stockParams.accounting;
+      product.stocks = [];
+      product.purchase_price = 0;
+      product.price_list = this.productPriceService.getProductUserPrices(product.prices, role);
+      product.prices = [];
+    }
+
+    if (search) {
+      await this.searchService.updateOrCreate({ text: search.trim(), result_count: totalCount });
+    }
+
+    return { products, totalCount, paginationPage: page };
+  }
+
+  async getFilters({
+    role,
+    category_id,
+    search,
+  }: {
+    role: string;
+    category_id?: string;
+    search?: string;
+  }): Promise<{
+    price: { min: number; max: number };
+    specifications: {
+      id: number;
+      name: string;
+      type: string;
+      values: { value: string }[];
+    }[];
+  }> {
+    const sortPriceType =
+      role === "admin" || role === "moderator" || role === "wholesaler" ? "MIN" : "MAX";
+
+    const params: unknown[] = [];
+    const conditions: string[] = [];
+
+    conditions.push(this.buildMainPageWhere(role).replace(/product\./g, "p."));
+
+    if (category_id) {
+      const categoryIds = await this.categoryService.getCategoryAndAllChildrenIds(
+        Number(category_id),
+      );
+      if (categoryIds.length > 0) {
+        params.push(categoryIds);
+        conditions.push(`p.category_id = ANY($${params.length}::int[])`);
+      }
+    }
+
+    if (search) {
+      params.push(`%${search}%`);
+      const idx = params.length;
+      conditions.push(`(p.name ILIKE $${idx} OR p.description ILIKE $${idx})`);
+    }
+
+    const whereStr = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const priceResult = await this.productRepository
+      .query(
+        `
+          SELECT
+            COALESCE(MIN(sub.price), 0) AS min_price,
+            COALESCE(MAX(sub.price), 0) AS max_price
+          FROM (
+            SELECT (SELECT COALESCE(${sortPriceType}(pp.price), 0) FROM product_price pp WHERE pp.product_id = p.id AND pp.price > 0) AS price
+            FROM product p
+            ${whereStr}
+          ) sub
+        `,
+        params,
+      )
+      .catch((error) => {
+        throw `Не удалось получить диапазон цен, ${error.message}`;
+      });
+
+    const specsResult = await this.productRepository
+      .query(
+        `
+          WITH filtered AS (
+            SELECT p.id FROM product p ${whereStr}
+          )
+          SELECT DISTINCT
+            s.id AS spec_id,
+            s.name AS spec_name,
+            s.type AS spec_type,
+            ps.value
+          FROM product_specification ps
+          INNER JOIN specification s ON s.id = ps.specification_id
+          WHERE ps.product_id IN (TABLE filtered)
+          ORDER BY s.name, ps.value
+        `,
+        params,
+      )
+      .catch((error) => {
+        throw `Не удалось получить фильтры характеристик, ${error.message}`;
+      });
+
+    const specMap = new Map<
+      number,
+      { id: number; name: string; type: string; values: { value: string }[] }
+    >();
+
+    for (const row of specsResult) {
+      const specId = Number(row.spec_id);
+      let spec = specMap.get(specId);
+
+      if (!spec) {
+        spec = {
+          id: specId,
+          name: row.spec_name,
+          type: row.spec_type,
+          values: [],
+        };
+        specMap.set(specId, spec);
+      }
+
+      spec.values.push(row.value);
+    }
+
+    return {
+      price: {
+        min: Number(priceResult[0]?.min_price ?? 0),
+        max: Number(priceResult[0]?.max_price ?? 0),
+      },
+      specifications: Array.from(specMap.values()),
+    };
+  }
+
   async findByIds(ids: number[], role: string) {
     const products = await this.productRepository
       .find({
@@ -175,6 +451,13 @@ export class ProductService {
         role,
       );
       products[i].prices = [];
+    }
+
+    for (let i = 0; i < ids.length; i++) {
+      const fromIdx = products.findIndex((el) => el.id === ids[i]);
+      if (fromIdx !== -1) {
+        [products[i], products[fromIdx]] = [products[fromIdx], products[i]];
+      }
     }
 
     return products;
@@ -222,6 +505,12 @@ export class ProductService {
   async findOne(id: number) {
     return this.productRepository.findOneBy({ id }).catch((error) => {
       throw `Не удалось получить товар, ${error.message}`;
+    });
+  }
+
+  async incrementView(id: number) {
+    return this.productRepository.increment({ id }, "views", 1).catch((error) => {
+      throw `Не удалось увеличить счетчик просмотра, ${error.message}`;
     });
   }
 

@@ -5,7 +5,6 @@ import type { CreateProductStockDto } from "./dto/create-product-stock.dto";
 import type { UpdateProductStockDto } from "./dto/update-product-stock.dto";
 import { ProductStock } from "./entities/product-stock.entity";
 import { CheckingBalancesItemDto } from "./dto/checking-balances.dto";
-import { AddressService } from "src/address/address.service";
 import { Product } from "src/product/entities/product.entity";
 import { Warehouse } from "src/warehouse/entities/warehouse.entity";
 
@@ -14,7 +13,6 @@ export class ProductStockService {
   constructor(
     @InjectRepository(ProductStock)
     private productStockRepository: Repository<ProductStock>,
-    private readonly addressRepository: AddressService,
   ) {}
 
   async reservedProductsForOrder(
@@ -23,24 +21,31 @@ export class ProductStockService {
     lng: number | undefined,
     lat: number | undefined,
   ) {
-    const stocks = await this.findByProductId(product_id);
+    const stocks = await this.findByFromReservedOrder(product_id);
 
-    const warehouseIds = [123, 124, 125];
-    // const warehouseIds = stocks.map((el) => el.warehouse_id);
-
-    const sortedAddress = await this.addressRepository.sortedWarehouseAddressFromOrder(
-      warehouseIds,
-      lng,
-      lat,
-    );
+    if (typeof lng === "number" && typeof lat === "number") {
+      stocks.sort((a, b) => {
+        const distA = this.haversine(
+          lat,
+          lng,
+          a.warehouse.address?.lat ?? 0,
+          a.warehouse.address?.lng ?? 0,
+        );
+        const distB = this.haversine(
+          lat,
+          lng,
+          b.warehouse.address?.lat ?? 0,
+          b.warehouse.address?.lng ?? 0,
+        );
+        return distA - distB;
+      });
+    }
 
     let needQuantity = quantity;
     const reservations: { stock_id: number; quantity: number }[] = [];
 
-    for (let i = 0; i < sortedAddress.length; i++) {
-      const address = sortedAddress[i];
-      //@ts-ignore TODO CHANGE
-      const stock = stocks.find((el) => el.warehouse_id === address.warehouse_id);
+    for (let i = 0; i < stocks.length; i++) {
+      const stock = stocks[i];
       const available = stock ? stock.quantity - stock.reserved : 0;
 
       if (needQuantity === 0) break;
@@ -78,6 +83,22 @@ export class ProductStockService {
     }
 
     return reservations;
+  }
+
+  private haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const toRad = (deg: number) => (deg * Math.PI) / 180;
+    const R = 6371;
+
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
   }
 
   async create(payload: CreateProductStockDto) {
@@ -155,6 +176,17 @@ export class ProductStockService {
     return this.productStockRepository
       .find({
         relations: ["product", "warehouse"],
+        where: { product: { id: product_id } },
+      })
+      .catch((error) => {
+        throw `Не удалось получить остатки товара по ID продукта, ${error.message}`;
+      });
+  }
+
+  async findByFromReservedOrder(product_id: number) {
+    return this.productStockRepository
+      .find({
+        relations: ["warehouse", "warehouse.address"],
         where: { product: { id: product_id } },
       })
       .catch((error) => {

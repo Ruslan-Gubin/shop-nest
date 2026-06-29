@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { In, type Repository } from "typeorm";
+import { type Repository } from "typeorm";
 import type { CreateAddressDto } from "./dto/create-address.dto";
 import type { UpdateAddressDto } from "./dto/update-address.dto";
 import { Address } from "./entities/address.entity";
@@ -12,35 +12,6 @@ export class AddressService {
     private addressRepository: Repository<Address>,
   ) {}
 
-  async sortedWarehouseAddressFromOrder(
-    warehouseIds: number[],
-    lng: number | undefined,
-    lat: number | undefined,
-  ) {
-    if (typeof lng !== "number" && typeof lat !== "number") {
-      return this.addressRepository.find({
-        //@ts-ignore TODO CHANGE
-        where: { warehouse_id: In(warehouseIds) },
-      });
-    }
-
-    return this.addressRepository
-      .createQueryBuilder("a")
-      .where("a.warehouse_id IN (:...warehouseIds)", { warehouseIds })
-      .addSelect(
-        `(6371 * acos(
-        cos(radians(:lat)) * cos(radians(a.lat)) *
-        cos(radians(a.lng) - radians(:lng)) +
-        sin(radians(:lat)) * sin(radians(a.lat))
-      ))`,
-        "distance",
-      )
-      .setParameter("lat", lat)
-      .setParameter("lng", lng)
-      .orderBy("distance", "ASC")
-      .getMany();
-  }
-
   async create(createAddressDto: CreateAddressDto) {
     return this.addressRepository.save(createAddressDto).catch((error) => {
       throw `Не удалось добавить адрес, ${error.message}`;
@@ -48,13 +19,6 @@ export class AddressService {
   }
 
   async findAll() {
-    //TODO REMOVE
-    // const all = await this.addressRepository.find();
-    //
-    // for (let i = 0; i < all.length; i++) {
-    //   await this.remove(all[i].id);
-    // }
-
     return this.addressRepository.find().catch((error) => {
       throw `Не удалось получить список адресов, ${error.message}`;
     });

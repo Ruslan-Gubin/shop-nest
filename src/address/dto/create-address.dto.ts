@@ -36,7 +36,4 @@ export class CreateAddressDto {
   @IsOptional()
   @IsString()
   intercom: string;
-
-  @IsNumber()
-  warehouse_id: number;
 }

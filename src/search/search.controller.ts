@@ -27,18 +27,6 @@ export class SearchController {
   }
 
   @Public()
-  @Post("update")
-  async update(@Body() updateDto: UpdateSearchDto): Promise<ResponseData<null>> {
-    try {
-      await this.searchService.updateOrCreate(updateDto);
-
-      return responseData(null, "success", [], "");
-    } catch (error) {
-      return responseData(null, "error", [], error);
-    }
-  }
-
-  @Public()
   @Get("popular")
   async popular(@Query("limit") limit?: number): Promise<ResponseData<Search[] | null>> {
     try {

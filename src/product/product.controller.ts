@@ -24,6 +24,72 @@ import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  @Get("filters")
+  async getFilters(
+    @CurrentUser() user?: CurrentStrategyUser,
+    @Query("category_id") category_id?: string,
+    @Query("search") search?: string,
+  ): Promise<
+    ResponseData<{
+      price: { min: number; max: number };
+      specifications: {
+        id: number;
+        name: string;
+        type: string;
+        values: { value: string }[];
+      }[];
+    } | null>
+  > {
+    try {
+      const start = Date.now();
+      const filters = await this.productService.getFilters({
+        role: user?.role ?? "user",
+        category_id,
+        search,
+      });
+
+      console.log("filter ms:", Date.now() - start);
+      return responseData(filters, "success", [], "Фильтры получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("catalog")
+  async getCatalog(
+    @Query("page") page: string,
+    @Query("limit") limit: string,
+    @CurrentUser() user?: CurrentStrategyUser,
+    @Query("category_id") category_id?: string,
+    @Query("search") search?: string,
+    @Query("sort") sort?: string,
+    @Query("price_from") price_from?: string,
+    @Query("price_to") price_to?: string,
+    @Query("specifications") specifications?: string,
+  ): Promise<
+    ResponseData<{ products: Product[]; totalCount: number; paginationPage: string } | null>
+  > {
+    try {
+      const start = Date.now();
+      const catalog = await this.productService.getCatalog({
+        page,
+        limit,
+        role: user?.role || "user",
+        category_id,
+        search,
+        sort,
+        price_from,
+        price_to,
+        specifications,
+      });
+
+      console.log("catalog ms:", Date.now() - start);
+      return responseData(catalog, "success", [], "Товары получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get("main-page")
   async findForMainPage(
     @Query("page") page: string,
@@ -106,6 +172,7 @@ export class ProductController {
   async findOne(@Param("id") id: string): Promise<ResponseData<Product | null>> {
     try {
       const product = await this.productService.findOne(Number(id));
+      await this.productService.incrementView(Number(id));
 
       return responseData(product, "success", [], "Товар получен");
     } catch (error) {

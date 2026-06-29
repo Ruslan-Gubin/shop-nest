@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import type { Repository } from "typeorm";
+import { FindOptionsWhere, IsNull, type Repository } from "typeorm";
 import { CreateCategoryDto } from "./dto/create-category.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
 import { UpdatePositionCategoryDto } from "./dto/update-position-category-dto";
@@ -14,6 +14,45 @@ export class CategoryService {
     @InjectRepository(Category)
     private categoryRepository: Repository<Category>,
   ) {}
+
+  async getFullPathFromCategory(id: number | null) {
+    const categories: Category[] = [];
+    let currentId: number | null = id;
+
+    while (currentId) {
+      const category = await this.categoryRepository.findOneBy({ id: currentId });
+      if (!category) break;
+      categories.unshift(category);
+
+      if (!category.parent_id) break;
+      currentId = category.parent_id;
+    }
+
+    return categories;
+  }
+
+  async getCategoryAndAllChildrenIds(parentId: number): Promise<number[]> {
+    return await this.categoryRepository
+      .query(
+        `
+    WITH RECURSIVE category_tree AS (
+      SELECT id, position FROM category WHERE id = $1
+      UNION ALL
+      SELECT c.id, c.position FROM category c
+      INNER JOIN category_tree ct ON c.parent_id = ct.id
+    )
+    SELECT id FROM category_tree
+    ORDER BY position
+             `,
+        [parentId],
+      )
+      .then((response: Category[]) => {
+        return response.map((category) => category.id);
+      })
+      .catch((error) => {
+        throw `Не удалось получить список ID всех категорий которые входят в указанной, ${error.message}`;
+      });
+  }
 
   async create(createCategoryDto: CreateCategoryDto) {
     return this.categoryRepository.save(createCategoryDto).catch((error) => {
@@ -161,15 +200,17 @@ export class CategoryService {
   }
 
   async getChildren(parent_id: number | null) {
-    const query = this.categoryRepository.createQueryBuilder("category");
+    const whereCondition: FindOptionsWhere<Category> =
+      parent_id === null ? { parent_id: IsNull() } : { parent_id };
 
-    query.where(
-      parent_id === null ? "category.parent_id IS NULL" : "category.parent_id = :parent_id",
-      { parent_id },
-    );
-    return await query.getMany().catch((error) => {
-      throw `Не удалось получить список подкатегорий, ${error.message}`;
-    });
+    return await this.categoryRepository
+      .find({
+        where: whereCondition,
+        order: { position: "ASC" },
+      })
+      .catch((error) => {
+        throw `Не удалось получить список подкатегорий, ${error.message}`;
+      });
   }
 
   async changeParent(id: number, parent_id: number | null) {

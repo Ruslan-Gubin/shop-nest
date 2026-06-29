@@ -1,7 +1,10 @@
+import { Address } from "src/address/entities/address.entity";
 import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from "typeorm";
@@ -21,6 +24,10 @@ export type OrderStatus =
 export class Order {
   @PrimaryGeneratedColumn({ type: "int", name: "id" })
   id: number;
+
+  @OneToOne(() => Address, { cascade: true, eager: false })
+  @JoinColumn({ name: "address_id" })
+  address: Address | null;
 
   @Column({ type: "int", name: "create_user_id" })
   create_user_id: number;

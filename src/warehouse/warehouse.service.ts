@@ -15,7 +15,7 @@ export class WarehouseService {
   ) {}
 
   async findPublic() {
-    const warehouses = await this.warehouseRepository
+    return this.warehouseRepository
       .find({
         where: { is_active: true, is_public: true },
         relations: ["address"],
@@ -23,8 +23,6 @@ export class WarehouseService {
       .catch((error) => {
         throw `Не удалось получить склад, ${error.message}`;
       });
-
-    return warehouses;
   }
 
   async create(payload: CreateWarehouseDto) {
@@ -159,7 +157,9 @@ export class WarehouseService {
       relations: ["address"],
     });
 
-    await this.warehouseRepository.delete(id);
+    await this.warehouseRepository.delete(id).catch((error) => {
+      throw `Не удалось удалить склад, ${error.message}`;
+    });
 
     if (warehouse?.address?.id) {
       await this.addressRepository.remove(warehouse.address.id);

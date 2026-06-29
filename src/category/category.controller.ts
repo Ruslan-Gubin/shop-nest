@@ -76,6 +76,32 @@ export class CategoryController {
     }
   }
 
+  @Get("fullPathCategories/:id")
+  async getFullPathFromCategory(
+    @Param("id") id: string,
+  ): Promise<ResponseData<{ categories: Category[]; childrenCategories: Category[] } | null>> {
+    try {
+      const categories = await this.categoryService.getFullPathFromCategory(
+        !isNaN(Number(id)) ? Number(id) : null,
+      );
+      const childrenCategories = !isNaN(Number(id))
+        ? await this.categoryService.getChildren(Number(id))
+        : [];
+
+      const allCategory = await this.categoryService.findAll();
+      const transitionCategories = await this.categoryService.sortedCategories(allCategory);
+
+      return responseData(
+        { categories, childrenCategories, transitionCategories },
+        "success",
+        [],
+        "Весь путь категорий от родительской к указанной получен",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Delete(":id/:parent_id")
   @Roles("admin")
   @UseGuards(RolesGuard)

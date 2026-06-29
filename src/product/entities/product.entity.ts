@@ -62,15 +62,18 @@ export class Product {
   @Column({ type: "jsonb", default: [], name: "price_list" })
   price_list: { price: number; minQuantity: number }[];
 
-  @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
-  created_at: Date;
-
-  @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
-  updated_at: Date | null;
+  @Column({ type: "int", default: 0, name: "views" })
+  views: number;
 
   @OneToMany(() => ProductStock, (productStock) => productStock.product)
   stocks: ProductStock[];
 
   @OneToMany(() => ProductPrice, (productPrice) => productPrice.product)
   prices: ProductPrice[];
+
+  @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  created_at: Date;
+
+  @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
+  updated_at: Date | null;
 }

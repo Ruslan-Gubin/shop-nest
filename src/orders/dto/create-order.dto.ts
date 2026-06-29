@@ -76,10 +76,9 @@ export class CreateOrderDto {
   @IsDateString(undefined, { message: "Дата доставки до должна быть корректной датой" })
   date_to: string;
 
-  @IsOptional()
   @ValidateNested()
   @Type(() => CreateAddressDto)
-  address: CreateAddressDto | null;
+  address: CreateAddressDto;
 
   @IsArray({ message: "Товары должны быть массивом" })
   @ArrayMinSize(1, { message: "Должен быть хотя бы один товар" })
