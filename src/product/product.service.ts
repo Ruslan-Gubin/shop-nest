@@ -167,6 +167,8 @@ export class ProductService {
     price_from,
     price_to,
     specifications,
+    country,
+    product_types,
   }: {
     page: string;
     limit: string;
@@ -177,6 +179,8 @@ export class ProductService {
     price_from?: string;
     price_to?: string;
     specifications?: string;
+    country?: string;
+    product_types?: string;
   }): Promise<{ products: Product[]; totalCount: number; paginationPage: string }> {
     const take = Number(limit);
     const skip = (Number(page) - 1) * take;
@@ -245,6 +249,26 @@ export class ProductService {
           `product.id IN (SELECT ps.product_id FROM product_specification ps WHERE ps.specification_id = :specId${idx} AND ps.value IN (:...specValues${idx}))`,
           { [`specId${idx}`]: specId, [`specValues${idx}`]: values },
         );
+      }
+    }
+
+    if (country) {
+      const countryList = country
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean);
+      if (countryList.length > 0) {
+        query.andWhere("product.country IN (:...countries)", { countries: countryList });
+      }
+    }
+
+    if (product_types) {
+      const typeList = product_types
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      if (typeList.length > 0) {
+        query.andWhere("product.product_type IN (:...productTypes)", { productTypes: typeList });
       }
     }
 
@@ -329,8 +353,10 @@ export class ProductService {
       id: number;
       name: string;
       type: string;
-      values: { value: string }[];
+      values: string[];
     }[];
+    countries: string[];
+    product_types: string[];
   }> {
     const sortPriceType =
       role === "admin" || role === "moderator" || role === "wholesaler" ? "MIN" : "MAX";
@@ -398,10 +424,51 @@ export class ProductService {
         throw `Не удалось получить фильтры характеристик, ${error.message}`;
       });
 
-    const specMap = new Map<
-      number,
-      { id: number; name: string; type: string; values: { value: string }[] }
-    >();
+    const countryCondition = "p.country != ''";
+    const countryWhere = whereStr
+      ? `${whereStr} AND ${countryCondition}`
+      : `WHERE ${countryCondition}`;
+
+    const countriesResult = await this.productRepository
+      .query(
+        `
+          SELECT DISTINCT p.country
+          FROM product p
+          ${countryWhere}
+          ORDER BY p.country
+        `,
+        params,
+      )
+      .catch((error) => {
+        throw `Не удалось получить список стран, ${error.message}`;
+      });
+
+    const countries = countriesResult.map((row: { country: string }) => row.country);
+
+    const productTypeCondition = "p.product_type != ''";
+    const productTypeWhere = whereStr
+      ? `${whereStr} AND ${productTypeCondition}`
+      : `WHERE ${productTypeCondition}`;
+
+    const productTypesResult = await this.productRepository
+      .query(
+        `
+          SELECT DISTINCT p.product_type
+          FROM product p
+          ${productTypeWhere}
+          ORDER BY p.product_type
+        `,
+        params,
+      )
+      .catch((error) => {
+        throw `Не удалось получить список типов товаров, ${error.message}`;
+      });
+
+    const product_types = productTypesResult.map(
+      (row: { product_type: string }) => row.product_type,
+    );
+
+    const specMap = new Map<number, { id: number; name: string; type: string; values: string[] }>();
 
     for (const row of specsResult) {
       const specId = Number(row.spec_id);
@@ -420,12 +487,18 @@ export class ProductService {
       spec.values.push(row.value);
     }
 
+    for (const spec of specMap.values()) {
+      spec.values.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    }
+
     return {
       price: {
         min: Number(priceResult[0]?.min_price ?? 0),
         max: Number(priceResult[0]?.max_price ?? 0),
       },
       specifications: Array.from(specMap.values()),
+      countries,
+      product_types,
     };
   }
 

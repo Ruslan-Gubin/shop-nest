@@ -36,19 +36,19 @@ export class ProductController {
         id: number;
         name: string;
         type: string;
-        values: { value: string }[];
+        values: string[];
       }[];
+      countries: string[];
+      product_types: string[];
     } | null>
   > {
     try {
-      const start = Date.now();
       const filters = await this.productService.getFilters({
         role: user?.role ?? "user",
         category_id,
         search,
       });
 
-      console.log("filter ms:", Date.now() - start);
       return responseData(filters, "success", [], "Фильтры получены");
     } catch (error) {
       return responseData(null, "error", [], error);
@@ -66,11 +66,12 @@ export class ProductController {
     @Query("price_from") price_from?: string,
     @Query("price_to") price_to?: string,
     @Query("specifications") specifications?: string,
+    @Query("country") country?: string,
+    @Query("product_types") product_types?: string,
   ): Promise<
     ResponseData<{ products: Product[]; totalCount: number; paginationPage: string } | null>
   > {
     try {
-      const start = Date.now();
       const catalog = await this.productService.getCatalog({
         page,
         limit,
@@ -81,9 +82,10 @@ export class ProductController {
         price_from,
         price_to,
         specifications,
+        country,
+        product_types,
       });
 
-      console.log("catalog ms:", Date.now() - start);
       return responseData(catalog, "success", [], "Товары получены");
     } catch (error) {
       return responseData(null, "error", [], error);
