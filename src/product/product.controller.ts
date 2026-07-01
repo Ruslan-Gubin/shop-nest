@@ -17,6 +17,7 @@ import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { ResponseData, responseData } from "src/helpers/response";
 import { Product } from "./entities/product.entity";
+import { Category } from "src/category/entities/category.entity";
 import { CurrentStrategyUser } from "src/auth/types/current-user";
 import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 
@@ -130,6 +131,76 @@ export class ProductController {
     }
   }
 
+  @Get("similar/:id")
+  async findSimilar(
+    @Param("id") id: string,
+    @Query("limit") limit: string,
+    @CurrentUser() user?: CurrentStrategyUser,
+  ): Promise<ResponseData<Product[] | null>> {
+    try {
+      const products = await this.productService.findSimilar(
+        Number(id),
+        Number(limit) || 30,
+        user?.role ?? "user",
+      );
+
+      return responseData(products, "success", [], "Похожие товары получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("buy-together")
+  async findBoughtTogether(
+    @Query("ids", new ParseArrayPipe({ items: Number, separator: "," }))
+    ids: number[],
+    @Query("limit") limit: string,
+    @CurrentUser() user?: CurrentStrategyUser,
+  ): Promise<ResponseData<Product[] | null>> {
+    try {
+      const products = await this.productService.findBoughtTogether(
+        ids,
+        Number(limit) || 30,
+        user?.role ?? "user",
+      );
+
+      return responseData(products, "success", [], "Товары для блока «покупают вместе» получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("recommended")
+  async findRecommended(
+    @Query("favorite_ids") favoriteIds: string,
+    @Query("cart_ids") cartIds: string,
+    @Query("viewed_ids") viewedIds: string,
+    @Query("limit") limit: string,
+    @CurrentUser() user?: CurrentStrategyUser,
+  ): Promise<ResponseData<Product[] | null>> {
+    try {
+      const parseIds = (str?: string): number[] =>
+        str
+          ? str
+              .split(",")
+              .map(Number)
+              .filter((id) => !Number.isNaN(id))
+          : [];
+
+      const products = await this.productService.findRecommended(
+        parseIds(favoriteIds),
+        parseIds(cartIds),
+        parseIds(viewedIds),
+        Number(limit) || 30,
+        user?.role ?? "user",
+      );
+
+      return responseData(products, "success", [], "Рекомендованные товары получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Post("create")
   @Roles("admin")
   @UseGuards(RolesGuard)
@@ -165,6 +236,17 @@ export class ProductController {
         [],
         "Список товаров получен",
       );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("full-path-categories/:id")
+  async getFullPathCategories(@Param("id") id: string): Promise<ResponseData<Category[] | null>> {
+    try {
+      const categories = await this.productService.getFullPathCategories(Number(id));
+
+      return responseData(categories, "success", [], "Полный путь категорий для товара получен");
     } catch (error) {
       return responseData(null, "error", [], error);
     }

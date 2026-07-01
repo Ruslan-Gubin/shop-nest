@@ -536,6 +536,335 @@ export class ProductService {
     return products;
   }
 
+  /**
+   * Похожие товары
+   * Принцип сбора: товары из той же категории, отсортированные по количеству
+   * совпадающих спецификаций (product_specification) с текущим товаром DESC.
+   * При равенстве — сортировка по популярности (продажи в completed заказах + просмотры).
+   * Текущий товар исключается из результатов.
+   */
+  async findSimilar(productId: number, limit: number, role: string): Promise<Product[]> {
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+      select: ["id", "category_id"],
+    });
+
+    const categoryIds = product?.category_id
+      ? await this.categoryService.getCategoryAndAllChildrenIds(product.category_id)
+      : [];
+
+    if (!categoryIds.length) return [];
+
+    const idsResult = await this.productRepository
+      .query(
+        `
+          SELECT
+            p.id,
+            COUNT(DISTINCT ps_matched.specification_id)::int AS match_count,
+            COALESCE(SUM(CASE WHEN o.status = 'completed' THEN op.quantity ELSE 0 END), 0)::int AS popularity
+          FROM product p
+          LEFT JOIN product_specification ps_matched
+            ON ps_matched.product_id = p.id
+            AND ps_matched.specification_id IN (
+              SELECT specification_id FROM product_specification WHERE product_id = $1
+            )
+          LEFT JOIN order_product op ON op.product_id = p.id
+          LEFT JOIN "order" o ON o.id = op.order_id AND o.status = 'completed'
+          WHERE p.category_id = ANY($2::int[])
+            AND p.id != $1
+            AND EXISTS (
+              SELECT 1 FROM product_stock stock
+              WHERE stock.product_id = p.id
+                AND (stock.quantity - stock.reserved > 0 OR stock.in_stock)
+            )
+          GROUP BY p.id
+          ORDER BY match_count DESC, popularity DESC, p.views DESC
+          LIMIT $3
+        `,
+        [productId, categoryIds, limit],
+      )
+      .catch((error) => {
+        throw `Не удалось получить похожие товары, ${error.message}`;
+      });
+
+    const ids = idsResult.map((r: { id: string }) => Number(r.id));
+
+    return ids.length > 0 ? this.findByIds(ids, role) : [];
+  }
+
+  /**
+   * Покупают вместе
+   * Принцип сбора: находятся все завершённые заказы (status = 'completed'),
+   * содержащие любой из переданных товаров. Для каждого другого товара в этих
+   * заказах подсчитывается суммарное количество (frequency). Результат
+   * сортируется по убыванию частоты совместной покупки.
+   * Переданные товары исключаются из результатов.
+   */
+  async findBoughtTogether(productIds: number[], limit: number, role: string): Promise<Product[]> {
+    if (!productIds.length) return [];
+
+    const idsResult = await this.productRepository
+      .query(
+        `
+          WITH target_orders AS (
+            SELECT DISTINCT op.order_id
+            FROM order_product op
+            JOIN "order" o ON o.id = op.order_id
+            WHERE op.product_id = ANY($1::int[])
+              AND o.status = 'completed'
+          )
+          SELECT
+            op.product_id,
+            COALESCE(SUM(op.quantity), 0)::int AS co_count
+          FROM order_product op
+          WHERE op.order_id IN (SELECT order_id FROM target_orders)
+            AND op.product_id != ALL($1::int[])
+          GROUP BY op.product_id
+          ORDER BY co_count DESC
+          LIMIT $2
+        `,
+        [productIds, limit],
+      )
+      .catch((error) => {
+        throw `Не удалось получить товары для блока "покупают вместе", ${error.message}`;
+      });
+
+    const ids = idsResult.map((r: { product_id: string }) => Number(r.product_id));
+
+    return ids.length > 0 ? this.findByIds(ids, role) : [];
+  }
+
+  /**
+   * Рекомендуем — Content-Based Personalization
+   *
+   * ─── ВХОДНЫЕ ДАННЫЕ ───
+   * Метод получает три массива ID товаров, с которыми пользователь взаимодействовал:
+   *   favoriteIds — товары, добавленные в избранное                               (вес ×3)
+   *   cartIds     — товары, добавленные в корзину                                 (вес ×2)
+   *   viewedIds   — товары, которые пользователь просто просматривал              (вес ×1)
+   *
+   * Все эти товары автоматически ИСКЛЮЧАЮТСЯ из результата (уже знакомы).
+   * Если все три массива пусты — срабатывает fallback: топ по просмотрам (views).
+   *
+   * ─── ТАБЛИЦЫ ───
+   *   product              — товары (id, category_id, views, ...)
+   *   product_specification — характеристики товаров (product_id, specification_id, value)
+   *     Пример: товар(7) → spec(3, "Цвет") → "Красный", spec(5, "Материал") → "Хлопок"
+   *   order_product        — товары в заказах (product_id, quantity)
+   *   order                — заказы (id, status)
+   *     status = 'completed' — успешно завершённые
+   *   product_stock        — остатки на складах (product_id, quantity, reserved, in_stock)
+   *   product_review       — отзывы/оценки (product_id, rating 0-5)
+   *
+   * ─── ЭТАП 1: ПОСТРОЕНИЕ ПРОФИЛЯ ВКУСА ───
+   * Для каждого товара из сигналов определяется его максимальный вес среди источников
+   * (MAX по fav×3 / cart×2 / viewed×1). Это решает проблему задвоения:
+   * если товар одновременно в избранном и в корзине — его вес = 3, а не 3+2.
+   *
+   * Затем все спецификации этих товаров собираются в user_profile:
+   *   (specification_id, value) → SUM(weight)
+   *
+   *   Пример: пользователь лайкнул красную хлопковую футболку (×3) и добавил
+   *   в корзину красные кроссовки (×2). Профиль:
+   *     spec(Цвет, "Красный")         → вес 5  (3 + 2 — два независимых сигнала)
+   *     spec(Материал, "Хлопок")      → вес 3
+   *     spec(Тип, "Обувь")            → вес 2
+   *
+   * Чем больше независимых сигналов сходятся на одной характеристике — тем выше её вес.
+   * Если у сигнального товара нет характеристик — он не даёт вклада в профиль.
+   *
+   * ─── ЭТАП 2: ОЦЕНКА КАЖДОГО ТОВАРА ───
+   * Для каждого товара в БД (кроме исключённых, при наличии на складе) вычисляется:
+   *
+   *   spec_score  = Σ(weight_sum совпавшей spec из user_profile)
+   *     — через correlated subquery: для товара берутся его specification_id + value,
+   *       джойнятся с user_profile, суммируются веса совпадений
+   *     — если у товара нет характеристик или ни одна не совпала → spec_score = 0
+   *
+   *   popularity  = Σ(op.quantity) по order_product в completed заказах
+   *     — через correlated subquery: собираются все завершённые заказы, где был этот товар
+   *     — чем больше штук продано — тем выше
+   *     — если не продавался ни разу → popularity = 0
+   *
+   *
+   *   avg_rating  = AVG(pr.rating) по product_review (0–5)
+   *     — через correlated subquery: средняя оценка всех отзывов на товар
+   *     — если отзывов нет → avg_rating = 0
+   *
+   *   review_count = COUNT(pr.id) по product_review
+   *     — количество отзывов; чем больше — тем статистически надёжнее рейтинг
+   *     — работает как tiebreaker: при равном avg_rating выше тот, у кого больше отзывов
+   *
+   * ─── ЭТАП 3: СОРТИРОВКА ───
+   *   spec_score DESC → popularity DESC → avg_rating DESC → review_count DESC → p.views DESC
+   *
+   *   Приоритет у товаров, максимально похожих на профиль пользователя.
+   *   При равенстве совпадений — те, что лучше продаются.
+   *   При равенстве продаж — те, что выше оценены покупателями.
+   *   При равном рейтинге — те, у кого больше отзывов (надёжнее статистика).
+   *
+   * ─── ЭТАП 4: DIVERSITY ───
+   * Из отсортированного списка (LIMIT = limit × 2) выбирается максимум 3 товара
+   * из одной категории (category_id). Остальные отбрасываются.
+   * Это нужно, чтобы рекомендации не состояли из 10 футболок одного цвета,
+   * а показывали разные категории товаров.
+   *
+   * ─── ЭТАП 5: ДОГРУЗКА ЦЕН И ОСТАТКОВ ───
+   * Финальный список ID передаётся в findByIds, который:
+   *   — загружает полные данные (название, описание, фото...)
+   *   — джойнит stocks и prices
+   *   — вычисляет доступное количество (available = quantity - reserved)
+   *   — вычисляет цену для роли пользователя (админ/опт/розница)
+   *   — возвращает готовый массив Product[]
+   *
+   * ─── FALLBACK (НЕТ СИГНАЛОВ) ───
+   * Если пользователь анонимен или не совершал никаких действий — возвращаются
+   * товары, отсортированные по просмотрам DESC (самые популярные).
+   */
+
+  async findRecommended(
+    favoriteIds: number[],
+    cartIds: number[],
+    viewedIds: number[],
+    limit: number,
+    role: string,
+  ): Promise<Product[]> {
+    // Все ID, с которыми пользователь уже взаимодействовал — исключаем
+    const excludeIds = [...new Set([...favoriteIds, ...cartIds, ...viewedIds])];
+
+    // Fallback: если нет сигналов — pure popularity
+    if (!excludeIds.length) {
+      return this.findRecommendedFallback(limit, role);
+    }
+
+    // Ограничиваем просмотренные для производительности (последние 200)
+    const cappedViewedIds = viewedIds.slice(-200);
+
+    // Строим профиль вкуса и получаем ID с сортировкой
+    const idsResult = await this.productRepository
+      .query(
+        `
+          -- Шаг 1: определяем максимальный вес для каждого продукта-сигнала
+          -- (если товар одновременно в избранном и корзине — берём MAX = 3, а не сумму)
+          WITH signal_products AS (
+            SELECT product_id, MAX(weight) AS product_weight
+            FROM (
+              SELECT product_id, 3 AS weight
+              FROM product_specification
+              WHERE product_id = ANY($1::int[])
+              UNION ALL
+              SELECT product_id, 2 AS weight
+              FROM product_specification
+              WHERE product_id = ANY($2::int[])
+              UNION ALL
+              SELECT product_id, 1 AS weight
+              FROM product_specification
+              WHERE product_id = ANY($3::int[])
+            ) src
+            GROUP BY product_id
+          ),
+          -- Шаг 2: агрегируем спецификации с весом продукта-сигнала
+          user_profile AS (
+            SELECT ps.specification_id, ps.value, SUM(sp.product_weight) AS weight_sum
+            FROM signal_products sp
+            INNER JOIN product_specification ps ON ps.product_id = sp.product_id
+            GROUP BY ps.specification_id, ps.value
+          )
+          SELECT
+            p.id,
+            p.category_id,
+            COALESCE((
+              SELECT SUM(up.weight_sum)
+              FROM product_specification ps
+              INNER JOIN user_profile up
+                ON up.specification_id = ps.specification_id
+                AND up.value = ps.value
+              WHERE ps.product_id = p.id
+            ), 0)::int AS spec_score,
+            COALESCE((
+              SELECT SUM(op.quantity)
+              FROM order_product op
+              INNER JOIN "order" o ON o.id = op.order_id
+              WHERE op.product_id = p.id AND o.status = 'completed'
+            ), 0)::int AS popularity,
+            COALESCE((
+              SELECT AVG(pr.rating) FROM product_review pr
+              WHERE pr.product_id = p.id AND pr.rating > 0
+            ), 0)::float AS avg_rating,
+            COALESCE((
+              SELECT COUNT(pr.id) FROM product_review pr
+              WHERE pr.product_id = p.id
+            ), 0)::int AS review_count
+          FROM product p
+          WHERE NOT (p.id = ANY($4::int[]))
+            AND EXISTS (
+              SELECT 1 FROM product_stock stock
+              WHERE stock.product_id = p.id
+                AND (stock.quantity - stock.reserved > 0 OR stock.in_stock)
+            )
+          ORDER BY spec_score DESC, popularity DESC, avg_rating DESC, review_count DESC, p.views DESC
+          LIMIT $5
+        `,
+        [favoriteIds, cartIds, cappedViewedIds, excludeIds, limit * 2],
+      )
+      .catch((error) => {
+        throw `Не удалось получить рекомендованные товары, ${error.message}`;
+      });
+
+    // Diversity: не более 3 товаров из одной категории
+    const categoryCount = new Map<number, number>();
+    const diversifiedIds: number[] = [];
+
+    for (const row of idsResult) {
+      const catId = Number(row.category_id);
+      const count = categoryCount.get(catId) ?? 0;
+      if (count < 3) {
+        categoryCount.set(catId, count + 1);
+        diversifiedIds.push(Number(row.id));
+      }
+      if (diversifiedIds.length >= limit) break;
+    }
+
+    return diversifiedIds.length ? this.findByIds(diversifiedIds, role) : [];
+  }
+
+  /**
+   * Fallback для findRecommended — pure popularity
+   * Сортировка: продажи в completed заказах DESC, затем просмотры DESC.
+   */
+  private async findRecommendedFallback(limit: number, role: string): Promise<Product[]> {
+    const idsResult = await this.productRepository
+      .query(
+        `
+          SELECT p.id
+          FROM product p
+          WHERE EXISTS (
+            SELECT 1 FROM product_stock stock
+            WHERE stock.product_id = p.id
+              AND (stock.quantity - stock.reserved > 0 OR stock.in_stock)
+          )
+          ORDER BY p.views DESC
+          LIMIT $1
+        `,
+        [limit],
+      )
+      .catch((error) => {
+        throw `Не удалось получить популярные товары, ${error.message}`;
+      });
+
+    const ids = idsResult.map((r: { id: string }) => Number(r.id));
+
+    return ids.length ? this.findByIds(ids, role) : [];
+  }
+
+  async getFullPathCategories(productId: number) {
+    const product = await this.findOne(productId);
+
+    return product?.category_id
+      ? await this.categoryService.getFullPathFromCategory(product.category_id)
+      : [];
+  }
+
   async create(createProductDto: CreateProductDto) {
     return this.productRepository.save(createProductDto).catch((error) => {
       throw `Не удалось добавить товаров, ${error.message}`;
