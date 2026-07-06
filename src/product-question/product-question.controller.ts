@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import { ProductQuestionService } from "./product-question.service";
 import { CreateProductQuestionDto } from "./dto/create-product-question.dto";
 import { UpdateProductQuestionDto } from "./dto/update-product-question.dto";
@@ -6,6 +16,8 @@ import { ResponseData, responseData } from "src/helpers/response";
 import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 import { CurrentStrategyUser } from "src/auth/types/current-user";
 import { ProductQuestion } from "./entities/product-question.entity";
+import { RolesGuard } from "src/auth/guards/roles.guard";
+import { Roles } from "src/auth/decorators/roles.decorator";
 
 @Controller("product-question")
 export class ProductQuestionController {
@@ -54,6 +66,36 @@ export class ProductQuestionController {
         "success",
         [],
         "Вопросы получены",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("all")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async getAll(
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
+  ): Promise<
+    ResponseData<{
+      questions: ProductQuestion[];
+      totalCount: number;
+      paginationPage: number;
+    } | null>
+  > {
+    try {
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+      const pageNum = page ? parseInt(page, 10) : 1;
+
+      const [questions, totalCount] = await this.productQuestionService.findAll(pageNum, limitNum);
+
+      return responseData(
+        { questions, totalCount, paginationPage: pageNum },
+        "success",
+        [],
+        "Все вопросы получены",
       );
     } catch (error) {
       return responseData(null, "error", [], error);

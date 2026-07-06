@@ -65,6 +65,12 @@ export class Product {
   @Column({ type: "int", default: 0, name: "views" })
   views: number;
 
+  @Column({ type: "float", default: 0, name: "rating" })
+  rating: number;
+
+  @Column({ type: "int", default: 0, name: "review_count" })
+  review_count: number;
+
   @OneToMany(() => ProductStock, (productStock) => productStock.product)
   stocks: ProductStock[];
 

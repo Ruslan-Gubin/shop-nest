@@ -21,8 +21,17 @@ export class ProductReview {
   @Column({ type: "int", name: "create_user_id" })
   create_user_id: number;
 
-  @Column({ type: "varchar", default: "", name: "text" })
-  text: string;
+  @Column({ type: "varchar", length: 1000, default: "", name: "dignities" })
+  dignities: string;
+
+  @Column({ type: "varchar", length: 1000, default: "", name: "disadvantages" })
+  disadvantages: string;
+
+  @Column({ type: "varchar", length: 1000, default: "", name: "comment" })
+  comment: string;
+
+  @Column({ type: "varchar", length: 1000, default: "", name: "answer" })
+  answer: string;
 
   @Column({ type: "int", default: 0, name: "rating" })
   rating: number;

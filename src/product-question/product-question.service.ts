@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Not, Repository } from "typeorm";
 import { CreateProductQuestionDto } from "./dto/create-product-question.dto";
 import { UpdateProductQuestionDto } from "./dto/update-product-question.dto";
 import { ProductQuestion } from "./entities/product-question.entity";
@@ -31,7 +31,7 @@ export class ProductQuestionService {
       .findAndCount({
         skip,
         take: Number(limit),
-        where: { product: { id } },
+        where: { product: { id }, answer: Not("") },
         order: { id: "DESC" },
       })
       .catch((error) => {
@@ -39,10 +39,26 @@ export class ProductQuestionService {
       });
   }
 
+  async findAll(page: number, limit: number) {
+    const skip = (Number(page) - 1) * Number(limit);
+
+    return this.productQuestionRepository
+      .findAndCount({
+        skip,
+        take: Number(limit),
+        order: { answer: "ASC", id: "DESC" },
+      })
+      .catch((error) => {
+        throw `Не удалось получить вопросы, ${error.message}`;
+      });
+  }
+
   async findOne(id: number) {
-    return this.productQuestionRepository.findOne({ where: { id } }).catch((error) => {
-      throw `Не удалось получить вопрос, ${error.message}`;
-    });
+    return this.productQuestionRepository
+      .findOne({ where: { id }, relations: ["product"] })
+      .catch((error) => {
+        throw `Не удалось получить вопрос, ${error.message}`;
+      });
   }
 
   async update(id: number, updateDto: UpdateProductQuestionDto) {

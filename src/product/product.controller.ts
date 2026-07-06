@@ -252,11 +252,33 @@ export class ProductController {
     }
   }
 
+  @Get("increment-view/:id")
+  async findOneAndIncrementView(@Param("id") id: string): Promise<ResponseData<Product | null>> {
+    try {
+      const product = await this.productService.findOne(Number(id));
+      await this.productService.incrementView(Number(id));
+
+      return responseData(product, "success", [], "Товар получен");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("total-sold/:id")
+  async getTotalSold(@Param("id") id: string): Promise<ResponseData<number | null>> {
+    try {
+      const totalSold = await this.productService.getTotalSold(Number(id));
+
+      return responseData(totalSold, "success", [], "Общее количество проданного товара получено");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get(":id")
   async findOne(@Param("id") id: string): Promise<ResponseData<Product | null>> {
     try {
       const product = await this.productService.findOne(Number(id));
-      await this.productService.incrementView(Number(id));
 
       return responseData(product, "success", [], "Товар получен");
     } catch (error) {

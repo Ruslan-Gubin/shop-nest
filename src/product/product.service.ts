@@ -9,6 +9,7 @@ import { ProductStockService } from "src/product-stock/product-stock.service";
 import { ProductPriceService } from "src/product-price/product-price.service";
 import { CategoryService } from "src/category/category.service";
 import { SearchService } from "src/search/search.service";
+import { ProductReviewService } from "src/product-review/product-review.service";
 
 @Injectable()
 export class ProductService {
@@ -19,6 +20,7 @@ export class ProductService {
     private productPriceService: ProductPriceService,
     private categoryService: CategoryService,
     private searchService: SearchService,
+    private productReviewService: ProductReviewService,
   ) {}
 
   public async calculatePricesForOrder(
@@ -128,6 +130,8 @@ export class ProductService {
       .catch((error) => {
         throw `Не удалось получить список товаров, ${error.message}`;
       });
+
+    await this.productReviewService.attachReviewStats(products);
 
     for (let i = 0; i < products.length; i++) {
       const stock_params = this.productStockService.getStockParams(products[i].stocks);
@@ -322,6 +326,8 @@ export class ProductService {
       throw `Не удалось получить список товаров, ${error.message}`;
     });
 
+    await this.productReviewService.attachReviewStats(products);
+
     for (const product of products) {
       const stockParams = this.productStockService.getStockParams(product.stocks);
       product.available = stockParams.available;
@@ -511,6 +517,8 @@ export class ProductService {
       .catch((error) => {
         throw `Не удалось получить список товаров, ${error.message}`;
       });
+
+    await this.productReviewService.attachReviewStats(products);
 
     for (let i = 0; i < products.length; i++) {
       const stock_params = this.productStockService.getStockParams(products[i].stocks);
@@ -905,15 +913,35 @@ export class ProductService {
   }
 
   async findOne(id: number) {
-    return this.productRepository.findOneBy({ id }).catch((error) => {
+    const product = await this.productRepository.findOneBy({ id }).catch((error) => {
       throw `Не удалось получить товар, ${error.message}`;
     });
+
+    if (product) {
+      await this.productReviewService.attachReviewStats([product]);
+    }
+
+    return product;
   }
 
   async incrementView(id: number) {
     return this.productRepository.increment({ id }, "views", 1).catch((error) => {
       throw `Не удалось увеличить счетчик просмотра, ${error.message}`;
     });
+  }
+
+  async getTotalSold(productId: number): Promise<number> {
+    const result = await this.productRepository.query(
+      `
+      SELECT COALESCE(SUM(op.quantity), 0)::int AS total_sold
+      FROM order_product op
+      INNER JOIN "order" o ON o.id = op.order_id
+      WHERE op.product_id = $1
+        AND o.status = 'completed'
+      `,
+      [productId],
+    );
+    return Number(result[0]?.total_sold ?? 0);
   }
 
   async update(id: number, updateProductDto: UpdateProductDto) {
