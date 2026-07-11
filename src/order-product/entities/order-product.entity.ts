@@ -66,8 +66,11 @@ export class OrderProduct {
   @Column({ type: "int", default: 0, name: "price" })
   price: number;
 
-  @Column({ type: "jsonb", nullable: true, default: null, name: "reservations" })
-  reservations: { stock_id: number; warehouse_id: number; quantity: number }[] | null;
+  @Column({ type: "jsonb", default: [], name: "reservations" })
+  reservations: { stock_id: number; warehouse_id: number; quantity: number }[];
+
+  @Column({ type: "jsonb", default: [], name: "transfers" })
+  transfers: { stock_id: number; warehouse_id: number; quantity: number }[];
 
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;

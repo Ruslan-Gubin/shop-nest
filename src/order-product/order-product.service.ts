@@ -13,9 +13,14 @@ export class OrderProductService {
   ) {}
 
   async create(createOrderProductDto: CreateOrderProductDto) {
-    return this.orderProductRepository.save(createOrderProductDto).catch((error) => {
-      throw `Не удалось добавить товар в заказ, ${error.message}`;
-    });
+    return this.orderProductRepository
+      .save({
+        ...createOrderProductDto,
+        reservations: createOrderProductDto.reservations ?? [],
+      })
+      .catch((error) => {
+        throw `Не удалось добавить товар в заказ, ${error.message}`;
+      });
   }
 
   async getAll() {
@@ -46,13 +51,9 @@ export class OrderProductService {
   }
 
   async update(id: number, updateOrderProductDto: UpdateOrderProductDto) {
-    return this.orderProductRepository
-      .update(id, {
-        ...updateOrderProductDto,
-      })
-      .catch((error) => {
-        throw `Не удалось изменить товар заказа, ${error.message}`;
-      });
+    return this.orderProductRepository.update(id, updateOrderProductDto).catch((error) => {
+      throw `Не удалось изменить товар заказа, ${error.message}`;
+    });
   }
 
   async remove(id: number) {
@@ -60,5 +61,4 @@ export class OrderProductService {
       throw `Не удалось удалить товар заказа, ${error.message}`;
     });
   }
-
 }

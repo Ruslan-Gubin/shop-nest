@@ -91,7 +91,7 @@ export class OrdersController {
     }
   }
 
-  @Patch("change-status/:id")
+  @Post("change-status/:id")
   @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async changeStatus(@Param("id") id: string): Promise<ResponseData<null>> {

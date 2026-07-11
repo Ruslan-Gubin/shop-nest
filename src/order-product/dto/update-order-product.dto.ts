@@ -13,9 +13,15 @@ export class UpdateOrderProductDto {
   @Min(0, { message: "Цена не может быть меньше 0" })
   price?: number;
 
-  @IsOptional()
   @IsArray({ message: "Резервации должны быть массивом" })
   @ValidateNested({ each: true })
   @Type(() => ReservationItemDto)
-  reservations?: ReservationItemDto[] | null;
+  reservations?: ReservationItemDto[];
+
+  @IsOptional()
+  @IsArray({ message: "Трансферы должны быть массивом" })
+  @ValidateNested({ each: true })
+  @Type(() => ReservationItemDto)
+  transfers?: ReservationItemDto[];
 }
+

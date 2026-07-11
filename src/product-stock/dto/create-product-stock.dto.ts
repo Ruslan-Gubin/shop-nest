@@ -15,6 +15,11 @@ export class CreateProductStockDto {
   quantity?: number;
 
   @IsOptional()
+  @IsInt({ message: "Количество должно быть числом" })
+  @Min(0, { message: "Количество не может быть отрицательным" })
+  reserved?: number;
+
+  @IsOptional()
   @IsBoolean({ message: "В наличии должно быть булевым" })
   in_stock?: boolean;
 }

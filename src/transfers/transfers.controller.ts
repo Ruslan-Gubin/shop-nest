@@ -58,6 +58,19 @@ export class TransfersController {
     }
   }
 
+  @Get("delivery-order/:id")
+  async findDeliveryByOrderId(
+    @Param("id") id: string,
+  ): Promise<ResponseData<Transfer[] | null>> {
+    try {
+      const transfers = await this.transfersService.findDeliveryByOrderId(Number(id));
+
+      return responseData(transfers, "success", [], "Перемещения доставки заказа получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get(":id")
   async findOne(@Param("id") id: string): Promise<ResponseData<Transfer | null>> {
     try {

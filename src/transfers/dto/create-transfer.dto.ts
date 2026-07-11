@@ -16,7 +16,7 @@ export class CreateTransferDto {
   @IsOptional()
   @IsInt({ message: "ID склада получателя должно быть числом" })
   @Min(0, { message: "ID склада не может быть отрицательным" })
-  to_warehouse_id: number;
+  to_warehouse_id?: number;
 
   @IsOptional()
   @IsInt({ message: "ID адреса должно быть числом" })

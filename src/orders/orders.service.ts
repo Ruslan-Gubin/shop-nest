@@ -45,7 +45,7 @@ export class OrdersService {
       const findTransfer = payload.transfers.find((el) => el.order_id);
 
       if (findTransfer) {
-        await this.changeStatus(findTransfer.order_id);
+        await this.ordersRepository.update(findTransfer.order_id, { status: "processing" });
       }
     } catch (error) {
       for (const id of createdTransferIds) {
@@ -259,31 +259,6 @@ export class OrdersService {
     });
   }
 
-  async changeStatus(id: number) {
-    const order = await this.findOne(id);
-
-    if (!order) {
-      throw `Заказ ${id} не найден`;
-    }
-
-    const statusMap: Record<string, string> = {
-      new: "processing",
-      processing: "ready",
-      ready: order.method_receipt === "courier" ? "in_delivery" : "completed",
-      in_delivery: "completed",
-    };
-
-    const status = statusMap[order.status] || "";
-
-    if (!status) {
-      throw `Невозможно перевести заказ в следующий статус из статуса ${order.status}`;
-    }
-
-    await this.ordersRepository.update(id, { status: status as Order["status"] }).catch((error) => {
-      throw `Не удалось изменить статус заказа, ${error.message}`;
-    });
-  }
-
   async rejectOrder(id: number, rejected_reason: string, userId?: number) {
     const order = await this.findOne(id);
 
@@ -314,6 +289,140 @@ export class OrdersService {
       .catch((error) => {
         throw `Не удалось отменить заказ, ${error.message}`;
       });
+  }
+
+  async changeStatus(id: number) {
+    const order = await this.findOne(id);
+
+    if (!order) {
+      throw `Заказ ${id} не найден`;
+    }
+
+    const statusMap: Record<string, string> = {
+      new: "processing",
+      processing: "ready",
+      ready: order.method_receipt === "courier" ? "in_delivery" : "completed",
+      in_delivery: "completed",
+    };
+
+    const status = statusMap[order.status] || "";
+
+    if (!status) {
+      throw `Невозможно перевести заказ в следующий статус из статуса ${order.status}`;
+    }
+
+    if (order.status === "processing" && status === "ready") {
+      await this.handleReadyTransfers(order.id, order.warehouse?.id || 0);
+    }
+
+    if (order.status === "ready" && status === "in_delivery") {
+      await this.handleInDeliveryTransfer(
+        order.id,
+        order.warehouse?.id || 0,
+        order.address?.id || 0,
+      );
+    }
+
+    await this.ordersRepository.update(id, { status: status as Order["status"] }).catch((error) => {
+      throw `Не удалось изменить статус заказа, ${error.message}`;
+    });
+  }
+
+  private async handleInDeliveryTransfer(
+    order_id: number,
+    from_warehouse_id?: number,
+    address_id?: number,
+  ) {
+    if (!from_warehouse_id) {
+      throw `У заказа ${order_id} не указан склад отправки`;
+    }
+
+    if (!address_id) {
+      throw `У заказа ${order_id} не указан адрес доставки`;
+    }
+
+    await this.transfersService.create({
+      type: "delivery",
+      order_id,
+      from_warehouse_id,
+      address_id,
+    });
+  }
+
+  private async handleReadyTransfers(order_id: number, warehouse_id: number) {
+    const transfers = await this.transfersService.findByOrderId(order_id);
+
+    if (Array.isArray(transfers)) {
+      let baseWarehouseId: number = warehouse_id;
+
+      if (!baseWarehouseId) {
+        for (let i = 0; i < transfers.length; i++) {
+          if (transfers[i]?.to_warehouse && typeof transfers[i]?.to_warehouse?.id === "number") {
+            baseWarehouseId = transfers[i]?.to_warehouse?.id || 0;
+            break;
+          }
+        }
+      }
+
+      if (!baseWarehouseId) {
+        throw `У заказа ${order_id} не найден склад выдачи`;
+      }
+
+      const orderProducts = await this.orderProductRepository.findAll(String(order_id));
+
+      for (let i = 0; i < orderProducts.length; i++) {
+        const reservations = orderProducts[i].reservations;
+
+        if (reservations.length === 0) continue;
+
+        let baseStock: { stock_id: number; warehouse_id: number; quantity: number } | null = null;
+        const transfersHistory: { stock_id: number; warehouse_id: number; quantity: number }[] = [];
+
+        let needAddQuantity = 0;
+
+        for (let j = 0; j < reservations.length; j++) {
+          if (reservations[j].warehouse_id === baseWarehouseId) {
+            baseStock = reservations[j];
+          } else {
+            needAddQuantity += reservations[j].quantity;
+            transfersHistory.push(reservations[j]);
+          }
+        }
+
+        if (baseStock && baseStock.stock_id) {
+          await this.productStockRepository.incrementQuantityAndReserved(
+            baseStock.stock_id,
+            needAddQuantity,
+          );
+          baseStock.quantity += needAddQuantity;
+        } else {
+          const newStock = await this.productStockRepository.create({
+            warehouse_id: baseWarehouseId,
+            product_id: orderProducts[i].product_id,
+            in_stock: false,
+            quantity: needAddQuantity,
+            reserved: needAddQuantity,
+          });
+          baseStock = {
+            stock_id: newStock.id,
+            quantity: needAddQuantity,
+            warehouse_id: baseWarehouseId,
+          };
+        }
+
+        for (let k = 0; k < transfersHistory.length; k++) {
+          await this.productStockRepository.decrementQuantityAndReserved(
+            transfersHistory[k].stock_id,
+            transfersHistory[k].quantity,
+          );
+        }
+
+        await this.orderProductRepository.update(orderProducts[i].id, {
+          reservations: [baseStock],
+          transfers: transfersHistory,
+        });
+      }
+    }
   }
 
   async delete(id: number) {

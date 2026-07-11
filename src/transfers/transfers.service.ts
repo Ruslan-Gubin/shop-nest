@@ -75,6 +75,17 @@ export class TransfersService {
       });
   }
 
+  async findDeliveryByOrderId(order_id: number) {
+    return this.transfersRepository
+      .find({
+        where: { order_id, type: "delivery" },
+        relations: ["from_warehouse", "from_warehouse.address", "to_address"],
+      })
+      .catch((error) => {
+        throw `Не удалось получить перемещения доставки заказа, ${error.message}`;
+      });
+  }
+
   async remove(id: number) {
     await this.transfersRepository.delete(id).catch((error) => {
       throw `Не удалось удалить перемещение, ${error.message}`;

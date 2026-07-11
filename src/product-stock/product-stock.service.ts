@@ -104,6 +104,7 @@ export class ProductStockService {
       .save({
         quantity: payload.quantity,
         in_stock: payload.in_stock,
+        reserved: payload.reserved || 0,
         warehouse: { id: payload.warehouse_id },
         product: { id: payload.product_id },
       })
@@ -266,6 +267,34 @@ export class ProductStockService {
       })
       .catch((error) => {
         throw `Не удалось получить остатки товара по ID склада, ${error.message}`;
+      });
+  }
+
+  async decrementQuantityAndReserved(id: number, amount: number) {
+    const stock = await this.findOne(id);
+    if (!stock) throw "Остатки товара не найдены";
+
+    return this.productStockRepository
+      .update(id, {
+        quantity: stock.quantity - amount,
+        reserved: stock.reserved - amount,
+      })
+      .catch((error) => {
+        throw `Не удалось уменьшить количество и резерв товара, ${error.message}`;
+      });
+  }
+
+  async incrementQuantityAndReserved(id: number, amount: number) {
+    const stock = await this.findOne(id);
+    if (!stock) throw "Остатки товара не найдены";
+
+    return this.productStockRepository
+      .update(id, {
+        quantity: stock.quantity + amount,
+        reserved: stock.reserved + amount,
+      })
+      .catch((error) => {
+        throw `Не удалось увеличить количество и резерв товара, ${error.message}`;
       });
   }
 
