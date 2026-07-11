@@ -14,6 +14,9 @@ export class ReservationItemDto {
   @IsInt({ message: "ID остатка должен быть числом" })
   stock_id: number;
 
+  @IsInt({ message: "ID склада должен быть числом" })
+  warehouse_id: number;
+
   @IsInt({ message: "Количество должно быть числом" })
   @Min(1, { message: "Количество должно быть минимум 1" })
   quantity: number;

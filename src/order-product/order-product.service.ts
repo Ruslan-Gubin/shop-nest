@@ -60,4 +60,5 @@ export class OrderProductService {
       throw `Не удалось удалить товар заказа, ${error.message}`;
     });
   }
+
 }

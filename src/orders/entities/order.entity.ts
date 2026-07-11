@@ -1,9 +1,11 @@
 import { Address } from "src/address/entities/address.entity";
+import { Warehouse } from "src/warehouse/entities/warehouse.entity";
 import {
   Column,
   CreateDateColumn,
   Entity,
   JoinColumn,
+  ManyToOne,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -58,6 +60,10 @@ export class Order {
 
   @Column({ type: "varchar", default: "pickup", name: "method_receipt" })
   method_receipt: string;
+
+  @ManyToOne(() => Warehouse, { nullable: true })
+  @JoinColumn({ name: "warehouse_id" })
+  warehouse: Warehouse | null;
 
   @Column({ type: "timestamp", nullable: true, name: "date_from" })
   date_from: Date | null;

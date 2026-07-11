@@ -1,11 +1,10 @@
-import { Controller, Get, Post, Body, Query, Param, Delete, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, Param, Delete, UseGuards } from "@nestjs/common";
 import { Public } from "src/auth/decorators/public.decorator";
 import { Roles } from "src/auth/decorators/roles.decorator";
 import { RolesGuard } from "src/auth/guards/roles.guard";
 import { SearchService } from "./search.service";
 import { ResponseData, responseData } from "src/helpers/response";
 import { Search } from "./entities/search.entity";
-import { UpdateSearchDto } from "./dto/update-search.dto";
 
 @Controller("search")
 export class SearchController {
@@ -53,6 +52,7 @@ export class SearchController {
     } | null>
   > {
     try {
+      console.log("search");
       const queries = await this.searchService.findAll(page, limit, text);
       const totalCount = await this.searchService.getTotalCount(text);
 

@@ -1,11 +1,25 @@
-import { Controller, Get, Post, Body, Patch, Param, Query, Delete } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Query,
+  Delete,
+  UseGuards,
+} from "@nestjs/common";
 import { OrdersService } from "./orders.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { UpdateOrderDto } from "./dto/update-order.dto";
+import { ShipOrderDto } from "./dto/ship-order.dto";
+import { RejectOrderDto } from "./dto/reject-order.dto";
 import { ResponseData, responseData } from "src/helpers/response";
 import { Order } from "./entities/order.entity";
 import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 import { CurrentStrategyUser } from "src/auth/types/current-user";
+import { Roles } from "src/auth/decorators/roles.decorator";
+import { RolesGuard } from "src/auth/guards/roles.guard";
 
 @Controller("orders")
 export class OrdersController {
@@ -33,6 +47,7 @@ export class OrdersController {
   async findAll(
     @Query("page") page: string,
     @Query("limit") limit: string,
+    @Query("order_number") order_number?: string,
   ): Promise<
     ResponseData<{
       orders: Order[];
@@ -41,8 +56,7 @@ export class OrdersController {
     } | null>
   > {
     try {
-      const orders = await this.ordersService.findAll(page, limit);
-      const totalCount = await this.ordersService.getTotalCount();
+      const [orders, totalCount] = await this.ordersService.findAll(page, limit, order_number);
 
       return responseData(
         { orders, totalCount, paginationPage: page },
@@ -61,6 +75,45 @@ export class OrdersController {
       const order = await this.ordersService.findOne(Number(id));
 
       return responseData(order, "success", [], "Заказ получен");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Post("ship")
+  async ship(@Body() shipOrderDto: ShipOrderDto): Promise<ResponseData<null>> {
+    try {
+      await this.ordersService.ship(shipOrderDto);
+
+      return responseData(null, "success", [], "Перемещение для заказа успешно сформированы");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Patch("change-status/:id")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async changeStatus(@Param("id") id: string): Promise<ResponseData<null>> {
+    try {
+      await this.ordersService.changeStatus(Number(id));
+
+      return responseData(null, "success", [], "Статус заказа изменён");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Patch("reject/:id")
+  async rejectOrder(
+    @Param("id") id: string,
+    @Body() payload: RejectOrderDto,
+    @CurrentUser() user: CurrentStrategyUser,
+  ): Promise<ResponseData<null>> {
+    try {
+      await this.ordersService.rejectOrder(Number(id), payload.rejected_reason, user.sub);
+
+      return responseData(null, "success", [], "Заказ отменён");
     } catch (error) {
       return responseData(null, "error", [], error);
     }

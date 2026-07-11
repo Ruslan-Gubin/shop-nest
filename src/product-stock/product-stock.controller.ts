@@ -143,6 +143,19 @@ export class ProductStockController {
     }
   }
 
+  @Get("order/:orderId")
+  async getStocksByOrderId(
+    @Param("orderId") orderId: string,
+  ): Promise<ResponseData<ProductStock[] | null>> {
+    try {
+      const stocks = await this.productStockService.getStocksByOrderId(Number(orderId));
+
+      return responseData(stocks, "success", [], "Остатки товаров по заказу получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get(":id")
   async findOne(@Param("id") id: string): Promise<ResponseData<ProductStock | null>> {
     try {
@@ -186,37 +199,39 @@ export class ProductStockController {
     }
   }
 
-  @Patch(":id/reserve")
-  @Roles("admin", "moderator")
-  @UseGuards(RolesGuard)
-  async reserve(
-    @Param("id") id: string,
-    @Body("amount") amount: number,
-  ): Promise<ResponseData<null>> {
-    try {
-      await this.productStockService.reserve(Number(id), amount);
+  //TODO REMOVE
+  // @Patch(":id/reserve")
+  // @Roles("admin", "moderator")
+  // @UseGuards(RolesGuard)
+  // async reserve(
+  //   @Param("id") id: string,
+  //   @Body("amount") amount: number,
+  // ): Promise<ResponseData<null>> {
+  //   try {
+  //     await this.productStockService.reserve(Number(id), amount);
+  //
+  //     return responseData(null, "success", [], "Товар успешно зарезервирован");
+  //   } catch (error) {
+  //     return responseData(null, "error", [], error);
+  //   }
+  // }
 
-      return responseData(null, "success", [], "Товар успешно зарезервирован");
-    } catch (error) {
-      return responseData(null, "error", [], error);
-    }
-  }
-
-  @Patch(":id/unreserve")
-  @Roles("admin", "moderator")
-  @UseGuards(RolesGuard)
-  async unreserve(
-    @Param("id") id: string,
-    @Body("amount") amount: number,
-  ): Promise<ResponseData<null>> {
-    try {
-      await this.productStockService.unreserve(Number(id), amount);
-
-      return responseData(null, "success", [], "Резерв с товара успешно снят");
-    } catch (error) {
-      return responseData(null, "error", [], error);
-    }
-  }
+  //TODO REMOVE
+  // @Patch(":id/unreserve")
+  // @Roles("admin", "moderator")
+  // @UseGuards(RolesGuard)
+  // async unreserve(
+  //   @Param("id") id: string,
+  //   @Body("amount") amount: number,
+  // ): Promise<ResponseData<null>> {
+  //   try {
+  //     await this.productStockService.unreserve(Number(id), amount);
+  //
+  //     return responseData(null, "success", [], "Резерв с товара успешно снят");
+  //   } catch (error) {
+  //     return responseData(null, "error", [], error);
+  //   }
+  // }
 
   @Delete(":id")
   @Roles("admin", "moderator")

@@ -30,6 +30,12 @@ export class OrderProduct {
   @Column({ type: "varchar", default: "", name: "code" })
   code: string;
 
+  @Column({ type: "int", nullable: true, default: null, name: "brand_id" })
+  brand_id: number;
+
+  @Column({ type: "int", nullable: true, default: null, name: "category_id" })
+  category_id: number;
+
   @Column({ type: "varchar", default: "", name: "description" })
   description: string;
 
@@ -61,7 +67,7 @@ export class OrderProduct {
   price: number;
 
   @Column({ type: "jsonb", nullable: true, default: null, name: "reservations" })
-  reservations: { stock_id: number; quantity: number }[] | null;
+  reservations: { stock_id: number; warehouse_id: number; quantity: number }[] | null;
 
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;

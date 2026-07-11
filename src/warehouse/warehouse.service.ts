@@ -5,6 +5,7 @@ import type { CreateWarehouseDto } from "./dto/create-warehouse.dto";
 import type { UpdateWarehouseDto } from "./dto/update-warehouse.dto";
 import { Warehouse } from "./entities/warehouse.entity";
 import { AddressService } from "src/address/address.service";
+import { haversine } from "src/helpers/haversine";
 
 @Injectable()
 export class WarehouseService {
@@ -116,6 +117,33 @@ export class WarehouseService {
       .catch((error) => {
         throw `Не удалось получить склад по умолчанию, ${error.message}`;
       });
+  }
+
+  async findBaseWarehouseForOrder(lng?: number, lat?: number): Promise<Warehouse | null> {
+    let baseWarehouse: Warehouse | null = null;
+
+    if (typeof lng === "number" && typeof lat === "number") {
+      const warehouses = await this.findPublic();
+      if (warehouses.length > 0) {
+        warehouses.sort((a, b) => {
+          const distA = haversine(lat, lng, a.address?.lat ?? 0, a.address?.lng ?? 0);
+          const distB = haversine(lat, lng, b.address?.lat ?? 0, b.address?.lng ?? 0);
+          return distA - distB;
+        });
+        if (warehouses[0]) {
+          baseWarehouse = warehouses[0];
+        }
+      }
+    }
+
+    if (!baseWarehouse) {
+      const defaultWarehouse = await this.findDefault();
+      if (defaultWarehouse) {
+        baseWarehouse = defaultWarehouse;
+      }
+    }
+
+    return baseWarehouse;
   }
 
   async update(id: number, payload: UpdateWarehouseDto) {

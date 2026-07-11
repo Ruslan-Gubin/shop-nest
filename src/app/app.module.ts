@@ -26,6 +26,7 @@ import { SearchModule } from "src/search/search.module";
 import { AddressModule } from "src/address/address.module";
 import { ProductReviewModule } from "src/product-review/product-review.module";
 import { ProductQuestionModule } from "src/product-question/product-question.module";
+import { TransfersModule } from "src/transfers/transfers.module";
 
 const isDev = process.env.npm_lifecycle_event === "start:dev";
 
@@ -52,6 +53,7 @@ const isDev = process.env.npm_lifecycle_event === "start:dev";
     AddressModule,
     ProductReviewModule,
     ProductQuestionModule,
+    TransfersModule,
     ConfigModule.forRoot({
       isGlobal: true,
     }),

@@ -9,6 +9,8 @@ import { ProductModule } from "src/product/product.module";
 import { CartDiscountsModule } from "src/cart-discounts/cart-discounts.module";
 import { PromotionsModule } from "src/promotions/promotions.module";
 import { ProductStockModule } from "src/product-stock/product-stock.module";
+import { WarehouseModule } from "src/warehouse/warehouse.module";
+import { TransfersModule } from "src/transfers/transfers.module";
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { ProductStockModule } from "src/product-stock/product-stock.module";
     CartDiscountsModule,
     PromotionsModule,
     ProductStockModule,
+    WarehouseModule,
+    TransfersModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],
