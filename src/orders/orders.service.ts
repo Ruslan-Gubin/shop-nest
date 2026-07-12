@@ -323,9 +323,29 @@ export class OrdersService {
       );
     }
 
+    if ((order.status === "in_delivery" || order.status === "ready") && status === "completed") {
+      await this.handleCompletedTransfers(order.id);
+    }
+
     await this.ordersRepository.update(id, { status: status as Order["status"] }).catch((error) => {
       throw `Не удалось изменить статус заказа, ${error.message}`;
     });
+  }
+
+  private async handleCompletedTransfers(order_id: number) {
+    const orderProducts = await this.orderProductRepository.findAll(String(order_id));
+
+    for (let i = 0; i < orderProducts.length; i++) {
+      const reservations = orderProducts[i].reservations;
+      if (!reservations || reservations.length === 0) continue;
+
+      for (let j = 0; j < reservations.length; j++) {
+        await this.productStockRepository.decrementQuantityAndReserved(
+          reservations[j].stock_id,
+          reservations[j].quantity,
+        );
+      }
+    }
   }
 
   private async handleInDeliveryTransfer(
