@@ -865,6 +865,39 @@ export class ProductService {
     return ids.length ? this.findByIds(ids, role) : [];
   }
 
+  async findRunningLow(): Promise<Product[]> {
+    const idsResult = await this.productRepository
+      .query(
+        `
+        SELECT p.id
+        FROM product p
+        JOIN product_stock ps ON ps.product_id = p.id
+        LEFT JOIN (
+          SELECT op.product_id, SUM(op.quantity) / 90.0 AS avg_qty
+          FROM order_product op
+          JOIN "order" o ON o.id = op.order_id
+          WHERE o.status = 'completed'
+            AND o.created_at >= NOW() - INTERVAL '90 days'
+          GROUP BY op.product_id
+        ) sales ON sales.product_id = p.id
+        WHERE ps.in_stock = false
+        GROUP BY p.id
+        HAVING SUM(ps.quantity - ps.reserved) >= 0
+          AND COALESCE(AVG(sales.avg_qty), 0) > 0
+          AND SUM(ps.quantity - ps.reserved) / AVG(sales.avg_qty) <= 30
+        ORDER BY SUM(ps.quantity - ps.reserved) / AVG(sales.avg_qty) ASC
+        LIMIT 10
+      `,
+      )
+      .catch((error) => {
+        throw `Не удалось получить товары с малым остатком, ${error.message}`;
+      });
+
+    const ids = idsResult.map((r: { id: string }) => Number(r.id));
+
+    return ids.length > 0 ? this.findByIds(ids, "admin") : [];
+  }
+
   async getFullPathCategories(productId: number) {
     const product = await this.findOne(productId);
 

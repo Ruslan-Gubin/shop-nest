@@ -48,6 +48,7 @@ export class OrdersController {
     @Query("page") page: string,
     @Query("limit") limit: string,
     @Query("order_number") order_number?: string,
+    @Query("status") status?: string,
   ): Promise<
     ResponseData<{
       orders: Order[];
@@ -56,7 +57,12 @@ export class OrdersController {
     } | null>
   > {
     try {
-      const [orders, totalCount] = await this.ordersService.findAll(page, limit, order_number);
+      const [orders, totalCount] = await this.ordersService.findAll(
+        page,
+        limit,
+        order_number,
+        status,
+      );
 
       return responseData(
         { orders, totalCount, paginationPage: page },
@@ -64,6 +70,26 @@ export class OrdersController {
         [],
         "Список заказов получен",
       );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("stats")
+  async getStats(): Promise<
+    ResponseData<{
+      total: number;
+      totalCart: number;
+      totalCash: number;
+      averageCheck: number;
+      ordersCount: number;
+      discount: number;
+    } | null>
+  > {
+    try {
+      const stats = await this.ordersService.getStats();
+
+      return responseData(stats, "success", [], "Статистика получена");
     } catch (error) {
       return responseData(null, "error", [], error);
     }
@@ -111,7 +137,12 @@ export class OrdersController {
     @CurrentUser() user: CurrentStrategyUser,
   ): Promise<ResponseData<null>> {
     try {
-      await this.ordersService.rejectOrder(Number(id), payload.rejected_reason, user.sub);
+      await this.ordersService.rejectOrder(
+        Number(id),
+        payload.rejected_reason,
+        user.sub,
+        user.role,
+      );
 
       return responseData(null, "success", [], "Заказ отменён");
     } catch (error) {

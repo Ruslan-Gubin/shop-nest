@@ -26,14 +26,27 @@ export class TransfersService {
       });
   }
 
-  async findAll(page: string, limit: string) {
+  async findAll(
+    page: string,
+    limit: string,
+    status?: "processing" | "completed" | "rejected",
+  ) {
     const skip = (Number(page) - 1) * Number(limit);
+
+    const where = status ? { status } : {};
 
     return this.transfersRepository
       .findAndCount({
         skip,
         take: Number(limit),
-        relations: ["from_warehouse", "to_warehouse", "to_address"],
+        where,
+        relations: [
+          "from_warehouse",
+          "from_warehouse.address",
+          "to_warehouse",
+          "to_warehouse.address",
+          "to_address",
+        ],
         order: { id: "DESC" },
       })
       .catch((error) => {
@@ -45,7 +58,13 @@ export class TransfersService {
     return this.transfersRepository
       .findOne({
         where: { id },
-        relations: ["from_warehouse", "to_warehouse", "to_address"],
+        relations: [
+          "from_warehouse",
+          "from_warehouse.address",
+          "to_warehouse",
+          "to_warehouse.address",
+          "to_address",
+        ],
       })
       .catch((error) => {
         throw `Не удалось получить перемещение, ${error.message}`;
@@ -84,6 +103,16 @@ export class TransfersService {
       .catch((error) => {
         throw `Не удалось получить перемещения доставки заказа, ${error.message}`;
       });
+  }
+
+  async updateStatusByOrderAndType(
+    order_id: number,
+    type: "transfer" | "delivery",
+    status: "processing" | "completed" | "rejected",
+  ) {
+    return this.transfersRepository.update({ order_id, type }, { status }).catch((error) => {
+      throw `Не удалось обновить статус перемещений, ${error.message}`;
+    });
   }
 
   async remove(id: number) {

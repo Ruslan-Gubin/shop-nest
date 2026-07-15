@@ -193,6 +193,20 @@ export class ProductStockService {
       });
   }
 
+  async findByProductAndWarehouse(product_id: number, warehouse_id: number) {
+    return this.productStockRepository
+      .findOne({
+        where: {
+          product: { id: product_id },
+          warehouse: { id: warehouse_id },
+        },
+        relations: ["warehouse"],
+      })
+      .catch((error) => {
+        throw `Не удалось получить остаток товара на складе, ${error.message}`;
+      });
+  }
+
   async checkStockAvailability(
     items: CheckingBalancesItemDto[],
   ): Promise<{ product_id: number; available: number }[]> {

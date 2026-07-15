@@ -12,6 +12,7 @@ export class UpdateOrderDto extends PartialType(CreateOrderDto) {
       "processing",
       "cancelled_assembly",
       "ready",
+      "cancelled_ready",
       "in_delivery",
       "cancelled_delivery",
       "completed",

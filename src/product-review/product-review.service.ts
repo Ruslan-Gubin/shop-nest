@@ -17,11 +17,6 @@ export class ProductReviewService {
   ) {}
 
   async create(createProductReviewDto: CreateProductReviewDto) {
-    // const all = await this.productReviewRepository.find({ relations: ["product"] });
-    // console.log(all);
-    // await this.productReviewRepository.delete(all[0].id);
-
-    // return null;
     return this.productReviewRepository
       .save({
         product: { id: createProductReviewDto.product_id },

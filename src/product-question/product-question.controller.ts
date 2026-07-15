@@ -102,6 +102,39 @@ export class ProductQuestionController {
     }
   }
 
+  @Get("unanswered")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async getUnanswered(
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
+  ): Promise<
+    ResponseData<{
+      questions: ProductQuestion[];
+      totalCount: number;
+      paginationPage: number;
+    } | null>
+  > {
+    try {
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+      const pageNum = page ? parseInt(page, 10) : 1;
+
+      const [questions, totalCount] = await this.productQuestionService.findAllUnanswered(
+        pageNum,
+        limitNum,
+      );
+
+      return responseData(
+        { questions, totalCount, paginationPage: pageNum },
+        "success",
+        [],
+        "Неотвеченные вопросы получены",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get(":id")
   async getOne(@Param("id") id: string): Promise<ResponseData<any>> {
     try {

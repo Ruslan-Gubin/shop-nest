@@ -53,6 +53,22 @@ export class ProductQuestionService {
       });
   }
 
+  async findAllUnanswered(page: number, limit: number) {
+    const skip = (Number(page) - 1) * Number(limit);
+
+    return this.productQuestionRepository
+      .findAndCount({
+        skip,
+        take: Number(limit),
+        where: { answer: "" },
+        relations: ["product"],
+        order: { id: "DESC" },
+      })
+      .catch((error) => {
+        throw `Не удалось получить неотвеченные вопросы, ${error.message}`;
+      });
+  }
+
   async findOne(id: number) {
     return this.productQuestionRepository
       .findOne({ where: { id }, relations: ["product"] })

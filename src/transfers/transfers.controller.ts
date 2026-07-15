@@ -10,7 +10,9 @@ export class TransfersController {
   constructor(private readonly transfersService: TransfersService) {}
 
   @Post("create")
-  async create(@Body() createTransferDto: CreateTransferDto): Promise<ResponseData<Transfer | null>> {
+  async create(
+    @Body() createTransferDto: CreateTransferDto,
+  ): Promise<ResponseData<Transfer | null>> {
     try {
       const transfer = await this.transfersService.create(createTransferDto);
 
@@ -24,6 +26,7 @@ export class TransfersController {
   async findAll(
     @Query("page") page: string,
     @Query("limit") limit: string,
+    @Query("status") status?: "processing" | "completed" | "rejected",
   ): Promise<
     ResponseData<{
       transfers: Transfer[];
@@ -32,7 +35,7 @@ export class TransfersController {
     } | null>
   > {
     try {
-      const [transfers, totalCount] = await this.transfersService.findAll(page, limit);
+      const [transfers, totalCount] = await this.transfersService.findAll(page, limit, status);
 
       return responseData(
         { transfers, totalCount, paginationPage: page },
@@ -46,9 +49,7 @@ export class TransfersController {
   }
 
   @Get("transfer-order/:id")
-  async findByOrderId(
-    @Param("id") id: string,
-  ): Promise<ResponseData<Transfer[] | null>> {
+  async findByOrderId(@Param("id") id: string): Promise<ResponseData<Transfer[] | null>> {
     try {
       const transfers = await this.transfersService.findByOrderId(Number(id));
 
@@ -59,9 +60,7 @@ export class TransfersController {
   }
 
   @Get("delivery-order/:id")
-  async findDeliveryByOrderId(
-    @Param("id") id: string,
-  ): Promise<ResponseData<Transfer[] | null>> {
+  async findDeliveryByOrderId(@Param("id") id: string): Promise<ResponseData<Transfer[] | null>> {
     try {
       const transfers = await this.transfersService.findDeliveryByOrderId(Number(id));
 

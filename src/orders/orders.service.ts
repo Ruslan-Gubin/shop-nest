@@ -221,13 +221,17 @@ export class OrdersService {
     return orderNumber;
   }
 
-  async findAll(page: string, limit: string, order_number?: string) {
+  async findAll(page: string, limit: string, order_number?: string, status?: string) {
     const skip = (Number(page) - 1) * Number(limit);
 
-    const whereCondition: { order_number?: FindOperator<string> } = {};
+    const whereCondition: Record<string, any> = {};
 
     if (order_number) {
       whereCondition.order_number = ILike(`%${order_number}%`);
+    }
+
+    if (status) {
+      whereCondition.status = status;
     }
 
     return this.ordersRepository
@@ -259,36 +263,71 @@ export class OrdersService {
     });
   }
 
-  async rejectOrder(id: number, rejected_reason: string, userId?: number) {
+  async rejectOrder(id: number, rejected_reason: string, user_id?: number, user_role?: string) {
+    if (!user_id || !user_role) {
+      throw "Не найдена информация о пользователе который совершает действие";
+    }
+
     const order = await this.findOne(id);
 
     if (!order) {
       throw `Заказ ${id} не найден`;
     }
 
-    const statusMap: Record<string, string> = {
-      new: "cancelled_new",
-      processing: "cancelled_assembly",
-      in_delivery: "cancelled_delivery",
+    if (user_id !== order.create_user_id && user_role !== "admin" && user_role !== "moderator") {
+      throw `Недостаточно прав для отмены заказа ${id}`;
+    }
+
+    const statusMap: Record<string, Order["status"]> = {
+      new: user_id === order.create_user_id ? "cancelled_customer" : "cancelled_new",
+      processing: user_id === order.create_user_id ? "cancelled_customer" : "cancelled_assembly",
+      ready: user_id === order.create_user_id ? "cancelled_customer" : "cancelled_ready",
+      in_delivery: user_id === order.create_user_id ? "cancelled_customer" : "cancelled_delivery",
     };
 
-    const status =
-      userId && userId === order.create_user_id
-        ? "cancelled_customer"
-        : statusMap[order.status] || null;
+    const status = statusMap[order.status];
 
     if (!status) {
-      throw `Невозможно поменять статус заказа ${order.status}`;
+      throw `Невозможно отменить заказ в статусе ${order.status}`;
     }
 
     await this.ordersRepository
       .update(id, {
-        status: status as Order["status"],
+        status,
         rejected_reason,
       })
       .catch((error) => {
         throw `Не удалось отменить заказ, ${error.message}`;
       });
+
+    await this.releaseReservations(order.id);
+
+    if (order.status === "processing") {
+      await this.transfersService.updateStatusByOrderAndType(id, "transfer", "rejected");
+    }
+
+    if (order.status === "in_delivery") {
+      await this.transfersService.updateStatusByOrderAndType(id, "delivery", "rejected");
+    }
+  }
+
+  private async releaseReservations(order_id: number) {
+    const orderProducts = await this.orderProductRepository.findAll(String(order_id));
+
+    for (let i = 0; i < orderProducts.length; i++) {
+      const reservations = orderProducts[i].reservations;
+
+      if (!Array.isArray(reservations)) continue;
+
+      for (let j = 0; j < reservations.length; j++) {
+        const reservation = reservations[j];
+
+        await this.productStockRepository.decrementReserved(
+          reservation.stock_id,
+          reservation.quantity,
+        );
+      }
+    }
   }
 
   async changeStatus(id: number) {
@@ -325,6 +364,10 @@ export class OrdersService {
 
     if ((order.status === "in_delivery" || order.status === "ready") && status === "completed") {
       await this.handleCompletedTransfers(order.id);
+    }
+
+    if (order.status === "in_delivery" && status === "completed") {
+      await this.transfersService.updateStatusByOrderAndType(order.id, "delivery", "completed");
     }
 
     await this.ordersRepository.update(id, { status: status as Order["status"] }).catch((error) => {
@@ -416,18 +459,35 @@ export class OrdersService {
           );
           baseStock.quantity += needAddQuantity;
         } else {
-          const newStock = await this.productStockRepository.create({
-            warehouse_id: baseWarehouseId,
-            product_id: orderProducts[i].product_id,
-            in_stock: false,
-            quantity: needAddQuantity,
-            reserved: needAddQuantity,
-          });
-          baseStock = {
-            stock_id: newStock.id,
-            quantity: needAddQuantity,
-            warehouse_id: baseWarehouseId,
-          };
+          const stock = await this.productStockRepository.findByProductAndWarehouse(
+            orderProducts[i].product_id,
+            baseWarehouseId,
+          );
+
+          if (stock) {
+            await this.productStockRepository.incrementQuantityAndReserved(
+              stock.id,
+              needAddQuantity,
+            );
+            baseStock = {
+              stock_id: stock.id,
+              quantity: stock.quantity + needAddQuantity,
+              warehouse_id: baseWarehouseId,
+            };
+          } else {
+            const newStock = await this.productStockRepository.create({
+              warehouse_id: baseWarehouseId,
+              product_id: orderProducts[i].product_id,
+              in_stock: false,
+              quantity: needAddQuantity,
+              reserved: needAddQuantity,
+            });
+            baseStock = {
+              stock_id: newStock.id,
+              quantity: needAddQuantity,
+              warehouse_id: baseWarehouseId,
+            };
+          }
         }
 
         for (let k = 0; k < transfersHistory.length; k++) {
@@ -442,7 +502,35 @@ export class OrdersService {
           transfers: transfersHistory,
         });
       }
+
+      await this.transfersService.updateStatusByOrderAndType(order_id, "transfer", "completed");
     }
+  }
+
+  async getStats() {
+    const result = await this.ordersRepository
+      .createQueryBuilder("order")
+      .select([
+        'COALESCE(SUM(order.total), 0) AS "total"',
+        'COALESCE(SUM(CASE WHEN order.payment_method = \'card\' THEN order.total ELSE 0 END), 0) AS "totalCart"',
+        'COALESCE(SUM(CASE WHEN order.payment_method = \'cash\' THEN order.total ELSE 0 END), 0) AS "totalCash"',
+        'COUNT(order.id) AS "ordersCount"',
+        'COALESCE(SUM(order.discount_total), 0) AS "discount"',
+      ])
+      .where("order.status = 'completed'")
+      .getRawOne();
+
+    const total = Number(result.total);
+    const ordersCount = Number(result.ordersCount);
+
+    return {
+      total,
+      totalCart: Number(result.totalCart),
+      totalCash: Number(result.totalCash),
+      averageCheck: ordersCount > 0 ? Math.round(total / ordersCount) : 0,
+      ordersCount,
+      discount: Number(result.discount),
+    };
   }
 
   async delete(id: number) {

@@ -201,6 +201,20 @@ export class ProductController {
     }
   }
 
+  @Get("running-low")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async findRunningLow(): Promise<ResponseData<Product[] | null>> {
+    try {
+      const products = await this.productService.findRunningLow();
+      console.log(products);
+
+      return responseData(products, "success", [], "Товары с малым остатком получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Post("create")
   @Roles("admin")
   @UseGuards(RolesGuard)

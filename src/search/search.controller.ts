@@ -52,7 +52,6 @@ export class SearchController {
     } | null>
   > {
     try {
-      console.log("search");
       const queries = await this.searchService.findAll(page, limit, text);
       const totalCount = await this.searchService.getTotalCount(text);
 

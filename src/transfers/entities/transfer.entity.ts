@@ -19,6 +19,9 @@ export class Transfer {
   @Column({ type: "varchar", default: "transfer", name: "type" })
   type: "transfer" | "delivery";
 
+  @Column({ type: "varchar", default: "processing", name: "status" })
+  status: "processing" | "completed" | "rejected";
+
   @Column({ type: "int", nullable: true, default: null, name: "order_id" })
   order_id: number | null;
 
