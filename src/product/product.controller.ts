@@ -207,7 +207,6 @@ export class ProductController {
   async findRunningLow(): Promise<ResponseData<Product[] | null>> {
     try {
       const products = await this.productService.findRunningLow();
-      console.log(products);
 
       return responseData(products, "success", [], "Товары с малым остатком получены");
     } catch (error) {
