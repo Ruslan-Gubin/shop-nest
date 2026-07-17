@@ -507,13 +507,75 @@ export class OrdersService {
     }
   }
 
+  async getSalesByPayment(from?: string, to?: string) {
+    const today = new Date();
+
+    let startDate: Date;
+    let endDate: Date;
+
+    if (!from && !to) {
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999); // последний день месяца
+    } else {
+      if (from) {
+        const fromDate = new Date(from);
+        startDate = new Date(
+          fromDate.getFullYear(),
+          fromDate.getMonth(),
+          fromDate.getDate(),
+          0,
+          0,
+          0,
+        );
+      } else {
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      }
+
+      if (to) {
+        const toDate = new Date(to);
+        endDate = new Date(
+          toDate.getFullYear(),
+          toDate.getMonth(),
+          toDate.getDate(),
+          23,
+          59,
+          59,
+          999,
+        );
+      } else {
+        endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+      }
+    }
+
+    const fromStr = startDate.toISOString();
+    const toStr = endDate.toISOString();
+
+    const query = this.ordersRepository
+      .createQueryBuilder("order")
+      .select([
+        'DATE(order.created_at) AS "date"',
+        "COALESCE(SUM(CASE WHEN order.payment_method = 'card' THEN order.total ELSE 0 END), 0) AS \"card\"",
+        "COALESCE(SUM(CASE WHEN order.payment_method = 'cash' THEN order.total ELSE 0 END), 0) AS \"cash\"",
+      ])
+      .where("order.status = 'completed'")
+      .andWhere("order.created_at BETWEEN :from AND :to", { from: fromStr, to: toStr });
+
+    return await query
+      .groupBy("DATE(order.created_at)")
+      .orderBy("DATE(order.created_at)", "ASC")
+      .getRawMany<{ date: string; card: string; cash: string }>()
+      .catch((error) => {
+        throw `Не удалось получить список продаж, ${error}`;
+      });
+  }
+
   async getStats() {
     const result = await this.ordersRepository
       .createQueryBuilder("order")
       .select([
         'COALESCE(SUM(order.total), 0) AS "total"',
-        'COALESCE(SUM(CASE WHEN order.payment_method = \'card\' THEN order.total ELSE 0 END), 0) AS "totalCart"',
-        'COALESCE(SUM(CASE WHEN order.payment_method = \'cash\' THEN order.total ELSE 0 END), 0) AS "totalCash"',
+        "COALESCE(SUM(CASE WHEN order.payment_method = 'card' THEN order.total ELSE 0 END), 0) AS \"totalCart\"",
+        "COALESCE(SUM(CASE WHEN order.payment_method = 'cash' THEN order.total ELSE 0 END), 0) AS \"totalCash\"",
         'COUNT(order.id) AS "ordersCount"',
         'COALESCE(SUM(order.discount_total), 0) AS "discount"',
       ])

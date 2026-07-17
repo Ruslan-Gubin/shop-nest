@@ -14,6 +14,7 @@ import { CreateOrderDto } from "./dto/create-order.dto";
 import { UpdateOrderDto } from "./dto/update-order.dto";
 import { ShipOrderDto } from "./dto/ship-order.dto";
 import { RejectOrderDto } from "./dto/reject-order.dto";
+import { SalesByPaymentDto } from "./dto/sales-by-payment.dto";
 import { ResponseData, responseData } from "src/helpers/response";
 import { Order } from "./entities/order.entity";
 import { CurrentUser } from "src/auth/decorators/current-user.decorator";
@@ -90,6 +91,19 @@ export class OrdersController {
       const stats = await this.ordersService.getStats();
 
       return responseData(stats, "success", [], "Статистика получена");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("sales-by-payment")
+  async getSalesByPayment(
+    @Query() dto: SalesByPaymentDto,
+  ): Promise<ResponseData<{ date: string; card: string; cash: string }[] | null>> {
+    try {
+      const result = await this.ordersService.getSalesByPayment(dto.from, dto.to);
+
+      return responseData(result, "success", [], "Продажи по способам оплаты получены");
     } catch (error) {
       return responseData(null, "error", [], error);
     }
