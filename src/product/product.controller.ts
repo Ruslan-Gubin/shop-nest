@@ -254,6 +254,30 @@ export class ProductController {
     }
   }
 
+  @Get("search-for-receipt")
+  async findBySearchQuery(
+    @Query("q") q: string,
+  ): Promise<ResponseData<Product[] | null>> {
+    try {
+      const products = await this.productService.findBySearchQuery(q);
+
+      return responseData(products, "success", [], "Товары получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("category/:id")
+  async findByCategoryId(@Param("id") id: string): Promise<ResponseData<Product[] | null>> {
+    try {
+      const products = await this.productService.findByCategoryId(Number(id));
+
+      return responseData(products, "success", [], "Товары для категории получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get("full-path-categories/:id")
   async getFullPathCategories(@Param("id") id: string): Promise<ResponseData<Category[] | null>> {
     try {

@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import type { Repository, FindOperator } from "typeorm";
-import { ILike, In } from "typeorm";
+import { ILike, In, Like } from "typeorm";
 import type { CreateProductDto } from "./dto/create-product.dto";
 import type { UpdateProductDto } from "./dto/update-product.dto";
 import { Product } from "./entities/product.entity";
@@ -544,6 +544,12 @@ export class ProductService {
     return products;
   }
 
+  async findByCategoryId(categoryId: number): Promise<Product[]> {
+    return this.productRepository.find({ where: { category_id: categoryId } }).catch((error) => {
+      throw `Не удалось получить товары для категории, ${error.message}`;
+    });
+  }
+
   /**
    * Похожие товары
    * Принцип сбора: товары из той же категории, отсортированные по количеству
@@ -943,6 +949,27 @@ export class ProductService {
     return this.productRepository.count({ where: whereCondition }).catch((error) => {
       throw `Не удалось получить общее количество товаров, ${error.message}`;
     });
+  }
+
+  async findBySearchQuery(q: string): Promise<Product[]> {
+    const query = q.trim();
+
+    if (!query) {
+      return [];
+    }
+
+    const whereCondition = /^\d+$/.test(query)
+      ? { code: Like(`${query}%`) }
+      : { name: ILike(`%${query}%`) };
+
+    return this.productRepository
+      .find({
+        where: whereCondition,
+        order: { id: "DESC" },
+      })
+      .catch((error) => {
+        throw `Не удалось найти товары по запросу, ${error.message}`;
+      });
   }
 
   async findOne(id: number) {
