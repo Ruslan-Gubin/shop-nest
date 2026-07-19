@@ -100,6 +100,16 @@ export class ProductPriceService {
       });
   }
 
+  async findByProductAndPriceType(productId: number, priceTypeId: number) {
+    return this.productPriceRepository
+      .findOne({
+        where: { product_id: productId, price_type_id: priceTypeId },
+      })
+      .catch((error) => {
+        throw `Не удалось получить цену товара, ${error.message}`;
+      });
+  }
+
   async update(id: number, updateProductPriceDto: UpdateProductPriceDto) {
     return this.productPriceRepository
       .update(id, {

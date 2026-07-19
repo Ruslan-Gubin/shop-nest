@@ -951,6 +951,19 @@ export class ProductService {
     });
   }
 
+  async getReceiptProductInfo(ids: number[]): Promise<{ id: number; name: string }[]> {
+    if (!ids.length) return [];
+
+    return this.productRepository
+      .find({
+        where: { id: In(ids) },
+        select: ["id", "name"],
+      })
+      .catch((error) => {
+        throw `Не удалось получить информацию о товарах, ${error.message}`;
+      });
+  }
+
   async findBySearchQuery(q: string): Promise<Product[]> {
     const query = q.trim();
 
