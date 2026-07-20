@@ -11,6 +11,28 @@ import { CategoryService } from "src/category/category.service";
 import { SearchService } from "src/search/search.service";
 import { ProductReviewService } from "src/product-review/product-review.service";
 
+export type CheckStatus = "success" | "warn" | "error";
+
+export interface FieldCheck {
+  status: CheckStatus;
+  message: string;
+}
+
+export interface ProductCompletenessCheck {
+  id: number;
+  name: string;
+  /** @deprecated Система фото пока не реализована */
+  photos: FieldCheck;
+  price: FieldCheck;
+  specifications: FieldCheck;
+  stocks: FieldCheck;
+  category: FieldCheck;
+  dimensions: FieldCheck;
+  country: FieldCheck;
+  product_type: FieldCheck;
+  equipment: FieldCheck;
+}
+
 @Injectable()
 export class ProductService {
   constructor(
@@ -902,6 +924,157 @@ export class ProductService {
     const ids = idsResult.map((r: { id: string }) => Number(r.id));
 
     return ids.length > 0 ? this.findByIds(ids, "admin") : [];
+  }
+
+  async getIncompleteProducts(
+    page: number,
+    limit: number,
+  ): Promise<{
+    products: ProductCompletenessCheck[];
+    totalCount: number;
+    paginationPage: number;
+  }> {
+    const offset = (page - 1) * limit;
+
+    const rows: {
+      id: number;
+      name: string;
+      category_id: number | null;
+      has_price: boolean;
+      has_specs: boolean;
+      has_stocks: boolean;
+      has_valid_category: boolean;
+      has_country: boolean;
+      has_product_type: boolean;
+      has_equipment: boolean;
+      dims_filled: number;
+      error_score: number;
+      warn_score: number;
+      total_count: number;
+    }[] = await this.productRepository
+      .query(
+        `
+        SELECT
+          sub.*,
+          (
+            CASE WHEN sub.has_price THEN 0 ELSE 2 END +
+            CASE WHEN sub.has_specs THEN 0 ELSE 2 END +
+            CASE WHEN sub.has_stocks THEN 0 ELSE 2 END +
+            CASE WHEN sub.has_valid_category THEN 0 ELSE 2 END
+          ) AS error_score,
+          (
+            CASE WHEN sub.dims_filled = 4 THEN 0 WHEN sub.dims_filled > 0 THEN 1 ELSE 1 END +
+            CASE WHEN sub.has_country THEN 0 ELSE 1 END +
+            CASE WHEN sub.has_product_type THEN 0 ELSE 1 END +
+            CASE WHEN sub.has_equipment THEN 0 ELSE 1 END
+          ) AS warn_score,
+          COUNT(*) OVER() AS total_count
+        FROM (
+          SELECT
+            p.id,
+            p.name,
+            p.category_id,
+            p.weight,
+            p.height,
+            p.length,
+            p.width,
+            p.country,
+            p.product_type,
+            p.equipment,
+            EXISTS (SELECT 1 FROM product_price pp WHERE pp.product_id = p.id AND pp.price > 0) AS has_price,
+            EXISTS (SELECT 1 FROM product_specification ps WHERE ps.product_id = p.id) AS has_specs,
+            EXISTS (SELECT 1 FROM product_stock ps2 WHERE ps2.product_id = p.id) AS has_stocks,
+            CASE
+              WHEN p.category_id IS NULL THEN false
+              WHEN EXISTS (SELECT 1 FROM category c WHERE c.parent_id = p.category_id) THEN false
+              ELSE true
+            END AS has_valid_category,
+            p.country != '' AS has_country,
+            p.product_type != '' AS has_product_type,
+            p.equipment != '' AS has_equipment,
+            (CASE WHEN COALESCE(p.weight, 0) > 0 THEN 1 ELSE 0 END +
+             CASE WHEN COALESCE(p.height, 0) > 0 THEN 1 ELSE 0 END +
+             CASE WHEN COALESCE(p.length, 0) > 0 THEN 1 ELSE 0 END +
+             CASE WHEN COALESCE(p.width, 0) > 0 THEN 1 ELSE 0 END) AS dims_filled
+          FROM product p
+        ) sub
+        WHERE NOT (
+          sub.has_price
+          AND sub.has_specs
+          AND sub.has_stocks
+          AND sub.has_valid_category
+          AND sub.has_country
+          AND sub.has_product_type
+          AND sub.has_equipment
+          AND sub.dims_filled = 4
+        )
+        ORDER BY error_score DESC, warn_score DESC, sub.name ASC
+        LIMIT $1
+        OFFSET $2
+      `,
+        [limit, offset],
+      )
+      .catch((error) => {
+        throw `Не удалось получить товары для проверки, ${error.message}`;
+      });
+
+    const totalCount = rows.length > 0 ? Number(rows[0].total_count) : 0;
+
+    const products: ProductCompletenessCheck[] = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+
+      products.push({
+        id: row.id,
+        name: row.name,
+        photos: { status: "success", message: "В порядке" },
+        price: {
+          status: row.has_price ? "success" : "error",
+          message: row.has_price ? "В порядке" : "Нет цены",
+        },
+        specifications: {
+          status: row.has_specs ? "success" : "error",
+          message: row.has_specs ? "В порядке" : "Нет характеристик",
+        },
+        stocks: {
+          status: row.has_stocks ? "success" : "error",
+          message: row.has_stocks ? "В порядке" : "Нет остатков",
+        },
+
+        category: {
+          status: row.has_valid_category ? "success" : "error",
+          message: row.has_valid_category
+            ? "В порядке"
+            : row.category_id
+              ? "Категория не конечная"
+              : "Нет категории",
+        },
+        dimensions: {
+          status: Number(row.dims_filled) === 4 ? "success" : "warn",
+          message:
+            Number(row.dims_filled) === 4
+              ? "В порядке"
+              : Number(row.dims_filled) > 0
+                ? "Указаны не все габариты"
+                : "Нет габаритов",
+        },
+        country: {
+          status: row.has_country ? "success" : "warn",
+          message: row.has_country ? "В порядке" : "Нет",
+        },
+        product_type: {
+          status: row.has_product_type ? "success" : "warn",
+          message: row.has_product_type ? "В порядке" : "Нет",
+        },
+        equipment: {
+          status: row.has_equipment ? "success" : "warn",
+          message: row.has_equipment ? "В порядке" : "Нет",
+        },
+      });
+    }
+
+    return { products, totalCount, paginationPage: page };
   }
 
   async getFullPathCategories(productId: number) {

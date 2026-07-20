@@ -7,6 +7,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from "class-validator";
 
 export class CreateProductDto {
@@ -16,11 +17,11 @@ export class CreateProductDto {
   @IsNotEmpty({ message: "Введите название" })
   name: string;
 
+  @ValidateIf((payload) => payload.code !== "")
   @IsString({ message: "Штрих код должен быть строкой" })
   @Matches(/^\d+$/, { message: "Только цифры" })
   @MaxLength(14, { message: "Максимум 14 символов" })
   @MinLength(8, { message: "Минимум 8 символов" })
-  @IsNotEmpty({ message: "Штрихкод обязателен" })
   code: string;
 
   @IsOptional()

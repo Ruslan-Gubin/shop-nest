@@ -221,6 +221,25 @@ export class OrdersService {
     return orderNumber;
   }
 
+  async findByUserId(
+    userId: number,
+    page: number,
+    limit: number,
+  ): Promise<[Order[], number]> {
+    const skip = (page - 1) * limit;
+
+    return this.ordersRepository
+      .findAndCount({
+        where: { create_user_id: userId },
+        order: { id: "DESC" },
+        skip,
+        take: limit,
+      })
+      .catch((error) => {
+        throw `Не удалось получить заказы пользователя, ${error.message}`;
+      });
+  }
+
   async findAll(page: string, limit: string, order_number?: string, status?: string) {
     const skip = (Number(page) - 1) * Number(limit);
 

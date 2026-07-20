@@ -139,6 +139,39 @@ export class ProductReviewController {
     }
   }
 
+  @Get("user/:user_id")
+  async findByUser(
+    @Param("user_id") user_id: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ): Promise<
+    ResponseData<{
+      reviews: ProductReview[];
+      totalCount: number;
+      paginationPage: number;
+    } | null>
+  > {
+    try {
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+      const pageNum = page ? parseInt(page, 10) : 1;
+
+      const [reviews, totalCount] = await this.productReviewService.findByUserId(
+        Number(user_id),
+        pageNum,
+        limitNum,
+      );
+
+      return responseData(
+        { reviews, totalCount, paginationPage: pageNum },
+        "success",
+        [],
+        "Отзывы пользователя получены",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get(":id")
   async findOne(@Param("id") id: string): Promise<ResponseData<ProductReview | null>> {
     try {

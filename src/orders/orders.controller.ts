@@ -109,6 +109,39 @@ export class OrdersController {
     }
   }
 
+  @Get("user/:user_id")
+  async findByUser(
+    @Param("user_id") user_id: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ): Promise<
+    ResponseData<{
+      orders: Order[];
+      totalCount: number;
+      paginationPage: number;
+    } | null>
+  > {
+    try {
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+      const pageNum = page ? parseInt(page, 10) : 1;
+
+      const [orders, totalCount] = await this.ordersService.findByUserId(
+        Number(user_id),
+        pageNum,
+        limitNum,
+      );
+
+      return responseData(
+        { orders, totalCount, paginationPage: pageNum },
+        "success",
+        [],
+        "Заказы пользователя получены",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get(":id")
   async findOne(@Param("id") id: string): Promise<ResponseData<Order | null>> {
     try {

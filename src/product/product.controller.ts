@@ -10,7 +10,7 @@ import {
   UseGuards,
   ParseArrayPipe,
 } from "@nestjs/common";
-import { ProductService } from "./product.service";
+import { ProductService, ProductCompletenessCheck } from "./product.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { RolesGuard } from "../auth/guards/roles.guard";
@@ -214,6 +214,31 @@ export class ProductController {
     }
   }
 
+  @Get("incomplete")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async getIncomplete(
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ): Promise<
+    ResponseData<{
+      products: ProductCompletenessCheck[];
+      totalCount: number;
+      paginationPage: number;
+    } | null>
+  > {
+    try {
+      const pageNum = page ? parseInt(page, 10) : 1;
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+
+      const products = await this.productService.getIncompleteProducts(pageNum, limitNum);
+
+      return responseData(products, "success", [], "Список товаров с неполными данными получен");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Post("create")
   @Roles("admin")
   @UseGuards(RolesGuard)
@@ -255,9 +280,7 @@ export class ProductController {
   }
 
   @Get("search-for-receipt")
-  async findBySearchQuery(
-    @Query("q") q: string,
-  ): Promise<ResponseData<Product[] | null>> {
+  async findBySearchQuery(@Query("q") q: string): Promise<ResponseData<Product[] | null>> {
     try {
       const products = await this.productService.findBySearchQuery(q);
 

@@ -46,6 +46,26 @@ export class ProductReviewService {
       });
   }
 
+  async findByUserId(
+    userId: number,
+    page: number,
+    limit: number,
+  ): Promise<[ProductReview[], number]> {
+    const skip = (page - 1) * limit;
+
+    return this.productReviewRepository
+      .findAndCount({
+        where: { create_user_id: userId },
+        relations: ["product"],
+        order: { id: "DESC" },
+        skip,
+        take: limit,
+      })
+      .catch((error) => {
+        throw `Не удалось получить отзывы пользователя, ${error.message}`;
+      });
+  }
+
   async findAll(page: number, limit: number) {
     const skip = (Number(page) - 1) * Number(limit);
 
