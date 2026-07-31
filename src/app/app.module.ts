@@ -28,6 +28,8 @@ import { ProductReviewModule } from "src/product-review/product-review.module";
 import { ProductQuestionModule } from "src/product-question/product-question.module";
 import { TransfersModule } from "src/transfers/transfers.module";
 import { ReceiptModule } from "src/receipt/receipt.module";
+import { ProductSourceRecordModule } from "src/product-source-record/product-source-record.module";
+import { BrowserManagerModule } from "src/browser-manager/browser-manager.module";
 
 const isDev = process.env.npm_lifecycle_event === "start:dev";
 
@@ -56,6 +58,8 @@ const isDev = process.env.npm_lifecycle_event === "start:dev";
     ProductQuestionModule,
     TransfersModule,
     ReceiptModule,
+    ProductSourceRecordModule,
+    BrowserManagerModule,
     ConfigModule.forRoot({
       isGlobal: true,
     }),

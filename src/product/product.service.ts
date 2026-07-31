@@ -1170,6 +1170,12 @@ export class ProductService {
     return product;
   }
 
+  async findByCode(code: string) {
+    return this.productRepository.findOne({ where: { code } }).catch((error) => {
+      throw `Не удалось найти товар по коду, ${error.message}`;
+    });
+  }
+
   async incrementView(id: number) {
     return this.productRepository.increment({ id }, "views", 1).catch((error) => {
       throw `Не удалось увеличить счетчик просмотра, ${error.message}`;
