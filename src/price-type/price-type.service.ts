@@ -43,6 +43,12 @@ export class PriceTypeService {
       });
   }
 
+  async getAll() {
+    return this.priceTypeRepository.find().catch((error) => {
+      throw `Не удалось получить список типов цен, ${error.message}`;
+    });
+  }
+
   async getTotalCount(name?: string, created_user_id?: number) {
     const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
 

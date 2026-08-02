@@ -6,8 +6,8 @@ export class OpenCodeService {
   private readonly baseUrl = "http://localhost:8080/v1/chat/completions";
   private readonly modelName = "gemma-4-E2B_q4_0-it";
 
-  async query(prompt: string): Promise<string> {
-    const response = await fetch(this.baseUrl, {
+  async query2(prompt: string): Promise<string> {
+    return await fetch(this.baseUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -23,23 +23,25 @@ export class OpenCodeService {
         temperature: 1.0,
         top_p: 0.95,
         top_k: 64,
-        max_tokens: 2048,
+        max_tokens: 4096,
+        // max_tokens: 2048,
       }),
-    });
+    })
+      .then((response) => response.json())
+      .then((response) => {
+        if (Object.hasOwn(response, "error") && typeof response.error.message === "string") {
+          throw response.error.message;
+        }
 
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => "unknown error");
-      console.log(errorBody);
-      throw `LLM request failed: ${response.status} ${errorBody}`;
-    }
-
-    const data = await response.json();
-    console.log("data:", data.choices?.[0]?.message?.content);
-    // В стандартном ответе OpenAI-совместимого API первый выбор — data.choices[0].message.content
-    return data.choices?.[0]?.message?.content ?? "";
+        return response.choices?.[0]?.message?.content ?? "";
+      })
+      .catch((error) => {
+        console.error(`LLM запрос завершился с ошибкой: ${error}`);
+        throw `Запрос к LLM завершился с ошибкой: ${error}`;
+      });
   }
 
-  async query2(prompt: string) {
+  async query(prompt: string) {
     const model = [
       "deepseek-v4-flash-free",
       "opencode/ling-3.0-flash-free",
@@ -47,7 +49,7 @@ export class OpenCodeService {
       "opencode/laguna-s-2.1-free",
       "opencode/big-pickle",
     ];
-    const currentModel = model[1];
+    const currentModel = model[4];
     // const test = 'opencode run "hello" -m opencode/laguna-s-2.1-free --format json';
 
     const escaped = prompt

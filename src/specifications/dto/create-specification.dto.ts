@@ -17,5 +17,5 @@ export class CreateSpecificationDto {
   type: SpecificationType;
 
   @IsOptional()
-  created_user_id: number;
+  created_user_id?: number;
 }

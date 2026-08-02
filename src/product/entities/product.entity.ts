@@ -1,5 +1,6 @@
 import { ProductPrice } from "src/product-price/entities/product-price.entity";
 import { ProductStock } from "src/product-stock/entities/product-stock.entity";
+import { Photo } from "src/photo/entities/photo.entity";
 import {
   Column,
   CreateDateColumn,
@@ -22,6 +23,9 @@ export class Product {
 
   @Column({ type: "int", nullable: true, default: null, name: "brand_id" })
   brand_id: number;
+
+  @Column({ type: "varchar", default: "", name: "brand_name" })
+  brand_name: string;
 
   @Column({ type: "int", nullable: true, default: null, name: "category_id" })
   category_id: number;
@@ -53,6 +57,27 @@ export class Product {
   @Column({ type: "int", nullable: true, default: null, name: "purchase_price" })
   purchase_price: number;
 
+  @Column({ type: "varchar", default: "", name: "seo_title" })
+  seo_title: string;
+
+  @Column({ type: "varchar", default: "", name: "seo_description" })
+  seo_description: string;
+
+  @Column({ type: "varchar", default: "", name: "slug" })
+  slug: string;
+
+  @Column({ type: "varchar", default: "", name: "og_title" })
+  og_title: string;
+
+  @Column({ type: "varchar", default: "", name: "og_description" })
+  og_description: string;
+
+  @Column({ type: "varchar", default: "", name: "og_type" })
+  og_type: string;
+
+  @Column({ type: "varchar", default: "", name: "keywords" })
+  keywords: string;
+
   @Column({ type: "int", default: 0, name: "available" })
   available: number;
 
@@ -76,6 +101,8 @@ export class Product {
 
   @OneToMany(() => ProductPrice, (productPrice) => productPrice.product)
   prices: ProductPrice[];
+
+  photos: Photo[];
 
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;

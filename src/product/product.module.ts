@@ -8,6 +8,7 @@ import { ProductPriceModule } from "src/product-price/product-price.module";
 import { CategoryModule } from "src/category/category.module";
 import { SearchModule } from "src/search/search.module";
 import { ProductReviewModule } from "src/product-review/product-review.module";
+import { PhotoModule } from "src/photo/photo.module";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ProductReviewModule } from "src/product-review/product-review.module";
     CategoryModule,
     SearchModule,
     ProductReviewModule,
+    PhotoModule,
   ],
   controllers: [ProductController],
   providers: [ProductService],

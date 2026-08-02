@@ -39,6 +39,11 @@ export class CreateProductDto {
   description: string;
 
   @IsOptional()
+  @IsString({ message: "Бренд должен быть строкой" })
+  @MaxLength(100, { message: "Максимум 100 символов" })
+  brand_name: string;
+
+  @IsOptional()
   @IsString({ message: "Страна должна быть строкой" })
   @MaxLength(100, { message: "Максимум 100 символов" })
   country: string;
@@ -77,4 +82,39 @@ export class CreateProductDto {
   @Min(0, { message: "Не может быть отрицательным" })
   @IsInt({ message: "Закупочная цена должна быть числом" })
   purchase_price: number;
+
+  @IsOptional()
+  @IsString({ message: "SEO заголовок должен быть строкой" })
+  @MaxLength(255, { message: "Максимум 255 символов" })
+  seo_title: string;
+
+  @IsOptional()
+  @IsString({ message: "SEO описание должно быть строкой" })
+  @MaxLength(255, { message: "Максимум 255 символов" })
+  seo_description: string;
+
+  @IsOptional()
+  @IsString({ message: "Slug должен быть строкой" })
+  @MaxLength(255, { message: "Максимум 255 символов" })
+  slug: string;
+
+  @IsOptional()
+  @IsString({ message: "OG заголовок должен быть строкой" })
+  @MaxLength(255, { message: "Максимум 255 символов" })
+  og_title: string;
+
+  @IsOptional()
+  @IsString({ message: "OG описание должно быть строкой" })
+  @MaxLength(255, { message: "Максимум 255 символов" })
+  og_description: string;
+
+  @IsOptional()
+  @IsString({ message: "OG тип должен быть строкой" })
+  @MaxLength(50, { message: "Максимум 50 символов" })
+  og_type: string;
+
+  @IsOptional()
+  @IsString({ message: "Ключевые слова должны быть строкой" })
+  @MaxLength(500, { message: "Максимум 500 символов" })
+  keywords: string;
 }

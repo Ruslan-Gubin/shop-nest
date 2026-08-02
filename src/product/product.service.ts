@@ -10,6 +10,8 @@ import { ProductPriceService } from "src/product-price/product-price.service";
 import { CategoryService } from "src/category/category.service";
 import { SearchService } from "src/search/search.service";
 import { ProductReviewService } from "src/product-review/product-review.service";
+import { PhotoService } from "src/photo/photo.service";
+import { Photo } from "src/photo/entities/photo.entity";
 
 export type CheckStatus = "success" | "warn" | "error";
 
@@ -43,7 +45,29 @@ export class ProductService {
     private categoryService: CategoryService,
     private searchService: SearchService,
     private productReviewService: ProductReviewService,
+    private photoService: PhotoService,
   ) {}
+
+  /** Пакетно подгружает фото товаров (parent_type='product') и раскладывает по product.photos. */
+  private async attachPhotos(products: Product[]) {
+    const ids = products.map((p) => p.id).filter((id) => id != null);
+
+    if (ids.length === 0) return;
+
+    const photos = await this.photoService.findForParents("product", ids);
+
+    const byParent = new Map<number, Photo[]>();
+
+    for (const photo of photos) {
+      const list = byParent.get(photo.parent_id) ?? [];
+      list.push(photo);
+      byParent.set(photo.parent_id, list);
+    }
+
+    for (const product of products) {
+      product.photos = byParent.get(product.id) ?? [];
+    }
+  }
 
   public async calculatePricesForOrder(
     productsQuantity: { product_id: number; quantity: number }[],
@@ -167,6 +191,8 @@ export class ProductService {
       );
       products[i].prices = [];
     }
+
+    await this.attachPhotos(products);
 
     return products;
   }
@@ -363,6 +389,8 @@ export class ProductService {
     if (search) {
       await this.searchService.updateOrCreate({ text: search.trim(), result_count: totalCount });
     }
+
+    await this.attachPhotos(products);
 
     return { products, totalCount, paginationPage: page };
   }
@@ -563,13 +591,21 @@ export class ProductService {
       }
     }
 
+    await this.attachPhotos(products);
+
     return products;
   }
 
   async findByCategoryId(categoryId: number): Promise<Product[]> {
-    return this.productRepository.find({ where: { category_id: categoryId } }).catch((error) => {
-      throw `Не удалось получить товары для категории, ${error.message}`;
-    });
+    const products = await this.productRepository
+      .find({ where: { category_id: categoryId } })
+      .catch((error) => {
+        throw `Не удалось получить товары для категории, ${error.message}`;
+      });
+
+    await this.attachPhotos(products);
+
+    return products;
   }
 
   /**
@@ -1100,7 +1136,7 @@ export class ProductService {
       whereCondition.name = ILike(`%${name}%`);
     }
 
-    return this.productRepository
+    const products = await this.productRepository
       .find({
         skip,
         take: Number(limit),
@@ -1110,6 +1146,10 @@ export class ProductService {
       .catch((error) => {
         throw `Не удалось получить список товаров, ${error.message}`;
       });
+
+    await this.attachPhotos(products);
+
+    return products;
   }
 
   async getTotalCount(name?: string) {
@@ -1148,7 +1188,7 @@ export class ProductService {
       ? { code: Like(`${query}%`) }
       : { name: ILike(`%${query}%`) };
 
-    return this.productRepository
+    const products = await this.productRepository
       .find({
         where: whereCondition,
         order: { id: "DESC" },
@@ -1156,6 +1196,10 @@ export class ProductService {
       .catch((error) => {
         throw `Не удалось найти товары по запросу, ${error.message}`;
       });
+
+    await this.attachPhotos(products);
+
+    return products;
   }
 
   async findOne(id: number) {
@@ -1165,6 +1209,7 @@ export class ProductService {
 
     if (product) {
       await this.productReviewService.attachReviewStats([product]);
+      await this.attachPhotos([product]);
     }
 
     return product;

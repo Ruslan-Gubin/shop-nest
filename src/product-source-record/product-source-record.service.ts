@@ -5,8 +5,16 @@ import { OpenCodeService } from "src/opencode/opencode.service";
 import { BrowserManagerService } from "src/browser-manager/browser-manager.service";
 import { ProductSourceRecord } from "./entities/product-source-record.entity";
 import { ProductService } from "src/product/product.service";
+import { CreateProductDto } from "src/product/dto/create-product.dto";
+import { ProductPriceService } from "src/product-price/product-price.service";
+import { PriceTypeService } from "src/price-type/price-type.service";
+import { ProductSpecificationService } from "src/product-specification/product-specification.service";
+import { SpecificationsService } from "src/specifications/specifications.service";
+import { PhotoService } from "src/photo/photo.service";
+import { CategoryService } from "src/category/category.service";
 import * as cheerio from "cheerio";
 import { CheckImportItemDto } from "./dto/check-import-items.dto";
+import { CreateProductFromRecordDto } from "./dto/create-product-from-record.dto";
 
 @Injectable()
 export class ProductSourceRecordService {
@@ -14,54 +22,339 @@ export class ProductSourceRecordService {
     @InjectRepository(ProductSourceRecord)
     private readonly productSourceRecordRepository: Repository<ProductSourceRecord>,
     private readonly productService: ProductService,
+    private readonly productPriceService: ProductPriceService,
+    private readonly priceTypeService: PriceTypeService,
+    private readonly productSpecificationService: ProductSpecificationService,
+    private readonly specificationsService: SpecificationsService,
+    private readonly photoService: PhotoService,
+    private readonly categoryService: CategoryService,
     private readonly openCode: OpenCodeService,
     private readonly browserManager: BrowserManagerService,
   ) {}
 
-  async checkImportItems(
-    items: CheckImportItemDto[],
-  ): Promise<
-    Record<number, { status: "empty" | "error" | "record" | "completed"; error_message: string }>
+  async createProductFromRecord(payload: CreateProductFromRecordDto) {
+    const record = await this.findRecord(payload.barcode);
+
+    if (!record) {
+      throw `Не найдена запись для штрих-кода ${payload.barcode}. Сначала сгенерируйте данные о товаре`;
+    }
+
+    if (!record.product) {
+      throw `Для штрих-кода ${payload.barcode} нет сгенерированных данных о товаре`;
+    }
+
+    const existingProduct = await this.productService.findByCode(payload.barcode);
+
+    if (existingProduct) {
+      throw `Товар с штрих-кодом ${payload.barcode} уже существует (ID: ${existingProduct.id})`;
+    }
+
+    const data = record.product as Record<string, unknown>;
+
+    const asValidString = (data: object, key: string): string =>
+      Object.hasOwn(data, key) && typeof data[key] === "string" ? data[key].trim() : "";
+
+    const asValidNumber = (data: object, key: string): number =>
+      Object.hasOwn(data, key) &&
+      typeof data[key] === "number" &&
+      data[key] > 0 &&
+      !Number.isNaN(data[key])
+        ? Math.ceil(data[key])
+        : 0;
+
+    const seo =
+      Object.hasOwn(data, "seo") && typeof data.seo === "object" && data.seo !== null
+        ? (data.seo as Record<string, unknown>)
+        : {};
+
+    const createProductDto: CreateProductDto = {
+      brand_id: 0,
+      category_id: 0,
+      purchase_price: 0,
+      name: record.clear_name.trim() || asValidString(data, "name") || `Товар ${payload.barcode}`,
+      code: payload.barcode,
+      description: asValidString(data, "description"),
+      product_type: asValidString(data, "product_type"),
+      equipment: asValidString(data, "equipment"),
+      country: asValidString(data, "country"),
+      brand_name: asValidString(data, "brand_name"),
+      weight: asValidNumber(data, "weight"),
+      height: asValidNumber(data, "height"),
+      length: asValidNumber(data, "length"),
+      width: asValidNumber(data, "width"),
+      seo_title: asValidString(seo, "seo_title"),
+      seo_description: asValidString(seo, "seo_description"),
+      slug: asValidString(seo, "slug"),
+      og_title: asValidString(seo, "og_title"),
+      og_description: asValidString(seo, "og_description"),
+      og_type: asValidString(seo, "og_type"),
+      keywords: asValidString(seo, "keywords"),
+    };
+
+    const product = await this.productService.create(createProductDto);
+
+    if (!product) {
+      throw `Не удалось добавить новый товар`;
+    }
+
+    const category_path = asValidString(data, "category_name");
+
+    if (category_path) {
+      const category_id = await this.resolveCategory(product.name, category_path);
+      if (category_id) await this.productService.update(product.id, { category_id });
+    }
+
+    const priceTypes = await this.priceTypeService.getAll();
+
+    for (let i = 0; i < priceTypes.length; i++) {
+      await this.productPriceService.create({
+        product_id: product.id,
+        price_type_id: priceTypes[i].id,
+        price: Math.round(payload.price),
+      });
+    }
+
+    const specifications = Array.isArray(data.specifications) ? data.specifications : [];
+
+    for (let i = 0; i < specifications.length; i++) {
+      const specification = specifications[i];
+
+      if (!Object.hasOwn(specification, "name") || !Object.hasOwn(specification, "value")) continue;
+
+      if (specification.name.length > 0 && specification.value.length > 0) {
+        let findCreateSpecification = await this.specificationsService.findByName(
+          specification.name,
+        );
+
+        if (!findCreateSpecification) {
+          findCreateSpecification = await this.specificationsService.create({
+            name: specification.name,
+            type: "text",
+          });
+        }
+
+        if (findCreateSpecification) {
+          await this.productSpecificationService.create({
+            product_id: product.id,
+            specification_id: findCreateSpecification.id,
+            value: specification.value,
+          });
+        }
+      }
+    }
+
+    if (Array.isArray(data.photos) && data.photos.length > 0) {
+      for (let i = 0; i < data.photos.length; i++) {
+        const url = data.photos[i];
+
+        if (typeof url === "string" && url.length > 0 && url.match("http"))
+          await this.photoService.create({ parent_id: product.id, parent_type: "product", url });
+      }
+    }
+
+    return product;
+  }
+
+  async resolveCategory(productName: string, recommendedPath: string): Promise<number | null> {
+    const categories = await this.categoryService.findAll();
+    const categoriesTree = await this.categoryService.sortedCategories(categories);
+    const categoriesForPrompt = this.formatCategoriesForPrompt(categoriesTree);
+
+    const prompt = `
+Товар: "${productName}"
+Рекомендуемый путь категории: "${recommendedPath}"
+СПИСОК СУЩЕСТВУЮЩИХ КАТЕГОРИЙ МАГАЗИНА:
+${categoriesForPrompt}
+
+Ты отвечаешь за порядок категорий и следишь, чтобы каждый товар лежал в подходящей для него категории интернет-магазина. Твоя задача — решить, в какую категорию отнести товар.
+Внимательно изучи список существующих категорий и рекомендуемый путь. Главная задача — не плодить 1000 категорий: по возможности используй существующие.
+Обрати внимание, что список категорий имеет актуальный отступ для визуального понимания расположения категорий и вложенности.
+
+Правила:
+- Если товару подходит существующая листовая категория — верни {"category_id": id, "create_categories": []}.
+- Если подходящей категории нет — верни {"category_id": null, "create_categories": [...]}.
+- Каждый элемент "create_categories" — объект {"name": "...", "parent_id": ...}.
+- "parent_id" первого элемента массива может быть:
+  * null — корневая категория (первый уровень),
+  * id существующей родительской категории.
+- Каждый следующий элемент массива — дочерняя категория предыдущего элемента (его "parent_id" игнорируется).
+- Максимум 3-4 уровня вложенности от корня.
+- Не создавай категории без необходимости: если товар можно отнести к существующей — используй существующую.
+- Не выдумывай лишние уровни из рекомендуемого пути: бери только те, что нужны для точной категории.
+
+Верни ТОЛЬКО JSON в виде {"category_id": 15, "create_categories": []} или {"category_id": null, "create_categories": [{"name": "Посуда", "parent_id": null}, {"name": "Чайники", "parent_id": 7}]}. Без пояснений, префиксов и markdown.
+
+Примеры:
+СПИСОК СУЩЕСТВУЮЩИХ КАТЕГОРИЙ МАГАЗИНА:
+- id: 188, name: "Бижутерия"
+  - id: 208, name: "Крабики"
+- id: 189, name: "Шары"
+  - id: 212, name: "Шары латексные"
+- id: 166, name: "Канцтовары"
+  - id: 196, name: "Тетради"
+  - id: 197, name: "Ручки"
+    - id: 213, name: "Ручка шариковая"
+    - id: 229, name: "Ручка пишу стираю"
+      - id: 230, name: "Ручка пишу стираю 1"
+- id: 231, name: "Посуда"
+  - id: 232, name: "Кастрюли"
+    - id: 233, name: "Кастрюли алюминиевые"
+
+Пример 1. Категория уже есть в списке.
+Товар: Кастрюля алюминиевая KALITVA 3,5 л серебристый
+Рекомендуемый путь категории: "Посуда / Для приготовления / Кастрюли / Алюминиевые"
+Правило: категория для алюминиевой кастрюли уже существует — берём её id: 233. Создавать ничего не нужно, отметаем "Для приготовления" — это лишний уровень, стараемся делать меньше вложенности.
+Ответ: {"category_id": 233, "create_categories": []}
+
+Пример 2. Рекомендованный путь содержит похожую, но лишнюю листовую категорию.
+Товар: Кастрюля алюминиевая Каструляки 5 л зеленая
+Рекомендуемый путь категории: "Посуда / Кастрюли / Алюминиевый сплав"
+Правило: категория Кастрюли алюминиевые уже существует — берём её id: 233. Не стоит создавать дополнительную категорию "Алюминиевый сплав" внутри "Кастрюли".
+Ответ: {"category_id": 233, "create_categories": []}
+
+Пример 3. Нужно создать одну новую листовую категорию в существующей родительской.
+Товар: Кастрюля нержавейка AppleKastrula 10 л серая
+Рекомендуемый путь категории: "Посуда / Кастрюли и ковши / Кастрюли из нержавейки"
+Правило: "Кастрюли и ковши" нам не подходят, так как есть "Кастрюли" (id: 232). Категории "Кастрюли из нержавейки" нет — создаём её как дочернюю для "Кастрюли". Первый (и единственный) элемент массива получает parent_id: 232.
+Ответ: {"category_id": null, "create_categories": [{"name": "Кастрюли из нержавейки", "parent_id": 232}]}
+
+Пример 4. Нужно создать полностью новую ветку категорий.
+Товар: Книга Школа семи гномов 2 серия
+Рекомендуемый путь категории: "Книги / Детская литература / Обучение и развитие / Азбука, буквы, чтение"
+Правило: сокращаем до "Обучение и развитие" (листовая категория). Если родительской категории "Книги" нет — полный путь в create_categories: первым идёт корневая с parent_id: null, следующие элементы — дети предыдущего (их parent_id можно ставить null).
+Если же категория "Книги" существует (например id: 188), то первый элемент привязываем к ней.
+Ответ (нет "Книги"): {"category_id": null, "create_categories": [{"name": "Книги", "parent_id": null}, {"name": "Детская литература", "parent_id": null}, {"name": "Обучение и развитие", "parent_id": null}]}
+Ответ (есть "Книги" id: 188): {"category_id": null, "create_categories": [{"name": "Детская литература", "parent_id": 188}, {"name": "Обучение и развитие", "parent_id": null}]}
+`;
+
+    return await this.openCode
+      .query(prompt)
+      .then(async (response) => {
+        const match = response.match(/\{[\s\S]*\}/);
+        const json = match ? JSON.parse(match[0]) : null;
+
+        let result: number | null = null;
+
+        if (!json || typeof json !== "object") {
+          return result;
+        }
+
+        const category_id =
+          Object.hasOwn(json, "category_id") &&
+          typeof json?.category_id === "number" &&
+          json?.category_id > 0
+            ? json?.category_id
+            : null;
+
+        const create_categories =
+          Object.hasOwn(json, "create_categories") && Array.isArray(json?.create_categories)
+            ? json?.create_categories
+            : [];
+
+        if (category_id) {
+          result = category_id;
+        } else if (create_categories.length > 0) {
+          const isValidChainCategory =
+            await this.categoryService.validateCategoryChain(create_categories);
+
+          if (isValidChainCategory) {
+            let lastCreatedId: number | null = null;
+
+            for (let i = 0; i < create_categories.length; i++) {
+              const category = create_categories[i];
+
+              const parentId =
+                i === 0
+                  ? typeof category.parent_id === "number" && category.parent_id > 0
+                    ? category.parent_id
+                    : null
+                  : lastCreatedId;
+
+              const parentChildren = await this.categoryService.getChildren(parentId);
+
+              const newCategory = await this.categoryService.create({
+                name: category.name.trim(),
+                parent_id: parentId,
+                position: parentChildren ? parentChildren.length + 1 : 1,
+              });
+
+              lastCreatedId = newCategory.id;
+            }
+
+            result = lastCreatedId;
+          }
+        }
+
+        return result;
+      })
+      .catch(() => null);
+  }
+
+  private formatCategoriesForPrompt(categories: any[], level = 0): string {
+    let result = "";
+
+    for (const category of categories) {
+      const indent = "  ".repeat(level);
+      result += `${indent}- id: ${category.id}, name: "${category.name}"\n`;
+
+      if (category.children && category.children.length > 0) {
+        result += this.formatCategoriesForPrompt(category.children, level + 1);
+      }
+    }
+
+    return result;
+  }
+
+  async checkImportItems(items: CheckImportItemDto[]): Promise<
+    Record<
+      number,
+      {
+        status: "empty" | "error" | "record" | "completed";
+        error_message: string;
+        product_id: number | null;
+      }
+    >
   > {
     const result: Record<
       number,
-      { status: "empty" | "error" | "record" | "completed"; error_message: string }
+      {
+        status: "empty" | "error" | "record" | "completed";
+        error_message: string;
+        product_id: number | null;
+      }
     > = {};
 
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      const value = (item.barcode || item.name).trim();
+      const value = item?.barcode?.trim() || item?.name?.trim();
+
+      let status: "empty" | "error" | "record" | "completed" = "error";
+      let error_message = "";
+      let product_id: number | null = null;
 
       if (!value) {
-        result[item.id] = { status: "error", error_message: "Нет названия и штрих-кода" };
-        continue;
+        error_message = "Нет названия и штрих-кода";
+        status = "empty";
+      } else {
+        const record = await this.productSourceRecordRepository.findOne({ where: { value } });
+
+        if (!record) {
+          status = "empty";
+        } else {
+          if (Object.hasOwn(record, "product") && !record.product) {
+            error_message = record.error_message ? record.error_message : "Нет полного описания";
+            status = "error";
+          } else {
+            const product = await this.productService.findByCode(item.barcode);
+
+            error_message = product ? "" : record.error_message ? record.error_message : "";
+            product_id = product ? product.id : null;
+            status = product ? "completed" : "record";
+          }
+        }
+
+        result[item.id] = { status, error_message, product_id };
       }
-
-      const record = await this.productSourceRecordRepository.findOne({
-        where: { value },
-      });
-
-      if (!record) {
-        result[item.id] = { status: "empty", error_message: "" };
-        continue;
-      }
-
-      if (record.error_message) {
-        result[item.id] = { status: "error", error_message: record.error_message };
-        continue;
-      }
-
-      if (!record.product) {
-        result[item.id] = { status: "error", error_message: "Нет полного описания" };
-        continue;
-      }
-
-      const product = await this.productService.findByCode(item.barcode);
-
-      result[item.id] = {
-        status: product ? "completed" : "record",
-        error_message: "",
-      };
     }
 
     return result;
@@ -112,8 +405,11 @@ export class ProductSourceRecordService {
         Object.hasOwn(product, "code") ||
         Object.hasOwn(product, "description"));
 
+    let parseData: any = null;
+
     if (!validProductOptions) {
       const productInfo = await this.getProductInfo(clear_name, trimmedCode);
+      parseData = productInfo;
       const productOptions = await this.getProductOptions(clear_name, productInfo, trimmedCode);
 
       const validOptions =
@@ -149,7 +445,7 @@ export class ProductSourceRecordService {
       await this.productSourceRecordRepository.update(existing.id, { product, error_message: "" });
     }
 
-    return { clear_name, product, error_message };
+    return { clear_name, product, error_message, parseData };
   }
 
   async fetchWithPlaywright(url: string) {
@@ -187,7 +483,31 @@ export class ProductSourceRecordService {
 
       await sleep(2000 + Math.random() * 3000);
 
-      const text = await page.evaluate(() => document.body?.innerText || "");
+      const text = await page
+        .evaluate(() => document.body?.innerText || "")
+        .then((response) => {
+          return response
+            .replace(/Подтвердите, что вы не робот/gi, "")
+            .replace(/Инцидент: fab_chlg_.*/gi, "")
+            .replace(/©\s*\d{4}-?\d{0,4}.*/gi, "")
+            .replace(/Все права защищены/gi, "")
+            .replace(/Политика конфиденциальности/gi, "")
+            .replace(/Условия использования/gi, "")
+            .replace(/Правила сайта/gi, "")
+            .replace(/Главная\s*›\s*[^\n]*/gi, "")
+            .replace(/Каталог\s*:\s*[^\n]*/gi, "")
+            .replace(/Меню\s*:[^\n]*/gi, "")
+            .replace(/Похожие товары[:\n]?[\s\S]*?(?=\n\n|$)/gi, "")
+            .replace(/Рекомендуем[:\n]?[\s\S]*?(?=\n\n|$)/gi, "")
+            .replace(/С этим покупают[:\n]?[\s\S]*?(?=\n\n|$)/gi, "")
+            .replace(/Цена:\s*\d+\s*(?:руб\.?|₽)?/gi, "")
+            .replace(/В корзину/gi, "")
+            .replace(/Купить в 1 клик/gi, "")
+            .replace(/Добавить в избранное/gi, "")
+            .replace(/\n\s*\n/g, "\n")
+            .replace(/\s+/g, " ")
+            .trim();
+        });
 
       return { text, photos };
     } finally {
@@ -240,9 +560,21 @@ export class ProductSourceRecordService {
       await this.asyncPool(2, urls, async (url) => {
         try {
           const { text, photos } = await this.fetchWithPlaywright(url);
-          const clean = text.replace(/\s+/g, " ").trim();
-          if (clean.length > 0) {
-            data.push({ url, data: clean, error: "", photos });
+
+          if (text.length > 0) {
+            const validateText = await this.validateParseProductInfo(text, name, photos, barcode);
+
+            if (
+              (validateText.data.length > 0 && validateText.error.length === 0) ||
+              (validateText.error.length > 0 && validateText.photos.length > 0)
+            ) {
+              data.push({
+                url,
+                data: validateText.data,
+                error: validateText.error,
+                photos: validateText.photos,
+              });
+            }
           }
         } catch (error) {
           data.push({ url, data: "", error: `playwright: ${error}`, photos: [] });
@@ -253,6 +585,76 @@ export class ProductSourceRecordService {
     } catch (error) {
       throw `Ошибка при поиске списка: ${error}`;
     }
+  }
+
+  async validateParseProductInfo(
+    rawText: string,
+    expectedName: string,
+    photos: string[],
+    barcode?: string,
+  ): Promise<{ data: string; error: string; photos: string[] }> {
+    const validAnswer = `{"data": "полезная информация о товаре (кратко, без шума), или пустая строка, если не товар", "error": "короткая причина, если это не товар / ошибка / нет данных", "photos": ["ссылка1", "ссылка2"]}`;
+
+    const prompt = `
+Ты — эксперт и экстрактор данных о товарах.
+
+Входные ориентиры:
+- Ожидаемое название товара: ${expectedName}
+- Штрихкод: ${barcode ? barcode : "Отсутствует"}
+- Список фото: ${JSON.stringify(photos)}
+
+Твоя задача:
+1. Определить, содержит ли приведённый текст актуальные данные о конкретном товаре или имеет что то общее с ожидаемым товаром.
+2. Если это НЕ карточка товара (страница поиска, справочник, сервис, ошибка, капча, страница авторизации, заглушка «сайт заблокирован», «нет соединения» и т.п.) — верни JSON с пустой строкой в "data" и краткой причиной в "error".
+3. Если это карточка товара и есть полезная информация — JSON в поле "data" верни всю информацию которая может относится к товару: название/бренд/модель, ключевые характеристики, особенности, габариты, производитель, и прочая информация которая может быть связанна с данным товаров. Не включай доставку, оплату, гарантии, кнопки, призывы к действию, цены других товаров, списки аналогов.
+4. Из списка фото оставь ТОЛЬКО те ссылки, которые относятся к какому либо товару (фото товара, варианты цвета, крупные планы деталей). Удали: логотипы брендов/магазинов, баннеры, заглушки (например, «фото в процессе загрузки»), иконки, капчи, скриншоты интерфейса, «похожие товары», рекламные слайдеры, любые изображения, где товара не видно.
+5. Если фото нет или все фото нерелевантны — "photos": [].
+6. Если данные противоречивы или невозможно понять, о каком товаре речь — в JSON "error" укажи причину, а "data" оставь пустым.
+
+Правила ответа:
+- Верни ТОЛЬКО JSON в виде ${validAnswer}
+- Никаких префиксов, пояснений, списков, нумерации, markdown-блоков
+- Не предлагай варианты, не задавай вопросы
+- Если невозможно извлечь полезную информацию о товаре — "data": "", а в "error" кратко укажи причину
+
+Примеры:
+Вход: [текст страницы с капча и «Подтвердите, что вы не робот»]
+Ответ: {"data": "", "error": "Страница содержит капча, не карточка товара", "photos": []}
+
+Вход: [текст с описанием подшипника 3524, размерами, весом]
+Ответ: {"data": "Подшипник 3524, радиальный роликовый сферический, внутренний диаметр 120 мм, внешний 215 мм, высота 58 мм, латунный сепаратор", "error": "", "photos": ["ссылка_на_вилку", "ссылка_на_упаковку"]}
+
+Вход: [пустой текст]
+Ответ: {"data": "", "error": "Ошибка: пустой текст страницы", "photos": []}
+
+Текст страницы: ${rawText}
+`;
+
+    return await this.openCode
+      .query(prompt)
+      .then((response) => {
+        const match = response.match(/\{[\s\S]*\}/);
+
+        const json = match ? JSON.parse(match[0]) : null;
+
+        return {
+          data:
+            json && Object.hasOwn(json, "data") && typeof json.data === "string" ? json.data : "",
+          error:
+            json && Object.hasOwn(json, "error") && typeof json.error === "string"
+              ? json.error
+              : "",
+          photos:
+            json && Object.hasOwn(json, "photos") && Array.isArray(json.photos) ? json.photos : [],
+        };
+      })
+      .catch((error) => {
+        return {
+          data: "",
+          error: `Ошибка вызова LLM: ${error instanceof Error ? error.message : String(error)}`,
+          photos: [],
+        };
+      });
   }
 
   async findAndFormattedProductName(name: string, code: string) {
@@ -408,21 +810,28 @@ export class ProductSourceRecordService {
 Ответ: "{"name":"", "error": "Ошибка: нет названий для товара"}"
 `;
 
-    const answer = await this.openCode.query(prompt);
-    const match = answer.match(/\{[\s\S]*\}/);
-    const json = match ? JSON.parse(match[0]) : null;
+    return await this.openCode
+      .query(prompt)
+      .then((response) => {
+        const match = response.match(/\{[\s\S]*\}/);
+        const json = match ? JSON.parse(match[0]) : null;
 
-    return {
-      name: json && Object.hasOwn(json, "name") ? json?.name : "",
-      error:
-        json && Object.hasOwn(json, "error")
-          ? json.error
-          : json && !Object.hasOwn(json, "name")
-            ? "Не удалось сгенерировать название для товара"
-            : "",
-    };
-
-    // return await this.openCode.query(prompt);
+        return {
+          name: json && Object.hasOwn(json, "name") ? json?.name : "",
+          error:
+            json && Object.hasOwn(json, "error")
+              ? json.error
+              : json && !Object.hasOwn(json, "name")
+                ? "Не удалось сгенерировать название для товара"
+                : "",
+        };
+      })
+      .catch((error) => {
+        return {
+          name: "",
+          error: `Ошибка вызова LLM: ${error instanceof Error ? error.message : String(error)}`,
+        };
+      });
   }
 
   async formattedName(name: string, names: string[]) {
@@ -451,18 +860,22 @@ export class ProductSourceRecordService {
 Ответ: "{ "name": "" }"
 `;
 
-    const answer = await this.openCode.query(prompt);
+    return await this.openCode
+      .query(prompt)
+      .then((response) => {
+        const match = response.match(/\{[\s\S]*\}/);
+        const json = match ? JSON.parse(match[0]) : null;
 
-    const match = answer.match(/\{[\s\S]*\}/);
-    const json = match ? JSON.parse(match[0]) : null;
+        const currentName =
+          json && Object.hasOwn(json, "name") && json?.name?.length > 0 ? json?.name : "";
 
-    const resultName = json ? json?.name : "";
+        if (currentName.length > 0) {
+          names.push(currentName);
+        }
 
-    if (resultName.length > 0) {
-      names.push(resultName);
-    }
-
-    return resultName;
+        return currentName;
+      })
+      .catch(() => "");
   }
 
   async findRecord(value: string) {
@@ -534,7 +947,7 @@ export class ProductSourceRecordService {
       "brand_name": "Бренд" или null,
       "name": название товара,
       "code": штриховой код товара - ${barcode},
-      "category_name": "Полный путь до листовой категории (например \"Игрушки / Куклы / Кукла-пупс\" или \"Посуда / Чайники / Эмалированные чайники\")",
+      "category_name": "Полный путь до листовой категории (например \"Игрушки / Куклы / Кукла-пупс\" или \"Посуда / Чайники / Эмалированные чайники\")" или null,
       "specifications": [
         { "name": "Название характеристики", "value": "Значение" }
       ] или null,
@@ -554,6 +967,7 @@ export class ProductSourceRecordService {
       } или null,
       "photos": [] массив ссылок на фото товара (желательно без иконок, логотипов, баннеров, фонов, аватаров отзывов)
     }
+
     ВАЖНО:
     - В поле "photos" укажи ТОЛЬКО ссылки
     - верни ТОЛЬКО JSON без пояснений
@@ -611,9 +1025,12 @@ export class ProductSourceRecordService {
     - если источники содержат разную информацию по разным товарам попробуй найти более подходящий источник для названия ${name} или штрих-кода: ${barcode} или же найди какое либо сходство из разных источников и составь минимальное описание, если нет определенного бренда или габариты не сопоставляются из разных источников тогда необязательно это указывать пусть буде null
 `;
 
-    const answer = await this.openCode.query(prompt);
-    const match = answer.match(/\{[\s\S]*\}/);
-
-    return match ? JSON.parse(match[0]) : null;
+    return await this.openCode
+      .query(prompt)
+      .then((response) => {
+        const match = response.match(/\{[\s\S]*\}/);
+        return match ? JSON.parse(match[0]) : null;
+      })
+      .catch(() => null);
   }
 }

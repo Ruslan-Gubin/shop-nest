@@ -222,4 +222,47 @@ export class CategoryService {
         throw `Не удалось изменить категорию, ${error.message}`;
       });
   }
+
+  async validateCategoryChain(
+    categories: { name: string; parent_id: number | null }[],
+  ): Promise<boolean> {
+    let isValid = Array.isArray(categories) && categories.length > 0;
+
+    if (isValid) {
+      for (let i = 0; i < categories.length; i++) {
+        const category = categories[i];
+        const name =
+          Object.hasOwn(category, "name") &&
+          typeof category?.name === "string" &&
+          category.name.trim().length >= 2
+            ? category?.name?.trim()
+            : "";
+
+        if (!name) {
+          isValid = false;
+          break;
+        }
+
+        const parent_id =
+          Object.hasOwn(category, "parent_id") &&
+          typeof category?.parent_id === "number" &&
+          !Number.isNaN(Number(category?.parent_id)) &&
+          category?.parent_id > 0
+            ? Number(category?.parent_id)
+            : 0;
+
+        if (parent_id) {
+          const existing = await this.categoryRepository.findOneBy({ name, parent_id });
+          const parent = await this.categoryRepository.findOneBy({ id: parent_id });
+
+          if (existing || !parent) {
+            isValid = false;
+            break;
+          }
+        }
+      }
+    }
+
+    return isValid;
+  }
 }

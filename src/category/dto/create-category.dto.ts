@@ -12,7 +12,7 @@ export class CreateCategoryDto {
   @IsOptional()
   @Min(0, { message: "Родительский id не может быть отрицательным" })
   @IsInt({ message: "Родительский id должен быть числом" })
-  parent_id: number;
+  parent_id: number | null;
 
   @IsOptional()
   @Min(0, { message: "Позиция не может быть отрицательным" })
@@ -33,7 +33,7 @@ export class CreateCategoryDto {
   @MinLength(2, {
     message: "Описание категории должно содержать минимум 2 символа",
   })
-  description: string;
+  description?: string;
 
   @IsOptional()
   @IsString()
@@ -41,8 +41,8 @@ export class CreateCategoryDto {
   @MinLength(2, {
     message: "Описание категории должно содержать минимум 2 символа",
   })
-  image: string;
+  image?: string;
 
   @IsOptional()
-  created_user_id: number;
+  created_user_id?: number;
 }

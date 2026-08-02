@@ -59,6 +59,12 @@ export class SpecificationsService {
     });
   }
 
+  async findByName(name: string) {
+    return this.specificationRepository.findOne({ where: { name } }).catch((error) => {
+      throw `Не удалось получить характеристику, ${error.message}`;
+    });
+  }
+
   async findOne(id: number) {
     return this.specificationRepository.findOne({ where: { id } }).catch((error) => {
       throw `Не удалось получить характеристику, ${error.message}`;
