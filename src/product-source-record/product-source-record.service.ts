@@ -15,6 +15,7 @@ import { CategoryService } from "src/category/category.service";
 import * as cheerio from "cheerio";
 import { CheckImportItemDto } from "./dto/check-import-items.dto";
 import { CreateProductFromRecordDto } from "./dto/create-product-from-record.dto";
+import { GenerateSeoDto } from "./dto/generate-seo.dto";
 
 @Injectable()
 export class ProductSourceRecordService {
@@ -68,7 +69,6 @@ export class ProductSourceRecordService {
         : {};
 
     const createProductDto: CreateProductDto = {
-      brand_id: 0,
       category_id: 0,
       purchase_price: 0,
       name: record.clear_name.trim() || asValidString(data, "name") || `Товар ${payload.barcode}`,
@@ -529,6 +529,111 @@ ${categoriesForPrompt}
       }
     }
     await Promise.all(executing);
+  }
+
+  async pickImages(query: string): Promise<string[]> {
+    const headers = {
+      "user-agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36",
+      "accept-language": "en-US,en;q=0.9",
+      referer: "https://duckduckgo.com/",
+    };
+
+    const tokenPage = await fetch(
+      `https://duckduckgo.com/?q=${encodeURIComponent(query)}&iax=images&ia=images`,
+      { headers },
+    );
+    const tokenHtml = await tokenPage.text();
+
+    const vqd = tokenHtml.match(/vqd="([^"]+)"/)?.[1];
+    if (!vqd) return [];
+
+    const apiUrl = `https://duckduckgo.com/i.js?l=us-en&o=json&q=${encodeURIComponent(
+      query,
+    )}&vqd=${vqd}&p=1`;
+
+    const apiResponse = await fetch(apiUrl, { headers });
+    if (!apiResponse.ok) return [];
+
+    const data: {
+      results?: {
+        image?: string;
+        title?: string;
+        width?: number;
+        height?: number;
+        score?: number;
+        small?: boolean;
+      }[];
+    } = await apiResponse.json();
+
+    for (const result of data.results || []) {
+      result.score = this.scoreTitle(result.title || "", query);
+      result.small = (result.width || 0) < 200 || (result.height || 0) < 200;
+    }
+
+    return (data.results || [])
+      .sort((a, b) => {
+        if (!a.image && !b.image) return 0;
+        if (!a.image) return 1;
+        if (!b.image) return -1;
+        return Number(a.small) - Number(b.small) || b.score! - a.score!;
+      })
+      .slice(0, 50)
+      .map((result) => result.image)
+      .filter((url): url is string => !!url);
+  }
+
+  private scoreTitle(title: string, name: string): number {
+    const tokenize = (text: string) =>
+      text
+        .toLowerCase()
+        .replace(/[^a-zа-яё0-9.]+/gi, " ")
+        .split(/\s+/)
+        .filter(Boolean);
+
+    const stemToken = (token: string): string =>
+      token.replace(
+        /(ая|яя|ое|ее|ый|ий|ой|ого|его|ому|ему|ам|ям|ах|ях|ов|ев|ом|ем|а|я|ы|и|у|ю|о|е|ь)$/gi,
+        "",
+      );
+
+    const stem = (tokens: string[]): string[] =>
+      tokens.map((t) => (t.length >= 3 ? stemToken(t) : t));
+
+    const nameTokens = tokenize(name);
+    const nameStemmed = stem(nameTokens);
+    const titleTokens = tokenize(title);
+    const titleStemmed = stem(titleTokens);
+
+    if (nameTokens.length === 0) return 0;
+
+    const nameNumbers = new Set(nameTokens.filter((t) => /\d/.test(t)));
+    let score = 0;
+
+    for (let i = 0; i < nameTokens.length; i++) {
+      const token = nameTokens[i];
+      const stemmed = nameStemmed[i];
+      const isNumeric = /\d/.test(token);
+
+      if (isNumeric) {
+        if (titleTokens.includes(token)) score += 1;
+        continue;
+      }
+
+      if (titleStemmed.includes(stemmed)) {
+        score += 2;
+      } else if (titleStemmed.some((t) => t.includes(stemmed) || stemmed.includes(t))) {
+        score += 1;
+      }
+    }
+
+    for (const titleToken of titleTokens) {
+      if (/\d/.test(titleToken) && !nameNumbers.has(titleToken)) {
+        score -= 1;
+      }
+    }
+
+    return score;
   }
 
   async getProductInfo(name: string, barcode?: string) {
@@ -1032,5 +1137,70 @@ ${categoriesForPrompt}
         return match ? JSON.parse(match[0]) : null;
       })
       .catch(() => null);
+  }
+
+  async generateSeo(dto: GenerateSeoDto) {
+    const seo = dto.seo || {};
+
+    const validAnswer = `{
+      "seo_title": "Meta-заголовок (до 60 символов, с ключевыми словами)",
+      "seo_description": "Meta-описание (до 160 символов, с ключевыми словами)",
+      "slug": "ЧПУ-строка (транслит, только латиница, дефисы вместо пробелов, без спецсимволов)",
+      "og_title": "Open Graph заголовок (до 60 символов)",
+      "og_description": "Open Graph описание (до 160 символов)",
+      "og_type": "Тип Open Graph (обычно 'product')",
+      "keywords": "Ключевые слова через запятую (5-10 слов)"
+    }`;
+
+    const prompt = `
+Ты — SEO-специалист интернет-магазина. Твоя задача — сформировать рекомендуемые SEO-поля для карточки товара.
+
+Входные данные о товаре:
+- Название: ${dto.name}
+- Описание: ${dto.description ? dto.description : "Отсутствует"}
+- Бренд: ${dto.brand_name ? dto.brand_name : "Отсутствует"}
+- Категория: ${dto.category_name ? dto.category_name : "Отсутствует"}
+- Текущие SEO-поля товара (могут быть заполнены или пустые):
+${JSON.stringify(seo, null, 2)}
+
+Твоя задача:
+1. Для каждого SEO-поля дай рекомендуемое значение.
+2. Если поле уже заполнено осмысленным значением — сохрани его, улучшив при необходимости.
+3. Если поле пустое — сгенерируй рекомендуемое значение на основе названия, описания, бренда и категории.
+4. "seo_title" — до 60 символов, с ключевыми словами.
+5. "seo_description" — до 160 символов, с ключевыми словами.
+6. "slug" — транслит латиницей, дефисы вместо пробелов, без спецсимволов, строчные буквы.
+7. "og_title" — до 60 символов, "og_description" — до 160 символов.
+8. "og_type" — обычно "product".
+9. "keywords" — 5-10 ключевых слов через запятую.
+
+Правила ответа:
+- Верни ТОЛЬКО JSON в виде ${validAnswer}
+- Никаких префиксов, пояснений, списков, нумерации, markdown-блоков
+- Не выдумывай факты о товаре, которых нет во входных данных
+- Если невозможно сформировать SEO — верни JSON с пустыми строками
+`;
+
+    return await this.openCode
+      .query(prompt)
+      .then((response) => {
+        const match = response.match(/\{[\s\S]*\}/);
+        const json = match ? JSON.parse(match[0]) : null;
+
+        if (!json || typeof json !== "object") return null;
+
+        return {
+          seo_title: Object.hasOwn(json, "seo_title") ? json.seo_title : "",
+          seo_description: Object.hasOwn(json, "seo_description") ? json.seo_description : "",
+          slug: Object.hasOwn(json, "slug") ? json.slug : "",
+          og_title: Object.hasOwn(json, "og_title") ? json.og_title : "",
+          og_description: Object.hasOwn(json, "og_description") ? json.og_description : "",
+          og_type: Object.hasOwn(json, "og_type") ? json.og_type : "",
+          keywords: Object.hasOwn(json, "keywords") ? json.keywords : "",
+        };
+      })
+      .catch((error) => {
+        throw `Ошибка генерации SEO: ${error instanceof Error ? error.message : String(error)}`;
+      });
   }
 }

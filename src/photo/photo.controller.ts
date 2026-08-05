@@ -1,10 +1,20 @@
-import { Controller, Get, Post, Body, Param, Delete, UseGuards, Patch, Query } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Delete,
+  UseGuards,
+  Patch,
+  Query,
+} from "@nestjs/common";
 import { PhotoService } from "./photo.service";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { ResponseData, responseData } from "src/helpers/response";
 import { Photo } from "./entities/photo.entity";
-import { CreatePhotoDto } from "./dto/create-photo.dto";
+import { CreatePhotoAndPositionDto } from "./dto/create-photo.dto";
 import { UpdatePhotoDto } from "./dto/update-photo.dto";
 
 @Controller("photo")
@@ -14,9 +24,11 @@ export class PhotoController {
   @Post("create")
   @Roles("admin")
   @UseGuards(RolesGuard)
-  async create(@Body() createPhotoDto: CreatePhotoDto): Promise<ResponseData<Photo | null>> {
+  async create(
+    @Body() createPhotoDto: CreatePhotoAndPositionDto,
+  ): Promise<ResponseData<Photo | null>> {
     try {
-      const photo = await this.photoService.create(createPhotoDto);
+      const photo = await this.photoService.createAndSetPosition(createPhotoDto);
 
       return responseData(photo, "success", [], "Фото успешно добавлено");
     } catch (error) {
@@ -53,7 +65,7 @@ export class PhotoController {
   }
 
   @Patch(":id")
-  @Roles("admin")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async update(
     @Param("id") id: string,
@@ -69,7 +81,7 @@ export class PhotoController {
   }
 
   @Delete(":id")
-  @Roles("admin")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async remove(@Param("id") id: string): Promise<ResponseData<null>> {
     try {

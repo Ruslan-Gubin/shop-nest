@@ -1,4 +1,4 @@
-import { IsInt, IsNotEmpty, IsString, Matches } from "class-validator";
+import { IsInt, IsNotEmpty, IsString, Matches, Min } from "class-validator";
 
 export class CreatePhotoDto {
   @IsString()
@@ -13,4 +13,10 @@ export class CreatePhotoDto {
   @IsInt({ message: "ID родительской сущности должен быть числом" })
   @IsNotEmpty({ message: "Укажите ID родительской сущности" })
   parent_id: number;
+}
+
+export class CreatePhotoAndPositionDto extends CreatePhotoDto {
+  @Min(1, { message: "Позиция не может быть меньше 1" })
+  @IsInt({ message: "Позиция должна быть числом" })
+  position: number;
 }

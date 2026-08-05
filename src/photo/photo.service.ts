@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, type Repository } from "typeorm";
-import { CreatePhotoDto } from "./dto/create-photo.dto";
+import { CreatePhotoAndPositionDto, CreatePhotoDto } from "./dto/create-photo.dto";
 import { UpdatePhotoDto } from "./dto/update-photo.dto";
 import { Photo } from "./entities/photo.entity";
 
@@ -29,6 +29,12 @@ export class PhotoService {
     });
 
     return count + 1;
+  }
+
+  async createAndSetPosition(createPhotoDto: CreatePhotoAndPositionDto) {
+    return this.photoRepository.save(createPhotoDto).catch((error) => {
+      throw `Не удалось добавить фото, ${error.message}`;
+    });
   }
 
   async findAll(parent_type?: string, parent_id?: number) {
@@ -94,21 +100,21 @@ export class PhotoService {
       throw `Не удалось удалить фото, ${error.message}`;
     });
 
-    await this.renumber(photo.parent_type, photo.parent_id);
+    // await this.renumber(photo.parent_type, photo.parent_id);
   }
 
-  private async renumber(parentType: string, parentId: number) {
-    const photos = await this.photoRepository.find({
-      where: { parent_type: parentType, parent_id: parentId },
-      order: { position: "ASC", id: "ASC" },
-    });
-
-    const updated = photos.map((photo, index) => ({ ...photo, position: index + 1 }));
-
-    await this.photoRepository.save(updated).catch((error) => {
-      throw `Не удалось обновить позиции фото, ${error.message}`;
-    });
-  }
+  // private async renumber(parentType: string, parentId: number) {
+  //   const photos = await this.photoRepository.find({
+  //     where: { parent_type: parentType, parent_id: parentId },
+  //     order: { position: "ASC", id: "ASC" },
+  //   });
+  //
+  //   const updated = photos.map((photo, index) => ({ ...photo, position: index + 1 }));
+  //
+  //   await this.photoRepository.save(updated).catch((error) => {
+  //     throw `Не удалось обновить позиции фото, ${error.message}`;
+  //   });
+  // }
 
   async deleteByParent(parentType: string, parentId: number) {
     await this.photoRepository
