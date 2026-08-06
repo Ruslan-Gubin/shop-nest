@@ -16,6 +16,7 @@ import * as cheerio from "cheerio";
 import { CheckImportItemDto } from "./dto/check-import-items.dto";
 import { CreateProductFromRecordDto } from "./dto/create-product-from-record.dto";
 import { GenerateSeoDto } from "./dto/generate-seo.dto";
+import { SuggestCategoryDto } from "./dto/suggest-category.dto";
 
 @Injectable()
 export class ProductSourceRecordService {
@@ -405,11 +406,8 @@ ${categoriesForPrompt}
         Object.hasOwn(product, "code") ||
         Object.hasOwn(product, "description"));
 
-    let parseData: any = null;
-
     if (!validProductOptions) {
       const productInfo = await this.getProductInfo(clear_name, trimmedCode);
-      parseData = productInfo;
       const productOptions = await this.getProductOptions(clear_name, productInfo, trimmedCode);
 
       const validOptions =
@@ -445,7 +443,7 @@ ${categoriesForPrompt}
       await this.productSourceRecordRepository.update(existing.id, { product, error_message: "" });
     }
 
-    return { clear_name, product, error_message, parseData };
+    return { clear_name, product, error_message };
   }
 
   async fetchWithPlaywright(url: string) {
@@ -1202,5 +1200,133 @@ ${JSON.stringify(seo, null, 2)}
       .catch((error) => {
         throw `Ошибка генерации SEO: ${error instanceof Error ? error.message : String(error)}`;
       });
+  }
+
+  async suggestCategory(payload: SuggestCategoryDto) {
+    const categories = await this.categoryService.findAll();
+    const categoriesTree = await this.categoryService.sortedCategories(categories);
+    const categoriesForPrompt = this.formatCategoriesForPrompt(categoriesTree);
+
+    const prompt = `
+Товар: "${payload.name}"
+Описание товара: "${payload.description}"
+СПИСОК СУЩЕСТВУЮЩИХ КАТЕГОРИЙ МАГАЗИНА:
+${categoriesForPrompt}
+
+Ты отвечаешь за порядок категорий и следишь, чтобы каждый товар лежал в подходящей для него категории интернет-магазина. Твоя задача — определить, в какую категорию отнести товар, опираясь на его название и описание.
+Внимательно изучи список существующих категорий. Главная задача — не плодить 1000 категорий: по возможности используй существующие.
+Обрати внимание, что список категорий имеет актуальный отступ для визуального понимания расположения категорий и вложенности.
+
+Правила:
+- Если товару подходит существующая листовая категория — верни {"category_id": id, "create_categories": []}.
+- Если подходящей категории нет — верни {"category_id": null, "create_categories": [...]}.
+- Каждый элемент "create_categories" — объект {"name": "...", "parent_id": ...}.
+- "parent_id" первого элемента массива может быть:
+  * null — корневая категория (первый уровень),
+  * id существующей родительской категории.
+- Каждый следующий элемент массива — дочерняя категория предыдущего элемента (его "parent_id" игнорируется).
+- Максимум 3-4 уровня вложенности от корня.
+- Не создавай категории без необходимости: если товар можно отнести к существующей — используй существующую.
+- Используй описание товара только для уточнения подходящей категории, не выдумывай лишние уровни вложенности.
+- Рекомендуется не хранить товары в корневой категории а создавать разветвление для корневого каталога.
+
+Верни ТОЛЬКО JSON в виде {"category_id": 15, "create_categories": []} или {"category_id": null, "create_categories": [{"name": "Посуда", "parent_id":   если это корневая категория тогда null иначе id родительской категории}, {"name": "Чайники", "parent_id": null}]}. Без пояснений, префиксов и markdown.
+
+Примеры:
+СПИСОК СУЩЕСТВУЮЩИХ КАТЕГОРИЙ МАГАЗИНА:
+- id: 188, name: "Бижутерия"
+  - id: 208, name: "Крабики"
+- id: 189, name: "Шары"
+  - id: 212, name: "Шары латексные"
+- id: 166, name: "Канцтовары"
+  - id: 196, name: "Тетради"
+  - id: 197, name: "Ручки"
+    - id: 213, name: "Ручка шариковая"
+    - id: 229, name: "Ручка пишу стираю"
+      - id: 230, name: "Ручка пишу стираю 1"
+- id: 231, name: "Посуда"
+  - id: 232, name: "Кастрюли"
+    - id: 233, name: "Кастрюли алюминиевые"
+
+Пример 1. Категория уже есть в списке.
+Товар: Кастрюля алюминиевая KALITVA 3,5 л серебристый
+Описание товара: "Кастрюля из алюминия для приготовления пищи"
+Правило: категория для алюминиевой кастрюли уже существует — берём её id: 233. Создавать ничего не нужно, стараемся делать меньше вложенности.
+Ответ: {"category_id": 233, "create_categories": []}
+
+Пример 2. Нужно создать одну новую листовую категорию в существующей родительской.
+Товар: Кастрюля нержавейка AppleKastrula 10 л серая
+Описание товара: "Кастрюля из нержавейки для приготовления пищи"
+Правило: категории "Кастрюли из нержавейки" нет — создаём её как дочернюю для "Кастрюли" (id: 232). Первый (и единственный) элемент массива получает parent_id: 232.
+Ответ: {"category_id": null, "create_categories": [{"name": "Кастрюли из нержавейки", "parent_id": 232}]}
+
+Пример 3. Нужно создать полностью новую ветку категорий.
+Товар: Книга Школа семи гномов 2 серия
+Описание товара: "Обучающая детская литература для чтения, азбука и буквы"
+Правило: сокращаем до "Обучение и развитие" (листовая категория). Если родительской категории "Книги" нет — полный путь в create_categories: первым идёт корневая с parent_id: null, следующие элементы — дети предыдущего (их parent_id нужно ставить null).
+Если же категория "Книги" существует (например id: 188), то первый элемент привязываем к ней.
+Ответ (нет "Книги"): {"category_id": null, "create_categories": [{"name": "Книги", "parent_id": null}, {"name": "Детская литература", "parent_id": null}, {"name": "Обучение и развитие", "parent_id": null}]}
+Ответ (есть "Книги" id: 188): {"category_id": null, "create_categories": [{"name": "Детская литература", "parent_id": 188}, {"name": "Обучение и развитие", "parent_id": null}]}
+
+Пример 4. Не желательно присваивать корневую категорию как category_id.
+Товар: Вентилятор напольный мощный для дома
+Описание товара: "Напольный вентилятор — надёжный и эффективный помощник для охлаждения дома и офиса в жаркое время года. Мощный двигатель 70 Вт обеспечивает стабильную циркуляцию воздуха и создаёт комфортный освежающий поток. Классическая конструкция с пятью лопастями формирует мягкий и равномерный обдув, помогая быстро охладить помещение."
+Правило: видно что товар можно добавить в имеющую категорию 241 "Бытовая техника", но категория 241 корневая и имеет parent_id: null, желательно от корневой категории добавить ответвление
+Ответ: {"category_id": null, "create_categories": [{"name": "Вентиляторы", "parent_id": 241}]}
+`;
+
+    return await this.openCode.query(prompt).then(async (response) => {
+      const match = response.match(/\{[\s\S]*\}/);
+      const json = match ? JSON.parse(match[0]) : null;
+
+      const category_id =
+        json &&
+        Object.hasOwn(json, "category_id") &&
+        typeof json?.category_id === "number" &&
+        json?.category_id > 0
+          ? json?.category_id
+          : null;
+
+      const create_categories =
+        json && Object.hasOwn(json, "create_categories") && Array.isArray(json?.create_categories)
+          ? json?.create_categories
+          : [];
+
+      return { category_id, create_categories };
+    });
+  }
+
+  async applySuggestCategory(create_categories: { name: string; parent_id: number | null }[]) {
+    const isValidChainCategory =
+      await this.categoryService.validateCategoryChain(create_categories);
+
+    if (!isValidChainCategory) {
+      throw "Не удалось добавить категорию, не валидный список категорий";
+    }
+
+    let lastCreatedId: number | null = null;
+
+    for (let i = 0; i < create_categories.length; i++) {
+      const category = create_categories[i];
+
+      const parentId =
+        i === 0
+          ? typeof category.parent_id === "number" && category.parent_id > 0
+            ? category.parent_id
+            : null
+          : lastCreatedId;
+
+      const parentChildren = await this.categoryService.getChildren(parentId);
+
+      const newCategory = await this.categoryService.create({
+        name: category.name.trim(),
+        parent_id: parentId,
+        position: parentChildren ? parentChildren.length + 1 : 1,
+      });
+
+      lastCreatedId = newCategory.id;
+    }
+
+    return lastCreatedId;
   }
 }

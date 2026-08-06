@@ -50,7 +50,6 @@ export class OpenCodeService {
       "opencode/big-pickle",
     ];
     const currentModel = model[4];
-    // const test = 'opencode run "hello" -m opencode/laguna-s-2.1-free --format json';
 
     const escaped = prompt
       .replace(/\\/g, "\\\\")
@@ -81,7 +80,7 @@ export class OpenCodeService {
 
       return result;
     } catch (err) {
-      throw `OpenCode query failed: ${err}`;
+      throw `Ошибка запроса к llm: ${err}`;
     }
   }
 }

@@ -8,6 +8,7 @@ import { CreateProductFromRecordDto } from "./dto/create-product-from-record.dto
 import { responseData } from "src/helpers/response";
 import { RolesGuard } from "src/auth/guards/roles.guard";
 import { Roles } from "src/auth/decorators/roles.decorator";
+import { SuggestCategoryDto } from "./dto/suggest-category.dto";
 
 @Controller("product-source-record")
 export class ProductSourceRecordController {
@@ -45,6 +46,32 @@ export class ProductSourceRecordController {
       const seo = await this.productSourceRecordService.generateSeo(dto);
 
       return responseData(seo, "success", [], "SEO-поля сгенерированы");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Post("suggest-category")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async suggestCategory(@Body() payload: SuggestCategoryDto) {
+    try {
+      const recommendCategory = await this.productSourceRecordService.suggestCategory(payload);
+
+      return responseData(recommendCategory, "success", [], "Получены рекомендации по категории");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Post("apply-category-suggestion")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async applySuggestCategory(@Body() payload: { name: string; parent_id: number | null }[]) {
+    try {
+      const id = await this.productSourceRecordService.applySuggestCategory(payload);
+
+      return responseData(id, "success", [], "Категории успешно добавлены");
     } catch (error) {
       return responseData(null, "error", [], error);
     }
