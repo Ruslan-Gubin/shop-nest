@@ -5,6 +5,7 @@ import {
   IsOptional,
   Matches,
   IsEmail,
+  ValidateIf,
 } from "class-validator";
 
 export class UpdateUserDto {
@@ -16,12 +17,9 @@ export class UpdateUserDto {
 
   @IsString()
   @IsOptional()
-  @Matches(
-    /^(\+?\d{1,3})?[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}|\d{10,15}$/,
-    {
-      message: "Некорректный формат номера телефона",
-    },
-  )
+  @Matches(/^(\+?\d{1,3})?[\s-]?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{2}[\s-]?\d{2}|\d{10,15}$/, {
+    message: "Некорректный формат номера телефона",
+  })
   @MaxLength(25, { message: "Некорректный формат номера телефона" })
   @MinLength(8, { message: "Телефон должно содержать минимум 8 символов" })
   phone: string;
@@ -30,11 +28,12 @@ export class UpdateUserDto {
   @IsEmail({}, { message: "Некорректный формат почты" })
   email: string;
 
+  @ValidateIf((o) => o.password !== undefined && o.password !== null && o.password !== "")
   @IsString()
   @IsOptional()
   @MaxLength(50, { message: "Пароль не должен превышать 50 символов" })
   @MinLength(6, { message: "Пароль должен быть не менее 6 символов" })
-  password: string;
+  password?: string;
 
   @IsString()
   @IsOptional()

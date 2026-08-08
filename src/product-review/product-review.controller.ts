@@ -13,6 +13,7 @@ import { ProductReviewService } from "./product-review.service";
 import { CreateProductReviewDto } from "./dto/create-product-review.dto";
 import { UpdateProductReviewDto } from "./dto/update-product-review.dto";
 import { AnswerProductReviewDto } from "./dto/answer-product-review.dto";
+import { GenerateAnswerProductReviewDto } from "./dto/generate-answer-product-review.dto";
 import { RolesGuard } from "../auth/guards/roles.guard";
 import { Roles } from "src/auth/decorators/roles.decorator";
 import { ResponseData, responseData } from "src/helpers/response";
@@ -178,6 +179,21 @@ export class ProductReviewController {
       const review = await this.productReviewService.findOne(Number(id));
 
       return responseData(review, "success", [], "Отзыв получен");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Post("generate-answer")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async generateAnswer(
+    @Body() dto: GenerateAnswerProductReviewDto,
+  ): Promise<ResponseData<string | null>> {
+    try {
+      const result = await this.productReviewService.generateAnswer(dto);
+
+      return responseData(result, "success", [], "Рекомендация ответа сгенерирована");
     } catch (error) {
       return responseData(null, "error", [], error);
     }

@@ -106,6 +106,7 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<ResponseData<null>> {
     const findUserByEmail = await this.usersService.findByEmail(updateUserDto.email);
+
     if (findUserByEmail && findUserByEmail.id !== Number(id)) {
       return responseData(
         null,

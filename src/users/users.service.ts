@@ -78,17 +78,14 @@ export class UsersService {
 
   async update(id: number, updateUserDto: UpdateUserDto) {
     if (updateUserDto.password) {
-      const hashedPassword = await this.hash(updateUserDto.password ?? "");
-      updateUserDto.password = hashedPassword;
+      updateUserDto.password = await this.hash(updateUserDto.password);
+    } else {
+      delete updateUserDto.password;
     }
 
-    return this.userRepository
-      .update(id, {
-        ...updateUserDto,
-      })
-      .catch((error) => {
-        throw `Не удалось изменить пользователя, ${error.message}`;
-      });
+    return this.userRepository.update(id, updateUserDto).catch((error) => {
+      throw `Не удалось изменить пользователя, ${error.message}`;
+    });
   }
 
   private async hash(data: string) {

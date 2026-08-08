@@ -12,6 +12,7 @@ import {
 import { ProductQuestionService } from "./product-question.service";
 import { CreateProductQuestionDto } from "./dto/create-product-question.dto";
 import { UpdateProductQuestionDto } from "./dto/update-product-question.dto";
+import { GenerateAnswerDto } from "./dto/generate-answer.dto";
 import { ResponseData, responseData } from "src/helpers/response";
 import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 import { CurrentStrategyUser } from "src/auth/types/current-user";
@@ -130,6 +131,18 @@ export class ProductQuestionController {
         [],
         "Неотвеченные вопросы получены",
       );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Post("generate-answer")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async generateAnswer(@Body() dto: GenerateAnswerDto): Promise<ResponseData<any>> {
+    try {
+      const result = await this.productQuestionService.generateAnswer(dto);
+      return responseData(result, "success", [], "Рекомендация ответа сгенерирована");
     } catch (error) {
       return responseData(null, "error", [], error);
     }

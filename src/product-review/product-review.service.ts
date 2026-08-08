@@ -3,9 +3,13 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { type Repository } from "typeorm";
 import type { CreateProductReviewDto } from "./dto/create-product-review.dto";
 import type { UpdateProductReviewDto } from "./dto/update-product-review.dto";
+import type { GenerateAnswerProductReviewDto } from "./dto/generate-answer-product-review.dto";
 import { ProductReview } from "./entities/product-review.entity";
 import type { Product } from "src/product/entities/product.entity";
 import { OrderProduct } from "src/order-product/entities/order-product.entity";
+import { OpenCodeService } from "src/opencode/opencode.service";
+import { CategoryService } from "src/category/category.service";
+import { ProductSpecificationService } from "src/product-specification/product-specification.service";
 
 @Injectable()
 export class ProductReviewService {
@@ -14,6 +18,9 @@ export class ProductReviewService {
     private productReviewRepository: Repository<ProductReview>,
     @InjectRepository(OrderProduct)
     private orderProductRepository: Repository<OrderProduct>,
+    private readonly openCode: OpenCodeService,
+    private readonly categoryService: CategoryService,
+    private readonly productSpecificationService: ProductSpecificationService,
   ) {}
 
   async create(createProductReviewDto: CreateProductReviewDto) {
@@ -101,6 +108,93 @@ export class ProductReviewService {
     return this.productReviewRepository.update(id, { answer }).catch((error) => {
       throw `Не удалось добавить ответ на отзыв, ${error.message}`;
     });
+  }
+
+  async generateAnswer(dto: GenerateAnswerProductReviewDto) {
+    const review = await this.findOne(dto.review_id);
+
+    if (!review) {
+      throw "Не удалось получить отзыв для ответа";
+    }
+
+    const product = review.product;
+
+    if (!product) {
+      throw "Не удалось получить товар для ответа на отзыв";
+    }
+
+    const categoryPath = product?.category_id
+      ? await this.categoryService.getFullPathFromCategory(product.category_id)
+      : [];
+
+    const category = categoryPath.map((item) => item.name).join(" / ");
+
+    const specifications = await this.productSpecificationService.findByProductId(product.id);
+
+    const specificationsText =
+      specifications.length > 0
+        ? specifications
+            .map(
+              (item) =>
+                `- ${item.specification?.name ? item.specification.name : "Характеристика"}: ${item.value}`,
+            )
+            .join("\n")
+        : "Отсутствуют";
+
+    const validAnswer = `{
+      "answer": "Текст ответа покупателю"
+    }`;
+
+    const prompt = `
+Ты — представитель интернет-магазина. Твоя задача — составить ответ на отзыв покупателя о товаре.
+
+Данные о товаре:
+- Название: ${product.name ? product.name : "Отсутствует"}
+- Бренд: ${product.brand_name ? product.brand_name : "Отсутствует"}
+- Категория: ${category ? category : "Отсутствует"}
+- Описание: ${product.description ? product.description : "Отсутствует"}
+- Страна: ${product.country ? product.country : "Отсутствует"}
+- Тип: ${product.product_type ? product.product_type : "Отсутствует"}
+- Комплектация: ${product.equipment ? product.equipment : "Отсутствует"}
+- Характеристики:
+${specificationsText}
+
+Отзыв покупателя:
+- Оценка: ${review.rating ? `${review.rating} из 5` : "Отсутствует"}
+- Достоинства: ${review.dignities ? review.dignities : "Отсутствуют"}
+- Недостатки: ${review.disadvantages ? review.disadvantages : "Отсутствуют"}
+- Комментарий: ${review.comment ? review.comment : "Отсутствует"}
+
+Дополнительный контекст от администратора (может содержать инструкции, уточнения или справочную информацию): ${dto.context ? `"${dto.context}"` : "Отсутствует"}
+
+Правила ответа:
+1. Поблагодари покупателя за отзыв и удели внимание его оценке.
+2. Отвечай ТОЛЬКО на основе фактов из данных о товаре и текста отзыва, ничего не выдумывай.
+3. Если покупатель указал недостатки или претензии — корректно отреагируй, не спорь, предложи решение или уточнение (например, связаться с поддержкой).
+4. Учти дополнительный контекст администратора, если он задан — он приоритетнее общих данных о товаре.
+5. Тон — вежливый и доброжелательный, грамотный русский язык, без канцелярита.
+6. Ответ должен быть кратким: 2-4 предложения.
+7. Не используй markdown-разметку, списки и эмодзи.
+
+Правила формата:
+- Верни ТОЛЬКО JSON в виде ${validAnswer}
+- Никаких префиксов, пояснений, нумерации и markdown-блоков
+- Если ответ сформировать невозможно — верни JSON с пустой строкой: {"answer": ""}
+`;
+
+    return await this.openCode
+      .query(prompt)
+      .then((response) => {
+        const match = response.match(/\{[\s\S]*\}/);
+        const json = match ? JSON.parse(match[0]) : null;
+
+        return json && Object.hasOwn(json, "answer") && typeof json.answer === "string"
+          ? json.answer
+          : "";
+      })
+      .catch((error) => {
+        throw `Ошибка генерации ответа: ${error instanceof Error ? error.message : String(error)}`;
+      });
   }
 
   async remove(id: number) {
