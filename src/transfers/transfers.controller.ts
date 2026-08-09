@@ -70,6 +70,37 @@ export class TransfersController {
     }
   }
 
+  @Get("in-transit/active")
+  async findAllInTransit(
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ): Promise<
+    ResponseData<{
+      transfers: Transfer[];
+      totalCount: number;
+      paginationPage: number;
+    } | null>
+  > {
+    try {
+      const pageNum = page ? parseInt(page, 10) : 1;
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+
+      const [transfers, totalCount] = await this.transfersService.findAllInTransit(
+        pageNum,
+        limitNum,
+      );
+
+      return responseData(
+        { transfers, totalCount, paginationPage: pageNum },
+        "success",
+        [],
+        "Перемещения в пути получены",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get(":id")
   async findOne(@Param("id") id: string): Promise<ResponseData<Transfer | null>> {
     try {

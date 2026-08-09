@@ -70,11 +70,12 @@ export class ProductQuestionService {
     const skip = (Number(page) - 1) * Number(limit);
 
     return this.productQuestionRepository
-      .findAndCount({
-        skip,
-        take: Number(limit),
-        order: { answer: "ASC", id: "DESC" },
-      })
+      .createQueryBuilder("pq")
+      .orderBy("CASE WHEN COALESCE(pq.answer, '') = '' THEN 0 ELSE 1 END", "ASC")
+      .addOrderBy("pq.id", "DESC")
+      .skip(skip)
+      .take(Number(limit))
+      .getManyAndCount()
       .catch((error) => {
         throw `Не удалось получить вопросы, ${error.message}`;
       });

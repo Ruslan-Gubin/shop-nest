@@ -77,11 +77,12 @@ export class ProductReviewService {
     const skip = (Number(page) - 1) * Number(limit);
 
     return this.productReviewRepository
-      .findAndCount({
-        skip,
-        take: Number(limit),
-        order: { id: "DESC" },
-      })
+      .createQueryBuilder("pr")
+      .orderBy("CASE WHEN COALESCE(pr.answer, '') = '' THEN 0 ELSE 1 END", "ASC")
+      .addOrderBy("pr.id", "DESC")
+      .skip(skip)
+      .take(Number(limit))
+      .getManyAndCount()
       .catch((error) => {
         throw `Не удалось получить отзывы, ${error.message}`;
       });
@@ -262,5 +263,20 @@ ${specificationsText}
         product.review_count = 0;
       }
     }
+  }
+
+  async findAllUnanswered(page: number, limit: number) {
+    const skip = (Number(page) - 1) * Number(limit);
+
+    return this.productReviewRepository
+      .findAndCount({
+        skip,
+        take: Number(limit),
+        where: { answer: "" },
+        order: { id: "DESC" },
+      })
+      .catch((error) => {
+        throw `Не удалось получить неотвеченные отзывы, ${error.message}`;
+      });
   }
 }

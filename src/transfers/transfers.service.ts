@@ -26,31 +26,45 @@ export class TransfersService {
       });
   }
 
-  async findAll(
-    page: string,
-    limit: string,
-    status?: "processing" | "completed" | "rejected",
-  ) {
+  async findAll(page: string, limit: string, status?: "processing" | "completed" | "rejected") {
     const skip = (Number(page) - 1) * Number(limit);
 
-    const where = status ? { status } : {};
+    const query = this.transfersRepository
+      .createQueryBuilder("tr")
+      .addSelect("CASE WHEN tr.status = 'processing' THEN 0 ELSE 1 END", "in_transit_sort")
+      .orderBy("in_transit_sort", "ASC")
+      .addOrderBy("tr.id", "DESC")
+      .skip(skip)
+      .take(Number(limit))
+      .leftJoinAndSelect("tr.from_warehouse", "from_warehouse")
+      .leftJoinAndSelect("from_warehouse.address", "from_warehouse_address")
+      .leftJoinAndSelect("tr.to_warehouse", "to_warehouse")
+      .leftJoinAndSelect("to_warehouse.address", "to_warehouse_address")
+      .leftJoinAndSelect("tr.to_address", "to_address");
+
+    if (status) {
+      query.andWhere("tr.status = :status", { status });
+    }
+
+    return query
+      .getManyAndCount()
+      .catch((error) => {
+        throw `Не удалось получить список перемещений, ${error.message}`;
+      });
+  }
+
+  async findAllInTransit(page: number, limit: number) {
+    const skip = (page - 1) * limit;
 
     return this.transfersRepository
       .findAndCount({
         skip,
-        take: Number(limit),
-        where,
-        relations: [
-          "from_warehouse",
-          "from_warehouse.address",
-          "to_warehouse",
-          "to_warehouse.address",
-          "to_address",
-        ],
+        take: limit,
+        where: { status: "processing" },
         order: { id: "DESC" },
       })
       .catch((error) => {
-        throw `Не удалось получить список перемещений, ${error.message}`;
+        throw `Не удалось получить перемещения в пути, ${error.message}`;
       });
   }
 

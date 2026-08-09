@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { ILike, type FindOperator, type Repository } from "typeorm";
+import { type FindOperator, type Repository } from "typeorm";
 import type { CreateOrderDto } from "./dto/create-order.dto";
 import type { UpdateOrderDto } from "./dto/update-order.dto";
 import type { ShipOrderDto, ShipReservationItemDto } from "./dto/ship-order.dto";
@@ -243,23 +243,26 @@ export class OrdersService {
   async findAll(page: string, limit: string, order_number?: string, status?: string) {
     const skip = (Number(page) - 1) * Number(limit);
 
-    const whereCondition: Record<string, any> = {};
+    const query = this.ordersRepository
+      .createQueryBuilder("o")
+      .addSelect("CASE WHEN o.status = 'new' THEN 0 ELSE 1 END", "new_sort")
+      .orderBy("new_sort", "ASC")
+      .addOrderBy("o.id", "DESC")
+      .skip(skip)
+      .take(Number(limit));
 
     if (order_number) {
-      whereCondition.order_number = ILike(`%${order_number}%`);
+      query.andWhere("o.order_number ILIKE :order_number", {
+        order_number: `%${order_number}%`,
+      });
     }
 
     if (status) {
-      whereCondition.status = status;
+      query.andWhere("o.status = :status", { status });
     }
 
-    return this.ordersRepository
-      .findAndCount({
-        skip,
-        take: Number(limit),
-        where: whereCondition,
-        order: { id: "DESC" },
-      })
+    return query
+      .getManyAndCount()
       .catch((error) => {
         throw `Не удалось получить список заказов, ${error.message}`;
       });

@@ -240,4 +240,37 @@ export class ProductReviewController {
       return responseData(null, "error", [], error);
     }
   }
+
+  @Get("unanswered/list")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async getUnanswered(
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
+  ): Promise<
+    ResponseData<{
+      reviews: ProductReview[];
+      totalCount: number;
+      paginationPage: number;
+    } | null>
+  > {
+    try {
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+      const pageNum = page ? parseInt(page, 10) : 1;
+
+      const [reviews, totalCount] = await this.productReviewService.findAllUnanswered(
+        pageNum,
+        limitNum,
+      );
+
+      return responseData(
+        { reviews, totalCount, paginationPage: pageNum },
+        "success",
+        [],
+        "Неотвеченные отзывы получены",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
 }
