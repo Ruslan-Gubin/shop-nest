@@ -14,7 +14,19 @@ export const responseData = <T>(
   data: T | null,
   status: "success" | "error",
   errors: ErrorItem[],
-  messageText?: string,
+  messageText?: string | Error,
 ): ResponseData<T | null> => {
-  return { data, status, errors, message: messageText ? messageText : "" };
+  return {
+    data,
+    status,
+    errors,
+    message:
+      messageText instanceof Error &&
+      typeof messageText.message === "string" &&
+      messageText.message.length > 0
+        ? messageText.message
+        : typeof messageText === "string" && messageText.length > 0
+          ? messageText
+          : "Ошибка на стороне сервера",
+  };
 };

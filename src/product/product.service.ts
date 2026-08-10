@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import type { Repository, FindOperator } from "typeorm";
+import type { Repository, FindOperator, SelectQueryBuilder } from "typeorm";
 import { ILike, In, Like } from "typeorm";
 import type { CreateProductDto } from "./dto/create-product.dto";
 import type { UpdateProductDto } from "./dto/update-product.dto";
@@ -324,6 +324,44 @@ export class ProductService {
       }
     }
 
+    this.applyCatalogSort(query, sort, role);
+
+    query.skip(skip).take(take);
+
+    const [products, totalCount] = await query.getManyAndCount().catch((error) => {
+      throw `Не удалось получить список товаров, ${error.message}`;
+    });
+
+    await this.productReviewService.attachReviewStats(products);
+
+    for (const product of products) {
+      const stockParams = this.productStockService.getStockParams(product.stocks);
+      product.available = stockParams.available;
+      product.accounting = stockParams.accounting;
+      product.stocks = [];
+      product.purchase_price = 0;
+      product.price_list = this.productPriceService.getProductUserPrices(product.prices, role);
+      product.prices = [];
+    }
+
+    if (search) {
+      await this.searchService.updateOrCreate({ text: search.trim(), result_count: totalCount });
+    }
+
+    await this.attachPhotos(products);
+
+    return { products, totalCount, paginationPage: page };
+  }
+
+  /** Применяет сортировку каталога к query-билдеру (популярность / цена / новизна / рейтинг). */
+  private applyCatalogSort(
+    query: SelectQueryBuilder<Product>,
+    sort: string | undefined,
+    role: string,
+  ) {
+    const sortPriceType =
+      role === "admin" || role === "moderator" || role === "wholesaler" ? "MIN" : "MAX";
+
     if (sort === "price_up") {
       query.addSelect(
         `COALESCE(
@@ -367,11 +405,43 @@ export class ProductService {
       query.orderBy("popularity_score", "DESC");
       query.addOrderBy("product.views", "DESC");
     }
+  }
+
+  async findByBrandName({
+    brand_name,
+    page,
+    limit,
+    sort,
+    role,
+  }: {
+    brand_name: string;
+    page: string;
+    limit: string;
+    sort?: string;
+    role: string;
+  }): Promise<{ products: Product[]; totalCount: number; paginationPage: string }> {
+    const take = Number(limit);
+    const skip = (Number(page) - 1) * take;
+
+    const query = this.productRepository
+      .createQueryBuilder("product")
+      .leftJoinAndSelect("product.stocks", "stock")
+      .leftJoinAndSelect("product.prices", "price")
+      .leftJoinAndSelect("price.price_type", "priceType")
+      .andWhere("product.brand_name ILIKE :brand_name", { brand_name });
+
+    const where = this.buildMainPageWhere(role);
+
+    if (where) {
+      query.andWhere(where);
+    }
+
+    this.applyCatalogSort(query, sort, role);
 
     query.skip(skip).take(take);
 
     const [products, totalCount] = await query.getManyAndCount().catch((error) => {
-      throw `Не удалось получить список товаров, ${error.message}`;
+      throw `Не удалось получить товары по бренду, ${error.message}`;
     });
 
     await this.productReviewService.attachReviewStats(products);
@@ -384,10 +454,6 @@ export class ProductService {
       product.purchase_price = 0;
       product.price_list = this.productPriceService.getProductUserPrices(product.prices, role);
       product.prices = [];
-    }
-
-    if (search) {
-      await this.searchService.updateOrCreate({ text: search.trim(), result_count: totalCount });
     }
 
     await this.attachPhotos(products);
@@ -584,7 +650,7 @@ export class ProductService {
       products[i].prices = [];
     }
 
-    for (let i = 0; i < ids.length; i++) {
+    for (let i = 0; i < ids.length && i < products.length; i++) {
       const fromIdx = products.findIndex((el) => el.id === ids[i]);
       if (fromIdx !== -1) {
         [products[i], products[fromIdx]] = [products[fromIdx], products[i]];

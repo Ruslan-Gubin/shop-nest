@@ -301,6 +301,31 @@ export class ProductController {
     }
   }
 
+  @Get("brand/:brand_name")
+  async findByBrandName(
+    @Param("brand_name") brand_name: string,
+    @Query("page") page: string,
+    @Query("limit") limit: string,
+    @Query("sort") sort?: string,
+    @CurrentUser() user?: CurrentStrategyUser,
+  ): Promise<
+    ResponseData<{ products: Product[]; totalCount: number; paginationPage: string } | null>
+  > {
+    try {
+      const catalog = await this.productService.findByBrandName({
+        brand_name,
+        page,
+        limit,
+        sort,
+        role: user?.role ?? "user",
+      });
+
+      return responseData(catalog, "success", [], "Товары по бренду получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get("full-path-categories/:id")
   async getFullPathCategories(@Param("id") id: string): Promise<ResponseData<Category[] | null>> {
     try {
