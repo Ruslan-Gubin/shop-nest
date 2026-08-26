@@ -18,8 +18,7 @@ export class SearchController {
   ): Promise<ResponseData<Search[] | null>> {
     try {
       const suggestions = await this.searchService.getSuggestions(text, limit || 0);
-
-      return responseData(suggestions, "success", [], "");
+      return responseData(suggestions, "success", [], "Список поисковых запросов получен");
     } catch (error) {
       return responseData(null, "error", [], error);
     }
