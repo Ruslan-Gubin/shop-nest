@@ -1,9 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { type FindOperator, type Repository } from "typeorm";
+import { FindOptionsSelect, type Repository } from "typeorm";
 import type { CreateOrderDto } from "./dto/create-order.dto";
 import type { UpdateOrderDto } from "./dto/update-order.dto";
 import type { ShipOrderDto, ShipReservationItemDto } from "./dto/ship-order.dto";
+import type { SetShortageItemDto } from "./dto/set-shortage.dto";
 import { Order } from "./entities/order.entity";
 import { AddressService } from "src/address/address.service";
 import { OrderProductService } from "src/order-product/order-product.service";
@@ -30,6 +31,22 @@ export class OrdersService {
   ) {}
 
   async ship(payload: ShipOrderDto) {
+    const orderId = payload.transfers.find((el) => el.order_id)?.order_id;
+
+    if (orderId) {
+      const order = await this.getOrderSelect(orderId, [
+        "shortage_stocks",
+      ] as FindOptionsSelect<Order>);
+
+      if (!order) {
+        throw `Заказ ${orderId} не найден`;
+      }
+
+      if (order.shortage_stocks && order.shortage_stocks.length > 0) {
+        throw `Заказ ${orderId} ожидает решения клиента по изменению количества товаров в заказе`;
+      }
+    }
+
     const createdTransferIds: number[] = [];
 
     try {
@@ -93,6 +110,50 @@ export class OrdersService {
     }
 
     await this.orderProductRepository.update(item.id, { reservations: newReservations });
+  }
+
+  async setShortageStocks(id: number, shortage_stocks: SetShortageItemDto[]) {
+    const order = await this.getOrderSelect(id, ["status"] as FindOptionsSelect<Order>);
+
+    if (!order) {
+      throw `Заказ ${id} не найден`;
+    }
+
+    if (order.status !== "new" && order.status !== "processing") {
+      throw `Невозможно установить дефицит для заказа в статусе ${order.status}`;
+    }
+
+    const orderProducts = await this.orderProductRepository.findAll(String(id));
+
+    if (!orderProducts || orderProducts.length === 0) {
+      throw "Не удалось найти список товаров для этого заказа";
+    }
+
+    const orderProductMap = new Map(orderProducts.map((op) => [op.id, op]));
+
+    const updateShortageStocks: { id: number; quantity: number }[] = [];
+
+    for (const item of shortage_stocks) {
+      const orderProduct = orderProductMap.get(item.id);
+
+      if (!orderProduct) {
+        throw `Товар заказа с ID ${item.id} не найден в заказе ${id}`;
+      }
+
+      if (item.quantity > orderProduct.quantity) {
+        throw `Количество ${item.quantity} для товара заказа ${item.id} не может превышать заказанное ${orderProduct.quantity}`;
+      }
+
+      if (item.quantity !== orderProduct.quantity) {
+        updateShortageStocks.push(item);
+      }
+    }
+
+    await this.ordersRepository
+      .update(id, { shortage_stocks: updateShortageStocks })
+      .catch((error) => {
+        throw `Не удалось обновить проблемные остатки, ${error.message}`;
+      });
   }
 
   async create(createOrderDto: CreateOrderDto): Promise<any> {
@@ -221,11 +282,7 @@ export class OrdersService {
     return orderNumber;
   }
 
-  async findByUserId(
-    userId: number,
-    page: number,
-    limit: number,
-  ): Promise<[Order[], number]> {
+  async findByUserId(userId: number, page: number, limit: number): Promise<[Order[], number]> {
     const skip = (page - 1) * limit;
 
     return this.ordersRepository
@@ -261,11 +318,9 @@ export class OrdersService {
       query.andWhere("o.status = :status", { status });
     }
 
-    return query
-      .getManyAndCount()
-      .catch((error) => {
-        throw `Не удалось получить список заказов, ${error.message}`;
-      });
+    return query.getManyAndCount().catch((error) => {
+      throw `Не удалось получить список заказов, ${error.message}`;
+    });
   }
 
   async findOne(id: number) {
@@ -273,6 +328,17 @@ export class OrdersService {
       .findOne({
         where: { id },
         relations: ["address", "warehouse"],
+      })
+      .catch((error) => {
+        throw `Не удалось получить заказ, ${error.message}`;
+      });
+  }
+
+  async getOrderSelect(id: number, select?: FindOptionsSelect<Order>) {
+    return this.ordersRepository
+      .findOne({
+        where: { id },
+        select: select ? select : [],
       })
       .catch((error) => {
         throw `Не удалось получить заказ, ${error.message}`;
@@ -370,6 +436,10 @@ export class OrdersService {
 
     if (!status) {
       throw `Невозможно перевести заказ в следующий статус из статуса ${order.status}`;
+    }
+
+    if (order.shortage_stocks && order.shortage_stocks.length > 0) {
+      throw `Заказ ожидает решения клиента по изменению количества товара в заказе`;
     }
 
     if (order.status === "processing" && status === "ready") {

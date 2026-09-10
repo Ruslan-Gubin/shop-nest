@@ -13,6 +13,7 @@ import { OrdersService } from "./orders.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { UpdateOrderDto } from "./dto/update-order.dto";
 import { ShipOrderDto } from "./dto/ship-order.dto";
+import { SetShortageDto } from "./dto/set-shortage.dto";
 import { RejectOrderDto } from "./dto/reject-order.dto";
 import { SalesByPaymentDto } from "./dto/sales-by-payment.dto";
 import { ResponseData, responseData } from "src/helpers/response";
@@ -159,6 +160,22 @@ export class OrdersController {
       await this.ordersService.ship(shipOrderDto);
 
       return responseData(null, "success", [], "Перемещение для заказа успешно сформированы");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Patch("shortage/:id")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async setShortageStocks(
+    @Param("id") id: string,
+    @Body() dto: SetShortageDto,
+  ): Promise<ResponseData<null>> {
+    try {
+      await this.ordersService.setShortageStocks(Number(id), dto.items);
+
+      return responseData(null, "success", [], "Запрос на изменение остатков обновлен");
     } catch (error) {
       return responseData(null, "error", [], error);
     }
