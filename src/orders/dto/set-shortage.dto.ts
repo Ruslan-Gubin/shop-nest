@@ -9,6 +9,10 @@ export class SetShortageItemDto {
   @IsInt({ message: "Количество должно быть числом" })
   @Min(0, { message: "Количество не может быть отрицательным" })
   quantity: number;
+
+  @IsInt({ message: "ID склада должен быть числом" })
+  @Min(1, { message: "ID склада должен быть положительным" })
+  warehouse_id: number;
 }
 
 export class SetShortageDto {
@@ -21,4 +25,3 @@ export class SetShortageDto {
   @Type(() => SetShortageItemDto)
   items: SetShortageItemDto[];
 }
-

@@ -62,6 +62,9 @@ export class Order {
   @Column({ type: "varchar", default: "pickup", name: "method_receipt" })
   method_receipt: string;
 
+  @Column({ type: "int", default: 0, name: "delivery_price" })
+  delivery_price: number;
+
   @ManyToOne(() => Warehouse, { nullable: true })
   @JoinColumn({ name: "warehouse_id" })
   warehouse: Warehouse | null;
@@ -91,7 +94,7 @@ export class Order {
   total: number;
 
   @Column({ type: "jsonb", default: [], name: "shortage_stocks" })
-  shortage_stocks: { id: number; quantity: number }[];
+  shortage_stocks: { id: number; quantity: number; warehouse_id: number }[];
 
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;

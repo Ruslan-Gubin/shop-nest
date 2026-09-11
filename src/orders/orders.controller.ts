@@ -181,6 +181,20 @@ export class OrdersController {
     }
   }
 
+  @Post("accept-shortage/:id")
+  async acceptShortage(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentStrategyUser,
+  ): Promise<ResponseData<null>> {
+    try {
+      await this.ordersService.acceptShortage(Number(id), user.sub, user.role);
+
+      return responseData(null, "success", [], "Изменения по остаткам приняты");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Post("change-status/:id")
   @Roles("admin", "moderator")
   @UseGuards(RolesGuard)

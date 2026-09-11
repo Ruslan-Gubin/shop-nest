@@ -14,6 +14,8 @@ import { PromotionsService } from "src/promotions/promotions.service";
 import { ProductStockService } from "src/product-stock/product-stock.service";
 import { WarehouseService } from "src/warehouse/warehouse.service";
 import { TransfersService } from "src/transfers/transfers.service";
+import { ReservationItemDto } from "src/order-product/dto/create-order-product.dto";
+import { OrderProduct } from "src/order-product/entities/order-product.entity";
 
 @Injectable()
 export class OrdersService {
@@ -131,7 +133,7 @@ export class OrdersService {
 
     const orderProductMap = new Map(orderProducts.map((op) => [op.id, op]));
 
-    const updateShortageStocks: { id: number; quantity: number }[] = [];
+    const updateShortageStocks: SetShortageItemDto[] = [];
 
     for (const item of shortage_stocks) {
       const orderProduct = orderProductMap.get(item.id);
@@ -144,6 +146,10 @@ export class OrdersService {
         throw `Количество ${item.quantity} для товара заказа ${item.id} не может превышать заказанное ${orderProduct.quantity}`;
       }
 
+      if (!orderProduct.reservations.some((r) => r.warehouse_id === item.warehouse_id)) {
+        throw `Склад ${item.warehouse_id} не участвует в резервациях товара заказа ${item.id}`;
+      }
+
       if (item.quantity !== orderProduct.quantity) {
         updateShortageStocks.push(item);
       }
@@ -154,6 +160,177 @@ export class OrdersService {
       .catch((error) => {
         throw `Не удалось обновить проблемные остатки, ${error.message}`;
       });
+  }
+
+  async acceptShortage(id: number, userId: number, userRole: string) {
+    const order = await this.getOrderSelect(id, [
+      "id",
+      "status",
+      "shortage_stocks",
+      "create_user_id",
+      "subtotal",
+      "discount_percent",
+      "discount_total",
+      "discount_name",
+      "discount_quantity",
+      "total",
+      "method_receipt",
+      "delivery_price",
+    ] as FindOptionsSelect<Order>);
+
+    if (!order) {
+      throw `Заказ ${id} не найден`;
+    }
+
+    if (userId !== order.create_user_id && userRole !== "admin" && userRole !== "moderator") {
+      throw `Недостаточно прав для принятия изменений в заказе ${id}`;
+    }
+
+    if (order.status !== "new" && order.status !== "processing") {
+      throw `Невозможно принять изменения для заказа в статусе ${order.status}`;
+    }
+
+    if (!Array.isArray(order.shortage_stocks) || order.shortage_stocks?.length === 0) {
+      throw "Нет изменений по остаткам для принятия";
+    }
+
+    const orderProducts = await this.orderProductRepository.findAll(String(id));
+
+    if (!orderProducts || orderProducts.length === 0) {
+      throw "Не удалось найти список товаров для этого заказа";
+    }
+
+    let newSubtotal = 0;
+
+    for (const orderProduct of orderProducts) {
+      const shortageItem = order.shortage_stocks.find((s) => s.id === orderProduct.id);
+
+      if (shortageItem) {
+        if (shortageItem.quantity === 0) {
+          await this.releaseExcessReservations(
+            orderProduct.reservations || [],
+            orderProduct.quantity,
+            shortageItem.warehouse_id,
+          );
+
+          await this.orderProductRepository.remove(orderProduct.id);
+          continue;
+        }
+
+        const quantityDiff = orderProduct.quantity - shortageItem.quantity;
+
+        const updateOrderProduct: { quantity: number; reservations?: ReservationItemDto[] } = {
+          quantity: shortageItem.quantity,
+        };
+
+        if (quantityDiff > 0) {
+          const reservations = await this.releaseExcessReservations(
+            orderProduct.reservations || [],
+            quantityDiff,
+            shortageItem.warehouse_id,
+          );
+
+          updateOrderProduct.reservations = reservations;
+        }
+
+        await this.orderProductRepository.update(orderProduct.id, updateOrderProduct);
+
+        newSubtotal += shortageItem.quantity * orderProduct.price;
+      } else {
+        newSubtotal += orderProduct.quantity * orderProduct.price;
+      }
+    }
+
+    const deliveryPrice =
+      order.delivery_price ?? (order.method_receipt === "courier" ? 100 : 0);
+    const newDiscountTotal = Math.round((newSubtotal * order.discount_percent) / 100);
+    const newTotal = Math.floor(newSubtotal - newDiscountTotal + deliveryPrice);
+
+    const oldOpticSum = order.total + order.discount_total - deliveryPrice;
+
+    const newDiscountQuantity =
+      oldOpticSum > 0 && newSubtotal > 0
+        ? Math.round(order.discount_quantity * (newSubtotal / oldOpticSum))
+        : 0;
+
+    if (order.status === "processing") {
+      await this.cleanupTransfers(id, orderProducts);
+    }
+
+    await this.ordersRepository
+      .update(id, {
+        subtotal: Math.floor(newSubtotal),
+        discount_total: newDiscountTotal,
+        discount_quantity: newDiscountQuantity,
+        total: newTotal,
+        shortage_stocks: [],
+      })
+      .catch((error) => {
+        throw `Не удалось принять изменения по остаткам, ${error.message}`;
+      });
+  }
+
+  private async releaseExcessReservations(
+    reservations: ReservationItemDto[],
+    excessQuantity: number,
+    warehouse_id: number,
+  ) {
+    let remainingToRelease = excessQuantity;
+
+    const targetIndex = reservations.findIndex((r) => r.warehouse_id === warehouse_id);
+
+    if (targetIndex !== -1) {
+      const target = reservations[targetIndex];
+      const releaseFromTarget = Math.min(target.quantity, remainingToRelease);
+
+      if (releaseFromTarget > 0) {
+        await this.productStockRepository.decrementReserved(target.stock_id, releaseFromTarget);
+        target.quantity -= releaseFromTarget;
+        remainingToRelease -= releaseFromTarget;
+      }
+    }
+
+    for (let i = reservations.length - 1; i >= 0 && remainingToRelease > 0; i--) {
+      if (i === targetIndex) continue;
+
+      const reservation = reservations[i];
+      const releaseAmount = Math.min(reservation.quantity, remainingToRelease);
+
+      if (releaseAmount > 0) {
+        await this.productStockRepository.decrementReserved(reservation.stock_id, releaseAmount);
+        reservation.quantity -= releaseAmount;
+        remainingToRelease -= releaseAmount;
+      }
+    }
+
+    return reservations.filter((r) => r.quantity > 0);
+  }
+
+  private async cleanupTransfers(orderId: number, orderProducts: OrderProduct[]) {
+    const transfers = await this.transfersService.findByOrderId(orderId);
+    const processingTransfers = transfers.filter(
+      (t) => t.status === "processing" && t.type === "transfer",
+    );
+
+    if (processingTransfers.length === 0) return;
+
+    const activeWarehouseIds = new Set<number>();
+
+    for (const op of orderProducts) {
+      if (!Array.isArray(op.reservations)) continue;
+
+      for (const res of op.reservations) {
+        if (res.quantity > 0) {
+          activeWarehouseIds.add(res.warehouse_id);
+        }
+      }
+    }
+
+    for (const transfer of processingTransfers) {
+      if (transfer.from_warehouse && !activeWarehouseIds.has(transfer.from_warehouse.id)) {
+        await this.transfersService.remove(transfer.id);
+      }
+    }
   }
 
   async create(createOrderDto: CreateOrderDto): Promise<any> {
@@ -178,14 +355,14 @@ export class OrdersService {
       cartDiscount.discount_percent > 0 &&
       cartDiscount.discount_percent > promotion.discount_percent
     ) {
-      discount_total = (total * cartDiscount.discount_percent) / 100;
+      discount_total = Math.round((total * cartDiscount.discount_percent) / 100);
       discount_percent = cartDiscount.discount_percent;
       discount_name = cartDiscount.discount_name;
     } else if (
       promotion.discount_percent > 0 &&
       promotion.discount_percent >= cartDiscount.discount_percent
     ) {
-      discount_total = (total * promotion.discount_percent) / 100;
+      discount_total = Math.round((total * promotion.discount_percent) / 100);
       discount_percent = promotion.discount_percent;
       discount_name = promotion.discount_name;
     }
@@ -206,10 +383,11 @@ export class OrdersService {
         recipient_name: createOrderDto.recipient_name,
         payment_method: createOrderDto.payment_method,
         method_receipt: createOrderDto.method_receipt,
+        delivery_price,
         discount_name,
         discount_quantity: Math.floor(discount_quantity),
         discount_percent: Math.floor(discount_percent),
-        discount_total: Math.floor(discount_total),
+        discount_total: Math.round(discount_total),
         subtotal: Math.floor(subtotal),
         total: Math.floor(total - discount_total + delivery_price),
         order_number: "",

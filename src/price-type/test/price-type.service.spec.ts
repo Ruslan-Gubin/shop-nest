@@ -108,7 +108,7 @@ describe("PriceTypeService", () => {
       );
     });
 
-    it("должен корректно вы��ислять skip", async () => {
+    it("должен корректно вычислять skip", async () => {
       mockRepository.find.mockResolvedValue([mockPriceType]);
 
       await service.findAll("3", "20", "");
@@ -123,7 +123,7 @@ describe("PriceTypeService", () => {
     it("должен вернуть общее количество", async () => {
       mockRepository.count.mockResolvedValue(5);
 
-      const result = await service.getTotalCount();
+      const result = await service.getTotalCount("");
 
       expect(result).toBe(5);
       expect(mockRepository.count).toHaveBeenCalledWith({ where: {} });
@@ -198,3 +198,4 @@ describe("PriceTypeService", () => {
     });
   });
 });
+
