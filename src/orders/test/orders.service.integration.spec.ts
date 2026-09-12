@@ -49,7 +49,10 @@ describe("OrdersService — интеграционные тесты acceptShorta
     width: 15,
     quantity: overrides.quantity ?? 10,
     price: overrides.price ?? 500,
-    reservations: overrides.reservations ?? [{ stock_id: 1, warehouse_id: 1, quantity: overrides.quantity ?? 10 }],
+    reservations: overrides.reservations ?? [
+      { stock_id: 1, warehouse_id: 1, quantity: overrides.quantity ?? 10 },
+    ],
+    shortage_stocks: overrides.shortage_stocks ?? [],
     transfers: [],
   });
 
@@ -69,6 +72,7 @@ describe("OrdersService — интеграционные тесты acceptShorta
     findOne: jest.fn(),
     update: jest.fn(),
     remove: jest.fn(),
+    setShortageStocks: jest.fn(),
   };
 
   const mockProductService = {
@@ -98,45 +102,6 @@ describe("OrdersService — интеграционные тесты acceptShorta
   };
 
   // ─── setup helpers ────────────────────────────────────────
-
-  /**
-   * Mock findOne для acceptShortage: возвращает заказ с нужными shortage_stocks.
-   * Это заменяет вызов setShortageStocks — мы сразу подставляем нужное состояние.
-   */
-  function mockOrderForAcceptance(overrides: {
-    id: number;
-    shortage_stocks: { id: number; quantity: number }[];
-    status?: string;
-    create_user_id?: number;
-    subtotal?: number;
-    discount_percent?: number;
-    discount_total?: number;
-    discount_name?: string;
-    total?: number;
-    method_receipt?: string;
-  }) {
-    mockOrdersRepository.findOne.mockImplementation(async (options: any) => {
-      const findId = options?.where?.id;
-      if (findId === overrides.id) {
-        return {
-          id: overrides.id,
-          status: overrides.status ?? "new",
-          shortage_stocks: overrides.shortage_stocks,
-          create_user_id: overrides.create_user_id ?? 1,
-          subtotal: overrides.subtotal ?? 5000,
-          discount_percent: overrides.discount_percent ?? 0,
-          discount_total: overrides.discount_total ?? 0,
-          discount_name: overrides.discount_name ?? "",
-          discount_quantity: 0,
-          total: overrides.total ?? 5000,
-          method_receipt: overrides.method_receipt ?? "pickup",
-        };
-      }
-      return null;
-    });
-
-    mockOrderProductService.findAll.mockImplementation(async () => []);
-  }
 
   /**
    * Мок для полного флоу: create → setShortageStocks → acceptShortage.
@@ -209,17 +174,17 @@ describe("OrdersService — интеграционные тесты acceptShorta
 
     mockOrderProductService.update.mockResolvedValue({} as any);
     mockOrderProductService.remove.mockResolvedValue({} as any);
+    mockOrderProductService.setShortageStocks.mockResolvedValue({} as any);
 
     return { subtotal, discount_percent, discount_total, discount_name, total, method_receipt };
   }
 
   /**
    * Подготовка моков для acceptShortage (после setShortageStocks).
-   * uniqId нужен чтобы id order_product были уникальными и не совпадали с orderIdCounter.
+   * Дефицит (shortage_stocks) лежит на товарах заказа, а не на заказе.
    */
   function setupAcceptMocks(overrides: {
     orderId: number;
-    shortage_stocks: { id: number; quantity: number; warehouse_id?: number }[];
     orderProducts: any[];
     status?: string;
     subtotal?: number;
@@ -229,6 +194,7 @@ describe("OrdersService — интеграционные тесты acceptShorta
     discount_quantity?: number;
     total?: number;
     method_receipt?: string;
+    delivery_price?: number;
   }) {
     mockOrdersRepository.findOne.mockImplementation(async (options: any) => {
       const findId = options?.where?.id;
@@ -236,7 +202,6 @@ describe("OrdersService — интеграционные тесты acceptShorta
         return {
           id: overrides.orderId,
           status: overrides.status ?? "new",
-          shortage_stocks: overrides.shortage_stocks,
           create_user_id: 1,
           subtotal: overrides.subtotal ?? 5000,
           discount_percent: overrides.discount_percent ?? 0,
@@ -245,6 +210,7 @@ describe("OrdersService — интеграционные тесты acceptShorta
           discount_quantity: overrides.discount_quantity ?? 0,
           total: overrides.total ?? 5000,
           method_receipt: overrides.method_receipt ?? "pickup",
+          delivery_price: overrides.delivery_price ?? 0,
         };
       }
       return null;
@@ -254,6 +220,7 @@ describe("OrdersService — интеграционные тесты acceptShorta
       overrides.orderProducts.map((p) => ({
         ...p,
         reservations: (p.reservations || []).map((r: any) => ({ ...r })),
+        shortage_stocks: (p.shortage_stocks || []).map((s: any) => ({ ...s })),
       })),
     );
   }
@@ -314,7 +281,7 @@ describe("OrdersService — интеграционные тесты acceptShorta
       const opId = 100;
       mockOrdersRepository.findOne.mockImplementation(async (options: any) => {
         if (options?.where?.id === order.id) {
-          return { id: order.id, status: "new", shortage_stocks: [] };
+          return { id: order.id, status: "new", create_user_id: 1 };
         }
         return null;
       });
@@ -323,14 +290,25 @@ describe("OrdersService — интеграционные тесты acceptShorta
         makeOrderProduct({ id: opId, order_id: order.id, quantity: 10 }),
       ]);
 
-      await service.setShortageStocks(order.id, [{ id: opId, quantity: 5, warehouse_id: 1 }]);
+      await service.setShortageStocks(order.id, [
+        { id: opId, quantity: 5, stock_id: 1, warehouse_id: 1 },
+      ]);
 
-      // Мокаем findOne для acceptShortage
+      expect(mockOrderProductService.setShortageStocks).toHaveBeenCalledWith([
+        { id: opId, quantity: 5, stock_id: 1, warehouse_id: 1 },
+      ]);
+
+      // Мокаем findOne для acceptShortage: дефицит уже записан на товар заказа
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [{ id: opId, quantity: 5, warehouse_id: 1 }],
         orderProducts: [
-          makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
+          makeOrderProduct({
+            id: opId,
+            order_id: order.id,
+            quantity: 10,
+            reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }],
+            shortage_stocks: [{ stock_id: 1, warehouse_id: 1, quantity: 5 }],
+          }),
         ],
       });
 
@@ -341,33 +319,56 @@ describe("OrdersService — интеграционные тесты acceptShorta
         expect.objectContaining({
           subtotal: 2500,
           total: 2500,
-          shortage_stocks: [],
         }),
       );
+
+      // дефицит очищается на товаре заказа, а не на заказе
+      expect(mockOrderProductService.update).toHaveBeenCalledWith(
+        opId,
+        expect.objectContaining({ quantity: 5, shortage_stocks: [] }),
+      );
+
+      const orderUpdate = ordersRepository.update.mock.calls[0][1] as Record<string, unknown>;
+      expect(orderUpdate).not.toHaveProperty("shortage_stocks");
     });
   });
 
   // ─── один товар, 10 → 5 ──────────────────────────────────
 
   describe("один товар, уменьшаем количество (10 → 5)", () => {
-    it("уменьшает количество товара", async () => {
-      setupFullFlowMocks();
-      const order = await service.create({
-        comment: "", phone: "+79001234567", phoneCode: "+7",
-        recipient_name: "Иван Иванов", payment_method: "cash",
-        method_receipt: "pickup",
-        date_from: "2026-09-15T00:00:00.000Z", date_to: "2026-09-20T23:59:59.999Z",
-        address: makeAddress(), products: [{ product_id: 100, quantity: 10 }],
-        create_user_id: 1, user_role: "user",
+    const shortageProduct = (orderId: number, opId: number) =>
+      makeOrderProduct({
+        id: opId,
+        order_id: orderId,
+        quantity: 10,
+        reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }],
+        shortage_stocks: [{ stock_id: 1, warehouse_id: 1, quantity: 5 }],
       });
 
+    async function createOrder() {
+      setupFullFlowMocks();
+      return service.create({
+        comment: "",
+        phone: "+79001234567",
+        phoneCode: "+7",
+        recipient_name: "Иван Иванов",
+        payment_method: "cash",
+        method_receipt: "pickup",
+        date_from: "2026-09-15T00:00:00.000Z",
+        date_to: "2026-09-20T23:59:59.999Z",
+        address: makeAddress(),
+        products: [{ product_id: 100, quantity: 10 }],
+        create_user_id: 1,
+        user_role: "user",
+      });
+    }
+
+    it("уменьшает количество товара", async () => {
+      const order = await createOrder();
       const opId = 99;
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [{ id: opId, quantity: 5, warehouse_id: 1 }],
-        orderProducts: [
-          makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
-        ],
+        orderProducts: [shortageProduct(order.id, opId)],
       });
 
       await service.acceptShortage(order.id, 1, "user");
@@ -379,23 +380,11 @@ describe("OrdersService — интеграционные тесты acceptShorta
     });
 
     it("уменьшает reservations", async () => {
-      setupFullFlowMocks();
-      const order = await service.create({
-        comment: "", phone: "+79001234567", phoneCode: "+7",
-        recipient_name: "Иван Иванов", payment_method: "cash",
-        method_receipt: "pickup",
-        date_from: "2026-09-15T00:00:00.000Z", date_to: "2026-09-20T23:59:59.999Z",
-        address: makeAddress(), products: [{ product_id: 100, quantity: 10 }],
-        create_user_id: 1, user_role: "user",
-      });
-
+      const order = await createOrder();
       const opId = 99;
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [{ id: opId, quantity: 5, warehouse_id: 1 }],
-        orderProducts: [
-          makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
-        ],
+        orderProducts: [shortageProduct(order.id, opId)],
       });
 
       await service.acceptShortage(order.id, 1, "user");
@@ -413,23 +402,11 @@ describe("OrdersService — интеграционные тесты acceptShorta
     });
 
     it("уменьшает reserved на складе", async () => {
-      setupFullFlowMocks();
-      const order = await service.create({
-        comment: "", phone: "+79001234567", phoneCode: "+7",
-        recipient_name: "Иван Иванов", payment_method: "cash",
-        method_receipt: "pickup",
-        date_from: "2026-09-15T00:00:00.000Z", date_to: "2026-09-20T23:59:59.999Z",
-        address: makeAddress(), products: [{ product_id: 100, quantity: 10 }],
-        create_user_id: 1, user_role: "user",
-      });
-
+      const order = await createOrder();
       const opId = 99;
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [{ id: opId, quantity: 5, warehouse_id: 1 }],
-        orderProducts: [
-          makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
-        ],
+        orderProducts: [shortageProduct(order.id, opId)],
       });
 
       await service.acceptShortage(order.id, 1, "user");
@@ -438,23 +415,11 @@ describe("OrdersService — интеграционные тесты acceptShorta
     });
 
     it("пересчитывает subtotal = 2500 и total = 2500", async () => {
-      setupFullFlowMocks();
-      const order = await service.create({
-        comment: "", phone: "+79001234567", phoneCode: "+7",
-        recipient_name: "Иван Иванов", payment_method: "cash",
-        method_receipt: "pickup",
-        date_from: "2026-09-15T00:00:00.000Z", date_to: "2026-09-20T23:59:59.999Z",
-        address: makeAddress(), products: [{ product_id: 100, quantity: 10 }],
-        create_user_id: 1, user_role: "user",
-      });
-
+      const order = await createOrder();
       const opId = 99;
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [{ id: opId, quantity: 5, warehouse_id: 1 }],
-        orderProducts: [
-          makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, price: 500, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
-        ],
+        orderProducts: [shortageProduct(order.id, opId)],
       });
 
       await service.acceptShortage(order.id, 1, "user");
@@ -465,55 +430,60 @@ describe("OrdersService — интеграционные тесты acceptShorta
       );
     });
 
-    it("очищает shortage_stocks", async () => {
-      setupFullFlowMocks();
-      const order = await service.create({
-        comment: "", phone: "+79001234567", phoneCode: "+7",
-        recipient_name: "Иван Иванов", payment_method: "cash",
-        method_receipt: "pickup",
-        date_from: "2026-09-15T00:00:00.000Z", date_to: "2026-09-20T23:59:59.999Z",
-        address: makeAddress(), products: [{ product_id: 100, quantity: 10 }],
-        create_user_id: 1, user_role: "user",
-      });
-
+    it("очищает shortage_stocks на товаре", async () => {
+      const order = await createOrder();
       const opId = 99;
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [{ id: opId, quantity: 5, warehouse_id: 1 }],
-        orderProducts: [
-          makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
-        ],
+        orderProducts: [shortageProduct(order.id, opId)],
       });
 
       await service.acceptShortage(order.id, 1, "user");
 
-      expect(ordersRepository.update).toHaveBeenCalledWith(
-        order.id,
+      expect(mockOrderProductService.update).toHaveBeenCalledWith(
+        opId,
         expect.objectContaining({ shortage_stocks: [] }),
       );
+
+      const orderUpdate = ordersRepository.update.mock.calls[0][1] as Record<string, unknown>;
+      expect(orderUpdate).not.toHaveProperty("shortage_stocks");
     });
   });
 
   // ─── один товар, → 0 ─────────────────────────────────────
 
   describe("один товар, количество → 0", () => {
-    it("удаляет строку, subtotal 0, total 0", async () => {
+    async function createOrder() {
       setupFullFlowMocks();
-      const order = await service.create({
-        comment: "", phone: "+79001234567", phoneCode: "+7",
-        recipient_name: "Иван Иванов", payment_method: "cash",
+      return service.create({
+        comment: "",
+        phone: "+79001234567",
+        phoneCode: "+7",
+        recipient_name: "Иван Иванов",
+        payment_method: "cash",
         method_receipt: "pickup",
-        date_from: "2026-09-15T00:00:00.000Z", date_to: "2026-09-20T23:59:59.999Z",
-        address: makeAddress(), products: [{ product_id: 100, quantity: 10 }],
-        create_user_id: 1, user_role: "user",
+        date_from: "2026-09-15T00:00:00.000Z",
+        date_to: "2026-09-20T23:59:59.999Z",
+        address: makeAddress(),
+        products: [{ product_id: 100, quantity: 10 }],
+        create_user_id: 1,
+        user_role: "user",
       });
+    }
 
+    it("удаляет строку, subtotal 0, total 0", async () => {
+      const order = await createOrder();
       const opId = 99;
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [{ id: opId, quantity: 0, warehouse_id: 1 }],
         orderProducts: [
-          makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
+          makeOrderProduct({
+            id: opId,
+            order_id: order.id,
+            quantity: 10,
+            reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }],
+            shortage_stocks: [{ stock_id: 1, warehouse_id: 1, quantity: 0 }],
+          }),
         ],
       });
 
@@ -524,27 +494,23 @@ describe("OrdersService — интеграционные тесты acceptShorta
 
       expect(ordersRepository.update).toHaveBeenCalledWith(
         order.id,
-        expect.objectContaining({ subtotal: 0, discount_total: 0, total: 0, shortage_stocks: [] }),
+        expect.objectContaining({ subtotal: 0, discount_total: 0, total: 0 }),
       );
     });
 
     it("освобождает все резервы", async () => {
-      setupFullFlowMocks();
-      const order = await service.create({
-        comment: "", phone: "+79001234567", phoneCode: "+7",
-        recipient_name: "Иван Иванов", payment_method: "cash",
-        method_receipt: "pickup",
-        date_from: "2026-09-15T00:00:00.000Z", date_to: "2026-09-20T23:59:59.999Z",
-        address: makeAddress(), products: [{ product_id: 100, quantity: 10 }],
-        create_user_id: 1, user_role: "user",
-      });
-
+      const order = await createOrder();
       const opId = 99;
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [{ id: opId, quantity: 0, warehouse_id: 1 }],
         orderProducts: [
-          makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
+          makeOrderProduct({
+            id: opId,
+            order_id: order.id,
+            quantity: 10,
+            reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }],
+            shortage_stocks: [{ stock_id: 1, warehouse_id: 1, quantity: 0 }],
+          }),
         ],
       });
 
@@ -560,22 +526,34 @@ describe("OrdersService — интеграционные тесты acceptShorta
     it("добавляет стоимость доставки (100) в total", async () => {
       setupFullFlowMocks({ method_receipt: "courier" });
       const order = await service.create({
-        comment: "", phone: "+79001234567", phoneCode: "+7",
-        recipient_name: "Иван Иванов", payment_method: "cash",
+        comment: "",
+        phone: "+79001234567",
+        phoneCode: "+7",
+        recipient_name: "Иван Иванов",
+        payment_method: "cash",
         method_receipt: "courier",
-        date_from: "2026-09-15T00:00:00.000Z", date_to: "2026-09-20T23:59:59.999Z",
-        address: makeAddress("courier"), products: [{ product_id: 100, quantity: 10 }],
-        create_user_id: 1, user_role: "user",
+        date_from: "2026-09-15T00:00:00.000Z",
+        date_to: "2026-09-20T23:59:59.999Z",
+        address: makeAddress("courier"),
+        products: [{ product_id: 100, quantity: 10 }],
+        create_user_id: 1,
+        user_role: "user",
       });
 
       const opId = 99;
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [{ id: opId, quantity: 5, warehouse_id: 1 }],
         orderProducts: [
-          makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
+          makeOrderProduct({
+            id: opId,
+            order_id: order.id,
+            quantity: 10,
+            reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }],
+            shortage_stocks: [{ stock_id: 1, warehouse_id: 1, quantity: 5 }],
+          }),
         ],
         method_receipt: "courier",
+        delivery_price: 100,
       });
 
       await service.acceptShortage(order.id, 1, "user");
@@ -593,20 +571,32 @@ describe("OrdersService — интеграционные тесты acceptShorta
     it("пересчитывает discount_total при уменьшении", async () => {
       setupFullFlowMocks({ discount_percent: 10, discount_name: "Скидка за объём" });
       const order = await service.create({
-        comment: "", phone: "+79001234567", phoneCode: "+7",
-        recipient_name: "Иван Иванов", payment_method: "cash",
+        comment: "",
+        phone: "+79001234567",
+        phoneCode: "+7",
+        recipient_name: "Иван Иванов",
+        payment_method: "cash",
         method_receipt: "pickup",
-        date_from: "2026-09-15T00:00:00.000Z", date_to: "2026-09-20T23:59:59.999Z",
-        address: makeAddress(), products: [{ product_id: 100, quantity: 10 }],
-        create_user_id: 1, user_role: "user",
+        date_from: "2026-09-15T00:00:00.000Z",
+        date_to: "2026-09-20T23:59:59.999Z",
+        address: makeAddress(),
+        products: [{ product_id: 100, quantity: 10 }],
+        create_user_id: 1,
+        user_role: "user",
       });
 
       const opId = 99;
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [{ id: opId, quantity: 5, warehouse_id: 1 }],
         orderProducts: [
-          makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, price: 500, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
+          makeOrderProduct({
+            id: opId,
+            order_id: order.id,
+            quantity: 10,
+            price: 500,
+            reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }],
+            shortage_stocks: [{ stock_id: 1, warehouse_id: 1, quantity: 5 }],
+          }),
         ],
         subtotal: 5000,
         discount_percent: 10,
@@ -634,20 +624,32 @@ describe("OrdersService — интеграционные тесты acceptShorta
       // newDiscountQuantity = round(500 × 2500/4500) = 278.
       setupFullFlowMocks();
       const order = await service.create({
-        comment: "", phone: "+79001234567", phoneCode: "+7",
-        recipient_name: "Иван Иванов", payment_method: "cash",
+        comment: "",
+        phone: "+79001234567",
+        phoneCode: "+7",
+        recipient_name: "Иван Иванов",
+        payment_method: "cash",
         method_receipt: "pickup",
-        date_from: "2026-09-15T00:00:00.000Z", date_to: "2026-09-20T23:59:59.999Z",
-        address: makeAddress(), products: [{ product_id: 100, quantity: 10 }],
-        create_user_id: 1, user_role: "user",
+        date_from: "2026-09-15T00:00:00.000Z",
+        date_to: "2026-09-20T23:59:59.999Z",
+        address: makeAddress(),
+        products: [{ product_id: 100, quantity: 10 }],
+        create_user_id: 1,
+        user_role: "user",
       });
 
       const opId = 99;
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [{ id: opId, quantity: 5, warehouse_id: 1 }],
         orderProducts: [
-          makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, price: 500, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
+          makeOrderProduct({
+            id: opId,
+            order_id: order.id,
+            quantity: 10,
+            price: 500,
+            reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }],
+            shortage_stocks: [{ stock_id: 1, warehouse_id: 1, quantity: 5 }],
+          }),
         ],
         subtotal: 5000,
         discount_quantity: 500,
@@ -683,16 +685,21 @@ describe("OrdersService — интеграционные тесты acceptShorta
       } as any);
 
       const order = await service.create({
-        comment: "", phone: "+79001234567", phoneCode: "+7",
-        recipient_name: "Иван Иванов", payment_method: "cash",
+        comment: "",
+        phone: "+79001234567",
+        phoneCode: "+7",
+        recipient_name: "Иван Иванов",
+        payment_method: "cash",
         method_receipt: "pickup",
-        date_from: "2026-09-15T00:00:00.000Z", date_to: "2026-09-20T23:59:59.999Z",
+        date_from: "2026-09-15T00:00:00.000Z",
+        date_to: "2026-09-20T23:59:59.999Z",
         address: makeAddress(),
         products: [
           { product_id: 100, quantity: 10 },
           { product_id: 200, quantity: 10 },
         ],
-        create_user_id: 1, user_role: "user",
+        create_user_id: 1,
+        user_role: "user",
       });
 
       const op1Id = 99;
@@ -700,13 +707,27 @@ describe("OrdersService — интеграционные тесты acceptShorta
 
       setupAcceptMocks({
         orderId: order.id,
-        shortage_stocks: [
-          { id: op1Id, quantity: 5, warehouse_id: 1 },
-          { id: op2Id, quantity: 0, warehouse_id: 1 },
-        ],
         orderProducts: [
-          makeOrderProduct({ id: op1Id, order_id: order.id, product_id: 100, name: "Товар А", quantity: 10, price: 500, reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }] }),
-          makeOrderProduct({ id: op2Id, order_id: order.id, product_id: 200, name: "Товар Б", quantity: 10, price: 300, reservations: [{ stock_id: 2, warehouse_id: 1, quantity: 10 }] }),
+          makeOrderProduct({
+            id: op1Id,
+            order_id: order.id,
+            product_id: 100,
+            name: "Товар А",
+            quantity: 10,
+            price: 500,
+            reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }],
+            shortage_stocks: [{ stock_id: 1, warehouse_id: 1, quantity: 5 }],
+          }),
+          makeOrderProduct({
+            id: op2Id,
+            order_id: order.id,
+            product_id: 200,
+            name: "Товар Б",
+            quantity: 10,
+            price: 300,
+            reservations: [{ stock_id: 2, warehouse_id: 1, quantity: 10 }],
+            shortage_stocks: [{ stock_id: 2, warehouse_id: 1, quantity: 0 }],
+          }),
         ],
         subtotal: 8000,
         total: 8000,
@@ -722,7 +743,87 @@ describe("OrdersService — интеграционные тесты acceptShorta
         expect.objectContaining({
           subtotal: 2500,
           total: 2500,
-          shortage_stocks: [],
+        }),
+      );
+    });
+  });
+
+  // ─── полный флоу: курьер + скидка (docs, раздел 6.7) ──────
+
+  describe("полный флоу: курьер + скидка 10%, 10 → 5", () => {
+    it("создаёт заказ, устанавливает дефицит и пересчитывает оба раза", async () => {
+      // create: subtotal = 10 × 1000 = 10000, discount_total = 10%, delivery = 100
+      // total = floor(10000 - 1000 + 100) = 9100
+      setupFullFlowMocks({
+        price: 1000,
+        discount_percent: 10,
+        discount_name: "Акция",
+        method_receipt: "courier",
+      });
+      const order = await service.create({
+        comment: "",
+        phone: "+79001234567",
+        phoneCode: "+7",
+        recipient_name: "Иван Иванов",
+        payment_method: "cash",
+        method_receipt: "courier",
+        date_from: "2026-09-15T00:00:00.000Z",
+        date_to: "2026-09-20T23:59:59.999Z",
+        address: makeAddress("courier"),
+        products: [{ product_id: 100, quantity: 10 }],
+        create_user_id: 1,
+        user_role: "user",
+      });
+
+      expect(order.total).toBe(9100);
+
+      // ── setShortageStocks: 10 → 5 ──
+      const opId = 99;
+      mockOrdersRepository.findOne.mockImplementation(async (options: any) => {
+        if (options?.where?.id === order.id) {
+          return { id: order.id, status: "new", create_user_id: 1 };
+        }
+        return null;
+      });
+
+      mockOrderProductService.findAll.mockResolvedValue([
+        makeOrderProduct({ id: opId, order_id: order.id, quantity: 10, price: 1000 }),
+      ]);
+
+      await service.setShortageStocks(order.id, [
+        { id: opId, quantity: 5, stock_id: 1, warehouse_id: 1 },
+      ]);
+
+      // ── acceptShortage: субтотал 5000, скидка 500, доставка 100 → 4600 ──
+      setupAcceptMocks({
+        orderId: order.id,
+        orderProducts: [
+          makeOrderProduct({
+            id: opId,
+            order_id: order.id,
+            quantity: 10,
+            price: 1000,
+            reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }],
+            shortage_stocks: [{ stock_id: 1, warehouse_id: 1, quantity: 5 }],
+          }),
+        ],
+        subtotal: 10000,
+        discount_percent: 10,
+        discount_total: 1000,
+        discount_name: "Акция",
+        total: 9100,
+        method_receipt: "courier",
+        delivery_price: 100,
+      });
+
+      await service.acceptShortage(order.id, 1, "user");
+
+      expect(ordersRepository.update).toHaveBeenCalledWith(
+        order.id,
+        expect.objectContaining({
+          subtotal: 5000,
+          discount_total: 500,
+          total: 4600,
         }),
       );
     });
