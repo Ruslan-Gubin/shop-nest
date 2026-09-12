@@ -72,6 +72,9 @@ export class OrderProduct {
   @Column({ type: "jsonb", default: [], name: "transfers" })
   transfers: { stock_id: number; warehouse_id: number; quantity: number }[];
 
+  @Column({ type: "jsonb", default: [], name: "shortage_stocks" })
+  shortage_stocks: { stock_id: number; warehouse_id: number; quantity: number }[];
+
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;
 

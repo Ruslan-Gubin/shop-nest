@@ -93,9 +93,6 @@ export class Order {
   @Column({ type: "int", default: 0, name: "total" })
   total: number;
 
-  @Column({ type: "jsonb", default: [], name: "shortage_stocks" })
-  shortage_stocks: { id: number; quantity: number; warehouse_id: number }[];
-
   @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
   created_at: Date;
 

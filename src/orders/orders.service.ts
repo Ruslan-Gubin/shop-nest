@@ -4,7 +4,7 @@ import { FindOptionsSelect, type Repository } from "typeorm";
 import type { CreateOrderDto } from "./dto/create-order.dto";
 import type { UpdateOrderDto } from "./dto/update-order.dto";
 import type { ShipOrderDto, ShipReservationItemDto } from "./dto/ship-order.dto";
-import type { SetShortageItemDto } from "./dto/set-shortage.dto";
+import type { SetShortageItemDto } from "src/order-product/dto/set-shortage.dto";
 import { Order } from "./entities/order.entity";
 import { AddressService } from "src/address/address.service";
 import { OrderProductService } from "src/order-product/order-product.service";
@@ -16,6 +16,7 @@ import { WarehouseService } from "src/warehouse/warehouse.service";
 import { TransfersService } from "src/transfers/transfers.service";
 import { ReservationItemDto } from "src/order-product/dto/create-order-product.dto";
 import { OrderProduct } from "src/order-product/entities/order-product.entity";
+import { ShortageItemDto } from "src/order-product/dto/update-order-product.dto";
 
 @Injectable()
 export class OrdersService {
@@ -36,17 +37,11 @@ export class OrdersService {
     const orderId = payload.transfers.find((el) => el.order_id)?.order_id;
 
     if (orderId) {
-      const order = await this.getOrderSelect(orderId, [
-        "shortage_stocks",
-      ] as FindOptionsSelect<Order>);
-
-      if (!order) {
-        throw `Заказ ${orderId} не найден`;
-      }
-
-      if (order.shortage_stocks && order.shortage_stocks.length > 0) {
+      if (await this.orderProductRepository.hasShortage(orderId)) {
         throw `Заказ ${orderId} ожидает решения клиента по изменению количества товаров в заказе`;
       }
+    } else {
+      throw `Заказ ${orderId} не найден`;
     }
 
     const createdTransferIds: number[] = [];
@@ -125,48 +120,13 @@ export class OrdersService {
       throw `Невозможно установить дефицит для заказа в статусе ${order.status}`;
     }
 
-    const orderProducts = await this.orderProductRepository.findAll(String(id));
-
-    if (!orderProducts || orderProducts.length === 0) {
-      throw "Не удалось найти список товаров для этого заказа";
-    }
-
-    const orderProductMap = new Map(orderProducts.map((op) => [op.id, op]));
-
-    const updateShortageStocks: SetShortageItemDto[] = [];
-
-    for (const item of shortage_stocks) {
-      const orderProduct = orderProductMap.get(item.id);
-
-      if (!orderProduct) {
-        throw `Товар заказа с ID ${item.id} не найден в заказе ${id}`;
-      }
-
-      if (item.quantity > orderProduct.quantity) {
-        throw `Количество ${item.quantity} для товара заказа ${item.id} не может превышать заказанное ${orderProduct.quantity}`;
-      }
-
-      if (!orderProduct.reservations.some((r) => r.warehouse_id === item.warehouse_id)) {
-        throw `Склад ${item.warehouse_id} не участвует в резервациях товара заказа ${item.id}`;
-      }
-
-      if (item.quantity !== orderProduct.quantity) {
-        updateShortageStocks.push(item);
-      }
-    }
-
-    await this.ordersRepository
-      .update(id, { shortage_stocks: updateShortageStocks })
-      .catch((error) => {
-        throw `Не удалось обновить проблемные остатки, ${error.message}`;
-      });
+    await this.orderProductRepository.setShortageStocks(shortage_stocks);
   }
 
   async acceptShortage(id: number, userId: number, userRole: string) {
     const order = await this.getOrderSelect(id, [
       "id",
       "status",
-      "shortage_stocks",
       "create_user_id",
       "subtotal",
       "discount_percent",
@@ -190,44 +150,60 @@ export class OrdersService {
       throw `Невозможно принять изменения для заказа в статусе ${order.status}`;
     }
 
-    if (!Array.isArray(order.shortage_stocks) || order.shortage_stocks?.length === 0) {
-      throw "Нет изменений по остаткам для принятия";
-    }
-
-    const orderProducts = await this.orderProductRepository.findAll(String(id));
+    const orderProducts = await this.orderProductRepository.findAll(id);
 
     if (!orderProducts || orderProducts.length === 0) {
       throw "Не удалось найти список товаров для этого заказа";
     }
 
+    const hasShortageStocks = orderProducts.some((op) => op.shortage_stocks.length > 0);
+
+    if (!hasShortageStocks) {
+      throw "Нет изменений по остаткам для принятия";
+    }
+
     let newSubtotal = 0;
 
     for (const orderProduct of orderProducts) {
-      const shortageItem = order.shortage_stocks.find((s) => s.id === orderProduct.id);
+      const shortage_stocks = orderProduct.shortage_stocks || [];
 
-      if (shortageItem) {
-        if (shortageItem.quantity === 0) {
+      if (shortage_stocks.length > 0) {
+        let diff = 0;
+
+        for (let i = 0; i < shortage_stocks.length; i++) {
+          const shortage = shortage_stocks[i];
+          const findReservation = orderProduct.reservations.find(
+            (el) => el.stock_id === shortage.stock_id && el.warehouse_id === shortage.warehouse_id,
+          );
+
+          if (findReservation && shortage.quantity < findReservation.quantity) {
+            diff += findReservation.quantity - shortage.quantity;
+          }
+        }
+
+        if (diff === orderProduct.quantity) {
           await this.releaseExcessReservations(
-            orderProduct.reservations || [],
-            orderProduct.quantity,
-            shortageItem.warehouse_id,
+            orderProduct.reservations,
+            orderProduct.shortage_stocks,
           );
 
           await this.orderProductRepository.remove(orderProduct.id);
           continue;
         }
 
-        const quantityDiff = orderProduct.quantity - shortageItem.quantity;
-
-        const updateOrderProduct: { quantity: number; reservations?: ReservationItemDto[] } = {
-          quantity: shortageItem.quantity,
+        const updateOrderProduct: {
+          quantity: number;
+          reservations?: ReservationItemDto[];
+          shortage_stocks?: ReservationItemDto[];
+        } = {
+          quantity: orderProduct.quantity - diff,
+          shortage_stocks: [],
         };
 
-        if (quantityDiff > 0) {
+        if (diff > 0) {
           const reservations = await this.releaseExcessReservations(
-            orderProduct.reservations || [],
-            quantityDiff,
-            shortageItem.warehouse_id,
+            orderProduct.reservations,
+            orderProduct.shortage_stocks,
           );
 
           updateOrderProduct.reservations = reservations;
@@ -235,14 +211,13 @@ export class OrdersService {
 
         await this.orderProductRepository.update(orderProduct.id, updateOrderProduct);
 
-        newSubtotal += shortageItem.quantity * orderProduct.price;
+        newSubtotal += updateOrderProduct.quantity * orderProduct.price;
       } else {
         newSubtotal += orderProduct.quantity * orderProduct.price;
       }
     }
 
-    const deliveryPrice =
-      order.delivery_price ?? (order.method_receipt === "courier" ? 100 : 0);
+    const deliveryPrice = order.delivery_price || 0;
     const newDiscountTotal = Math.round((newSubtotal * order.discount_percent) / 100);
     const newTotal = Math.floor(newSubtotal - newDiscountTotal + deliveryPrice);
 
@@ -263,7 +238,6 @@ export class OrdersService {
         discount_total: newDiscountTotal,
         discount_quantity: newDiscountQuantity,
         total: newTotal,
-        shortage_stocks: [],
       })
       .catch((error) => {
         throw `Не удалось принять изменения по остаткам, ${error.message}`;
@@ -272,34 +246,21 @@ export class OrdersService {
 
   private async releaseExcessReservations(
     reservations: ReservationItemDto[],
-    excessQuantity: number,
-    warehouse_id: number,
+    shortage_stocks: ShortageItemDto[],
   ) {
-    let remainingToRelease = excessQuantity;
+    for (let i = 0; i < shortage_stocks.length; i++) {
+      const shortage = shortage_stocks[i];
+      const reservation = reservations.find(
+        (el) => el.stock_id === shortage.stock_id && el.warehouse_id === shortage.warehouse_id,
+      );
 
-    const targetIndex = reservations.findIndex((r) => r.warehouse_id === warehouse_id);
+      if (reservation && reservation.quantity > shortage.quantity) {
+        const diff = reservation.quantity - shortage.quantity;
 
-    if (targetIndex !== -1) {
-      const target = reservations[targetIndex];
-      const releaseFromTarget = Math.min(target.quantity, remainingToRelease);
-
-      if (releaseFromTarget > 0) {
-        await this.productStockRepository.decrementReserved(target.stock_id, releaseFromTarget);
-        target.quantity -= releaseFromTarget;
-        remainingToRelease -= releaseFromTarget;
-      }
-    }
-
-    for (let i = reservations.length - 1; i >= 0 && remainingToRelease > 0; i--) {
-      if (i === targetIndex) continue;
-
-      const reservation = reservations[i];
-      const releaseAmount = Math.min(reservation.quantity, remainingToRelease);
-
-      if (releaseAmount > 0) {
-        await this.productStockRepository.decrementReserved(reservation.stock_id, releaseAmount);
-        reservation.quantity -= releaseAmount;
-        remainingToRelease -= releaseAmount;
+        if (diff > 0) {
+          await this.productStockRepository.decrementReserved(reservation.stock_id, diff);
+          reservation.quantity = shortage.quantity;
+        }
       }
     }
 
@@ -578,7 +539,7 @@ export class OrdersService {
   }
 
   private async releaseReservations(order_id: number) {
-    const orderProducts = await this.orderProductRepository.findAll(String(order_id));
+    const orderProducts = await this.orderProductRepository.findAll(order_id);
 
     for (let i = 0; i < orderProducts.length; i++) {
       const reservations = orderProducts[i].reservations;
@@ -616,7 +577,7 @@ export class OrdersService {
       throw `Невозможно перевести заказ в следующий статус из статуса ${order.status}`;
     }
 
-    if (order.shortage_stocks && order.shortage_stocks.length > 0) {
+    if (await this.orderProductRepository.hasShortage(id)) {
       throw `Заказ ожидает решения клиента по изменению количества товара в заказе`;
     }
 
@@ -646,7 +607,7 @@ export class OrdersService {
   }
 
   private async handleCompletedTransfers(order_id: number) {
-    const orderProducts = await this.orderProductRepository.findAll(String(order_id));
+    const orderProducts = await this.orderProductRepository.findAll(order_id);
 
     for (let i = 0; i < orderProducts.length; i++) {
       const reservations = orderProducts[i].reservations;
@@ -701,7 +662,7 @@ export class OrdersService {
         throw `У заказа ${order_id} не найден склад выдачи`;
       }
 
-      const orderProducts = await this.orderProductRepository.findAll(String(order_id));
+      const orderProducts = await this.orderProductRepository.findAll(order_id);
 
       for (let i = 0; i < orderProducts.length; i++) {
         const reservations = orderProducts[i].reservations;

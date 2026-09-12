@@ -13,7 +13,7 @@ import { OrdersService } from "./orders.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { UpdateOrderDto } from "./dto/update-order.dto";
 import { ShipOrderDto } from "./dto/ship-order.dto";
-import { SetShortageDto } from "./dto/set-shortage.dto";
+import { SetShortageDto } from "src/order-product/dto/set-shortage.dto";
 import { RejectOrderDto } from "./dto/reject-order.dto";
 import { SalesByPaymentDto } from "./dto/sales-by-payment.dto";
 import { ResponseData, responseData } from "src/helpers/response";

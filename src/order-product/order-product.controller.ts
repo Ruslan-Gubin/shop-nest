@@ -60,7 +60,11 @@ export class OrderProductController {
   @Get("order/:order_id")
   async findAll(@Param("order_id") order_id: string): Promise<ResponseData<OrderProduct[] | null>> {
     try {
-      const orderProducts = await this.orderProductService.findAll(order_id);
+      const id =
+        typeof Number(order_id) === "number" && !Number.isNaN(Number(order_id))
+          ? Number(order_id)
+          : 0;
+      const orderProducts = await this.orderProductService.findAll(id);
 
       return responseData(orderProducts, "success", [], "Список товаров заказа получен");
     } catch (error) {
