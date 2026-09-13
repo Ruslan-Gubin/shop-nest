@@ -390,7 +390,6 @@ export class OrdersService {
         product_id: product.id,
         name: product.name,
         code: product.code,
-        brand_id: product.brand_id,
         category_id: product.category_id,
         description: product.description,
         country: product.country,
@@ -401,6 +400,7 @@ export class OrdersService {
         length: product.length,
         width: product.width,
         purchase_price: 0,
+        brand_name: product.brand_name,
       });
     }
 

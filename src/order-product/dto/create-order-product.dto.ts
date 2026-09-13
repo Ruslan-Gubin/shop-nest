@@ -49,9 +49,8 @@ export class CreateOrderProductDto {
   code: string;
 
   @IsOptional()
-  @Min(0, { message: "Не может быть отрицательным" })
-  @IsInt({ message: "Бренд ID должно быть числом" })
-  brand_id: number;
+  @IsString({ message: "Бренд должен быть строкой" })
+  brand_name: string;
 
   @IsOptional()
   @Min(0, { message: "Не может быть отрицательным" })

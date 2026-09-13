@@ -30,8 +30,8 @@ export class OrderProduct {
   @Column({ type: "varchar", default: "", name: "code" })
   code: string;
 
-  @Column({ type: "int", nullable: true, default: null, name: "brand_id" })
-  brand_id: number;
+  @Column({ type: "varchar", default: "", name: "brand_name" })
+  brand_name: string;
 
   @Column({ type: "int", nullable: true, default: null, name: "category_id" })
   category_id: number;
