@@ -10,6 +10,7 @@ import { PromotionsService } from "src/promotions/promotions.service";
 import { ProductStockService } from "src/product-stock/product-stock.service";
 import { WarehouseService } from "src/warehouse/warehouse.service";
 import { TransfersService } from "src/transfers/transfers.service";
+import { PaymentsService } from "src/payments/payments.service";
 
 // ─── Базовые фабрики данных ────────────────────────────────
 
@@ -49,6 +50,7 @@ describe("OrdersService — setShortageStocks", () => {
         { provide: ProductStockService, useValue: {} },
         { provide: WarehouseService, useValue: {} },
         { provide: TransfersService, useValue: {} },
+        { provide: PaymentsService, useValue: { createPayment: jest.fn(), findByOrder: jest.fn() } },
       ],
     }).compile();
 

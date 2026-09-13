@@ -11,6 +11,7 @@ import { PromotionsModule } from "src/promotions/promotions.module";
 import { ProductStockModule } from "src/product-stock/product-stock.module";
 import { WarehouseModule } from "src/warehouse/warehouse.module";
 import { TransfersModule } from "src/transfers/transfers.module";
+import { PaymentsModule } from "src/payments/payments.module";
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { TransfersModule } from "src/transfers/transfers.module";
     ProductStockModule,
     WarehouseModule,
     TransfersModule,
+    PaymentsModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

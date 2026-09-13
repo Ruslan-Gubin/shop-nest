@@ -11,6 +11,7 @@ import { PromotionsService } from "src/promotions/promotions.service";
 import { ProductStockService } from "src/product-stock/product-stock.service";
 import { WarehouseService } from "src/warehouse/warehouse.service";
 import { TransfersService } from "src/transfers/transfers.service";
+import { PaymentsService } from "src/payments/payments.service";
 
 describe("OrdersService — интеграционные тесты acceptShortage", () => {
   let service: OrdersService;
@@ -241,6 +242,7 @@ describe("OrdersService — интеграционные тесты acceptShorta
         { provide: ProductStockService, useValue: mockProductStockService },
         { provide: WarehouseService, useValue: mockWarehouseService },
         { provide: TransfersService, useValue: mockTransfersService },
+        { provide: PaymentsService, useValue: { createPayment: jest.fn(), findByOrder: jest.fn() } },
       ],
     }).compile();
 

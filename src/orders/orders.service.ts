@@ -14,9 +14,24 @@ import { PromotionsService } from "src/promotions/promotions.service";
 import { ProductStockService } from "src/product-stock/product-stock.service";
 import { WarehouseService } from "src/warehouse/warehouse.service";
 import { TransfersService } from "src/transfers/transfers.service";
+import { PaymentsService } from "src/payments/payments.service";
 import { ReservationItemDto } from "src/order-product/dto/create-order-product.dto";
 import { OrderProduct } from "src/order-product/entities/order-product.entity";
 import { ShortageItemDto } from "src/order-product/dto/update-order-product.dto";
+
+export const VIEW_STATUSES: Record<string, string[]> = {
+  orders: [
+    "new",
+    "processing",
+    "cancelled_new",
+    "cancelled_assembly",
+    "cancelled_customer",
+    "cancelled_ready",
+    "cancelled_delivery",
+  ],
+  purchases: ["completed"],
+  waiting: ["ready", "in_delivery"],
+};
 
 @Injectable()
 export class OrdersService {
@@ -31,6 +46,7 @@ export class OrdersService {
     private readonly productStockRepository: ProductStockService,
     private readonly warehouseService: WarehouseService,
     private readonly transfersService: TransfersService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   async ship(payload: ShipOrderDto) {
@@ -436,13 +452,20 @@ export class OrdersService {
       });
   }
 
-  async findAll(page: string, limit: string, order_number?: string, status?: string) {
+  async findAll(
+    page: string,
+    limit: string,
+    create_user_id: number,
+    order_number?: string,
+    status?: string,
+    statuses?: string[],
+  ) {
     const skip = (Number(page) - 1) * Number(limit);
 
     const query = this.ordersRepository
       .createQueryBuilder("o")
-      .addSelect("CASE WHEN o.status = 'new' THEN 0 ELSE 1 END", "new_sort")
-      .orderBy("new_sort", "ASC")
+      .addSelect("COALESCE(o.updated_at, o.created_at)", "last_activity")
+      .orderBy("last_activity", "DESC")
       .addOrderBy("o.id", "DESC")
       .skip(skip)
       .take(Number(limit));
@@ -453,13 +476,36 @@ export class OrdersService {
       });
     }
 
-    if (status) {
+    if (statuses && statuses.length > 0) {
+      query.andWhere("o.status IN (:...statuses)", { statuses });
+    } else if (status) {
       query.andWhere("o.status = :status", { status });
+    }
+
+    if (typeof create_user_id === "number" && create_user_id > 0) {
+      query.andWhere("o.create_user_id = :create_user_id", { create_user_id });
     }
 
     return query.getManyAndCount().catch((error) => {
       throw `Не удалось получить список заказов, ${error.message}`;
     });
+  }
+
+  async getClientCounts(create_user_id: number) {
+    return this.ordersRepository
+      .createQueryBuilder("o")
+      .select("COUNT(*) FILTER (WHERE o.status IN (:...ordersStatuses))::int", "orders_count")
+      .addSelect("COUNT(*) FILTER (WHERE o.status = 'completed')::int", "purchases_count")
+      .addSelect("COUNT(*) FILTER (WHERE o.status IN (:...waitingStatuses))::int", "waiting_count")
+      .where("o.create_user_id = :create_user_id", { create_user_id })
+      .setParameters({
+        ordersStatuses: VIEW_STATUSES.orders,
+        waitingStatuses: VIEW_STATUSES.waiting,
+      })
+      .getRawOne()
+      .catch((error) => {
+        throw `Не удалось получить количество заказов, ${error.message}`;
+      });
   }
 
   async findOne(id: number) {
@@ -583,6 +629,10 @@ export class OrdersService {
 
     if (order.status === "processing" && status === "ready") {
       await this.handleReadyTransfers(order.id, order.warehouse?.id || 0);
+
+      if (order.payment_method === "card") {
+        await this.paymentsService.createPayment(order.id, order.total);
+      }
     }
 
     if (order.status === "ready" && status === "in_delivery") {

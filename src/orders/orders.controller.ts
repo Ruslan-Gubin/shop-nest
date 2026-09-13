@@ -9,7 +9,7 @@ import {
   Delete,
   UseGuards,
 } from "@nestjs/common";
-import { OrdersService } from "./orders.service";
+import { OrdersService, VIEW_STATUSES } from "./orders.service";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { UpdateOrderDto } from "./dto/update-order.dto";
 import { ShipOrderDto } from "./dto/ship-order.dto";
@@ -46,6 +46,8 @@ export class OrdersController {
   }
 
   @Get()
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
   async findAll(
     @Query("page") page: string,
     @Query("limit") limit: string,
@@ -62,6 +64,7 @@ export class OrdersController {
       const [orders, totalCount] = await this.ordersService.findAll(
         page,
         limit,
+        0,
         order_number,
         status,
       );
@@ -71,6 +74,77 @@ export class OrdersController {
         "success",
         [],
         "Список заказов получен",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("all-client")
+  async findAllClient(
+    @Query("page") page: string,
+    @Query("limit") limit: string,
+    @CurrentUser() user: CurrentStrategyUser,
+    @Query("view") view?: string,
+    @Query("order_number") order_number?: string,
+  ): Promise<
+    ResponseData<{
+      orders: Order[];
+      totalCount: number;
+      paginationPage: string;
+    } | null>
+  > {
+    try {
+      if (!user || !user.role) {
+        throw "Не удалось распознать пользователя";
+      }
+
+      const statuses = VIEW_STATUSES[view ?? "orders"] || VIEW_STATUSES[0];
+
+      const [orders, totalCount] = await this.ordersService.findAll(
+        page,
+        limit,
+        user.sub,
+        order_number,
+        undefined,
+        statuses,
+      );
+
+      return responseData(
+        { orders, totalCount, paginationPage: page },
+        "success",
+        [],
+        "Список заказов получен",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("order-client-counts")
+  async getClientCounts(@CurrentUser() user: CurrentStrategyUser): Promise<
+    ResponseData<{
+      orders: number;
+      purchases: number;
+      waiting: number;
+    } | null>
+  > {
+    try {
+      if (!user || !user.role) {
+        throw "Не удалось распознать пользователя";
+      }
+
+      const counts = await this.ordersService.getClientCounts(user.sub);
+
+      return responseData(
+        {
+          orders: counts?.orders_count ?? 0,
+          purchases: counts?.purchases_count ?? 0,
+          waiting: counts?.waiting_count ?? 0,
+        },
+        "success",
+        [],
+        "Количество заказов получено",
       );
     } catch (error) {
       return responseData(null, "error", [], error);
