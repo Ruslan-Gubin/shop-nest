@@ -1,8 +1,8 @@
-import { IsNotEmpty, IsObject, IsOptional, IsString } from "class-validator";
+import { IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class GenerateSeoDto {
   @IsString()
-  @IsNotEmpty({ message: "Укажите название товара" })
+  @IsNotEmpty({ message: 'Укажите название товара' })
   name: string;
 
   @IsString()

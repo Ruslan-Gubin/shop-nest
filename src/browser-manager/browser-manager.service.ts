@@ -1,5 +1,5 @@
-import { Injectable, OnModuleDestroy } from "@nestjs/common";
-import { chromium, Browser, BrowserContext } from "playwright";
+import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { chromium, Browser, BrowserContext } from 'playwright';
 
 @Injectable()
 export class BrowserManagerService implements OnModuleDestroy {
@@ -17,7 +17,8 @@ export class BrowserManagerService implements OnModuleDestroy {
 
     this.browser = await chromium.launch({
       headless: true,
-      executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+      executablePath:
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     });
 
     return this.browser;
@@ -30,9 +31,9 @@ export class BrowserManagerService implements OnModuleDestroy {
         width: Math.round(1280 + Math.random() * 200),
         height: Math.round(720 + Math.random() * 100),
       },
-      locale: "ru-RU",
+      locale: 'ru-RU',
       userAgent:
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     });
   }
 

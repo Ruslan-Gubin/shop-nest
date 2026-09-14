@@ -1,4 +1,4 @@
-import { IsNumber, Min } from "class-validator";
+import { IsNumber, Min } from 'class-validator';
 
 export class CreatePriceRangeDto {
   @IsNumber({}, { message: "Цена 'от' должна быть числом" })

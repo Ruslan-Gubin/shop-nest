@@ -1,7 +1,7 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { OrderProductService } from "../order-product.service";
-import { OrderProduct } from "../entities/order-product.entity";
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { OrderProductService } from '../order-product.service';
+import { OrderProduct } from '../entities/order-product.entity';
 
 // ─── Базовые фабрики данных ────────────────────────────────
 //
@@ -11,12 +11,12 @@ import { OrderProduct } from "../entities/order-product.entity";
 //   - резервация (склад + остаток) должна участвовать в заказе
 //   - один и тот же товар обновляется один раз (кеш по id)
 
-describe("OrderProductService — setShortageStocks", () => {
+describe('OrderProductService — setShortageStocks', () => {
   const baseProduct = (overrides?: Record<string, any>) => ({
     id: 10,
     order_id: 1,
     product_id: 100,
-    name: "Товар А",
+    name: 'Товар А',
     quantity: 10,
     price: 500,
     reservations: [{ stock_id: 1, warehouse_id: 1, quantity: 10 }],
@@ -53,8 +53,8 @@ describe("OrderProductService — setShortageStocks", () => {
 
   // ─── A. Успешные сценарии ──────────────────────────────
 
-  describe("A. Успешные сценарии", () => {
-    it("добавляет дефицит, если его ещё не было (10 → 5)", async () => {
+  describe('A. Успешные сценарии', () => {
+    it('добавляет дефицит, если его ещё не было (10 → 5)', async () => {
       await service.setShortageStocks([
         { id: 10, stock_id: 1, warehouse_id: 1, quantity: 5 },
       ]);
@@ -64,7 +64,7 @@ describe("OrderProductService — setShortageStocks", () => {
       });
     });
 
-    it("обновляет существующий дефицит (5 → 3)", async () => {
+    it('обновляет существующий дефицит (5 → 3)', async () => {
       mockRepository.findOne.mockResolvedValue(
         baseProduct({
           shortage_stocks: [{ stock_id: 1, warehouse_id: 1, quantity: 5 }],
@@ -80,7 +80,7 @@ describe("OrderProductService — setShortageStocks", () => {
       });
     });
 
-    it("снимает дефицит, если quantity равно резервации (10 = 10)", async () => {
+    it('снимает дефицит, если quantity равно резервации (10 = 10)', async () => {
       mockRepository.findOne.mockResolvedValue(
         baseProduct({
           shortage_stocks: [{ stock_id: 1, warehouse_id: 1, quantity: 5 }],
@@ -91,10 +91,12 @@ describe("OrderProductService — setShortageStocks", () => {
         { id: 10, stock_id: 1, warehouse_id: 1, quantity: 10 },
       ]);
 
-      expect(mockRepository.update).toHaveBeenCalledWith(10, { shortage_stocks: [] });
+      expect(mockRepository.update).toHaveBeenCalledWith(10, {
+        shortage_stocks: [],
+      });
     });
 
-    it("объединяет несколько позиций одного товара (по складам) и делает 1 update", async () => {
+    it('объединяет несколько позиций одного товара (по складам) и делает 1 update', async () => {
       mockRepository.findOne.mockResolvedValue(
         baseProduct({
           reservations: [
@@ -119,14 +121,14 @@ describe("OrderProductService — setShortageStocks", () => {
       });
     });
 
-    it("обновляет несколько разных товаров", async () => {
+    it('обновляет несколько разных товаров', async () => {
       mockRepository.findOne.mockImplementation(async (options: any) =>
         options?.where?.id === 10
           ? baseProduct({ id: 10, quantity: 10 })
           : baseProduct({
               id: 20,
               product_id: 200,
-              name: "Товар Б",
+              name: 'Товар Б',
               quantity: 20,
               reservations: [{ stock_id: 2, warehouse_id: 1, quantity: 20 }],
             }),
@@ -146,7 +148,7 @@ describe("OrderProductService — setShortageStocks", () => {
       });
     });
 
-    it("дважды один и тот же id в запросе → findOne вызывается один раз", async () => {
+    it('дважды один и тот же id в запросе → findOne вызывается один раз', async () => {
       mockRepository.findOne.mockImplementation(async (options: any) =>
         options?.where?.id === 10 ? baseProduct() : null,
       );
@@ -162,38 +164,44 @@ describe("OrderProductService — setShortageStocks", () => {
 
   // ─── B. Валидация ──────────────────────────────────────
 
-  describe("B. Валидация", () => {
-    it("товар не найден → ошибка и update не вызывается", async () => {
+  describe('B. Валидация', () => {
+    it('товар не найден → ошибка и update не вызывается', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
       await expect(
-        service.setShortageStocks([{ id: 999, stock_id: 1, warehouse_id: 1, quantity: 5 }]),
-      ).rejects.toBe("Товар заказа с ID 999 не найден.");
+        service.setShortageStocks([
+          { id: 999, stock_id: 1, warehouse_id: 1, quantity: 5 },
+        ]),
+      ).rejects.toBe('Товар заказа с ID 999 не найден.');
 
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
 
-    it("quantity больше заказанного → ошибка", async () => {
+    it('quantity больше заказанного → ошибка', async () => {
       await expect(
-        service.setShortageStocks([{ id: 10, stock_id: 1, warehouse_id: 1, quantity: 15 }]),
+        service.setShortageStocks([
+          { id: 10, stock_id: 1, warehouse_id: 1, quantity: 15 },
+        ]),
       ).rejects.toBe(
-        "Количество 15 для товара заказа 10 не может превышать заказанное 10",
+        'Количество 15 для товара заказа 10 не может превышать заказанное 10',
       );
 
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
 
-    it("резервация склада не участвует в заказе → ошибка", async () => {
+    it('резервация склада не участвует в заказе → ошибка', async () => {
       await expect(
-        service.setShortageStocks([{ id: 10, stock_id: 99, warehouse_id: 1, quantity: 5 }]),
+        service.setShortageStocks([
+          { id: 10, stock_id: 99, warehouse_id: 1, quantity: 5 },
+        ]),
       ).rejects.toBe(
-        "Остаток 99 на складе 1 не участвует в резервациях товара заказа 10",
+        'Остаток 99 на складе 1 не участвует в резервациях товара заказа 10',
       );
 
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
 
-    it("пишет дефицит только по успешному проходу всех позиций", async () => {
+    it('пишет дефицит только по успешному проходу всех позиций', async () => {
       mockRepository.findOne.mockImplementation(async (options: any) =>
         options?.where?.id === 10 ? baseProduct() : null,
       );
@@ -203,7 +211,7 @@ describe("OrderProductService — setShortageStocks", () => {
           { id: 10, stock_id: 1, warehouse_id: 1, quantity: 5 },
           { id: 999, stock_id: 1, warehouse_id: 1, quantity: 2 },
         ]),
-      ).rejects.toBe("Товар заказа с ID 999 не найден.");
+      ).rejects.toBe('Товар заказа с ID 999 не найден.');
 
       // валидация падает до записи — update ни для кого не вызван
       expect(mockRepository.update).not.toHaveBeenCalled();

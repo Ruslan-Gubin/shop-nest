@@ -1,11 +1,11 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { FindOperator, ILike, Repository } from "typeorm";
-import type { CreateWarehouseDto } from "./dto/create-warehouse.dto";
-import type { UpdateWarehouseDto } from "./dto/update-warehouse.dto";
-import { Warehouse } from "./entities/warehouse.entity";
-import { AddressService } from "src/address/address.service";
-import { haversine } from "src/helpers/haversine";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { FindOperator, ILike, Repository } from 'typeorm';
+import type { CreateWarehouseDto } from './dto/create-warehouse.dto';
+import type { UpdateWarehouseDto } from './dto/update-warehouse.dto';
+import { Warehouse } from './entities/warehouse.entity';
+import { AddressService } from 'src/address/address.service';
+import { haversine } from 'src/helpers/haversine';
 
 @Injectable()
 export class WarehouseService {
@@ -19,7 +19,7 @@ export class WarehouseService {
     return this.warehouseRepository
       .find({
         where: { is_active: true, is_public: true },
-        relations: ["address"],
+        relations: ['address'],
       })
       .catch((error) => {
         throw `Не удалось получить склад, ${error.message}`;
@@ -33,7 +33,7 @@ export class WarehouseService {
 
     const totalWarehouses = await this.getTotalCount(payload.create_user_id);
 
-    if (typeof totalWarehouses === "number" && totalWarehouses === 0) {
+    if (typeof totalWarehouses === 'number' && totalWarehouses === 0) {
       payload.default_warehouse = true;
     }
 
@@ -54,7 +54,7 @@ export class WarehouseService {
           place: payload.place,
           lng: payload.lng,
           lat: payload.lat,
-          type: "pickup",
+          type: 'pickup',
         },
       })
       .catch((error) => {
@@ -62,10 +62,18 @@ export class WarehouseService {
       });
   }
 
-  async findAll(create_user_id: number, page: string, limit: string, name: string) {
+  async findAll(
+    create_user_id: number,
+    page: string,
+    limit: string,
+    name: string,
+  ) {
     const skip = (Number(page) - 1) * Number(limit);
 
-    const whereCondition: { name?: FindOperator<string>; create_user_id: number } = {
+    const whereCondition: {
+      name?: FindOperator<string>;
+      create_user_id: number;
+    } = {
       create_user_id,
     };
 
@@ -78,8 +86,8 @@ export class WarehouseService {
         skip,
         take: Number(limit),
         where: whereCondition,
-        order: { id: "DESC" },
-        relations: ["address"],
+        order: { id: 'DESC' },
+        relations: ['address'],
       })
       .catch((error) => {
         throw `Не удалось получить список складов, ${error.message}`;
@@ -87,7 +95,10 @@ export class WarehouseService {
   }
 
   async getTotalCount(create_user_id: number, name?: string) {
-    const whereCondition: { name?: FindOperator<string>; create_user_id: number } = {
+    const whereCondition: {
+      name?: FindOperator<string>;
+      create_user_id: number;
+    } = {
       create_user_id,
     };
 
@@ -95,14 +106,16 @@ export class WarehouseService {
       whereCondition.name = ILike(`%${name}%`);
     }
 
-    return this.warehouseRepository.count({ where: whereCondition }).catch((error) => {
-      throw `Не удалось получить общее количество складов, ${error.message}`;
-    });
+    return this.warehouseRepository
+      .count({ where: whereCondition })
+      .catch((error) => {
+        throw `Не удалось получить общее количество складов, ${error.message}`;
+      });
   }
 
   async findOne(id: number) {
     return this.warehouseRepository
-      .findOne({ where: { id }, relations: ["address"] })
+      .findOne({ where: { id }, relations: ['address'] })
       .catch((error) => {
         throw `Не удалось получить склад, ${error.message}`;
       });
@@ -112,22 +125,35 @@ export class WarehouseService {
     return this.warehouseRepository
       .findOne({
         where: { default_warehouse: true },
-        relations: ["address"],
+        relations: ['address'],
       })
       .catch((error) => {
         throw `Не удалось получить склад по умолчанию, ${error.message}`;
       });
   }
 
-  async findBaseWarehouseForOrder(lng?: number, lat?: number): Promise<Warehouse | null> {
+  async findBaseWarehouseForOrder(
+    lng?: number,
+    lat?: number,
+  ): Promise<Warehouse | null> {
     let baseWarehouse: Warehouse | null = null;
 
-    if (typeof lng === "number" && typeof lat === "number") {
+    if (typeof lng === 'number' && typeof lat === 'number') {
       const warehouses = await this.findPublic();
       if (warehouses.length > 0) {
         warehouses.sort((a, b) => {
-          const distA = haversine(lat, lng, a.address?.lat ?? 0, a.address?.lng ?? 0);
-          const distB = haversine(lat, lng, b.address?.lat ?? 0, b.address?.lng ?? 0);
+          const distA = haversine(
+            lat,
+            lng,
+            a.address?.lat ?? 0,
+            a.address?.lng ?? 0,
+          );
+          const distB = haversine(
+            lat,
+            lng,
+            b.address?.lat ?? 0,
+            b.address?.lng ?? 0,
+          );
           return distA - distB;
         });
         if (warehouses[0]) {
@@ -182,7 +208,7 @@ export class WarehouseService {
   async remove(id: number) {
     const warehouse = await this.warehouseRepository.findOne({
       where: { id },
-      relations: ["address"],
+      relations: ['address'],
     });
 
     await this.warehouseRepository.delete(id).catch((error) => {
@@ -214,7 +240,10 @@ export class WarehouseService {
 
   private async clearDefaultWarehouse(create_user_id: number) {
     await this.warehouseRepository
-      .update({ default_warehouse: true, create_user_id }, { default_warehouse: false })
+      .update(
+        { default_warehouse: true, create_user_id },
+        { default_warehouse: false },
+      )
       .catch((error) => {
         throw `Не удалось обновить склад по умолчанию, ${error.message}`;
       });

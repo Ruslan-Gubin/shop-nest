@@ -1,6 +1,6 @@
-import { BadRequestException, ValidationPipe } from "@nestjs/common";
-import type { ValidationError } from "class-validator";
-import { responseData } from "src/helpers/response";
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
+import type { ValidationError } from 'class-validator';
+import { responseData } from 'src/helpers/response';
 
 export const validationPipe = new ValidationPipe({
   transform: true,
@@ -8,10 +8,10 @@ export const validationPipe = new ValidationPipe({
     const errors: { key: string; message: string }[] = [];
 
     for (const error of validateErrors) {
-      let message = "";
+      let message = '';
       for (const key in error.constraints) {
         const errorText = error.constraints[key];
-        if (typeof errorText === "string" && errorText.length > 0) {
+        if (typeof errorText === 'string' && errorText.length > 0) {
           message = errorText;
           break;
         }
@@ -20,6 +20,6 @@ export const validationPipe = new ValidationPipe({
       errors.push({ key: error.property, message });
     }
 
-    throw new BadRequestException(responseData(null, "error", errors));
+    throw new BadRequestException(responseData(null, 'error', errors));
   },
 });

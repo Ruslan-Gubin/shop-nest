@@ -45,6 +45,7 @@ export class ProductQuestionController {
     @Param("product_id") product_id: string,
     @Query("limit") limit?: string,
     @Query("page") page?: string,
+    @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<
     ResponseData<{
       questions: ProductQuestion[];
@@ -60,6 +61,7 @@ export class ProductQuestionController {
         Number(product_id),
         pageNum,
         limitNum,
+        user?.sub,
       );
 
       return responseData(

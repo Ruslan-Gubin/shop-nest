@@ -6,7 +6,6 @@ import type { UpdateProductReviewDto } from "./dto/update-product-review.dto";
 import type { GenerateAnswerProductReviewDto } from "./dto/generate-answer-product-review.dto";
 import { ProductReview } from "./entities/product-review.entity";
 import type { Product } from "src/product/entities/product.entity";
-import { OrderProduct } from "src/order-product/entities/order-product.entity";
 import { OpenCodeService } from "src/opencode/opencode.service";
 import { CategoryService } from "src/category/category.service";
 import { ProductSpecificationService } from "src/product-specification/product-specification.service";
@@ -16,8 +15,6 @@ export class ProductReviewService {
   constructor(
     @InjectRepository(ProductReview)
     private productReviewRepository: Repository<ProductReview>,
-    @InjectRepository(OrderProduct)
-    private orderProductRepository: Repository<OrderProduct>,
     private readonly openCode: OpenCodeService,
     private readonly categoryService: CategoryService,
     private readonly productSpecificationService: ProductSpecificationService,
@@ -54,7 +51,7 @@ export class ProductReviewService {
   }
 
   async findByUserId(
-    userId: number,
+    create_user_id: number,
     page: number,
     limit: number,
   ): Promise<[ProductReview[], number]> {
@@ -62,7 +59,7 @@ export class ProductReviewService {
 
     return this.productReviewRepository
       .findAndCount({
-        where: { create_user_id: userId },
+        where: { create_user_id },
         relations: ["product"],
         order: { id: "DESC" },
         skip,
@@ -78,7 +75,11 @@ export class ProductReviewService {
 
     return this.productReviewRepository
       .createQueryBuilder("pr")
-      .orderBy("CASE WHEN COALESCE(pr.answer, '') = '' THEN 0 ELSE 1 END", "ASC")
+      .addSelect(
+        "CASE WHEN COALESCE(pr.answer, '') = '' THEN 0 ELSE 1 END",
+        "answer_order",
+      )
+      .orderBy("answer_order", "ASC")
       .addOrderBy("pr.id", "DESC")
       .skip(skip)
       .take(Number(limit))
@@ -214,19 +215,6 @@ ${specificationsText}
       });
   }
 
-  async canReview(productId: number, userId: number): Promise<boolean> {
-    return !!(await this.orderProductRepository
-      .createQueryBuilder("op")
-      .innerJoin("op.order", "o")
-      .where("op.product_id = :productId", { productId })
-      .andWhere("o.create_user_id = :userId", { userId })
-      .andWhere("o.status = :status", { status: "completed" })
-      .getOne()
-      .catch((error) => {
-        throw `Не удалось проверить возможность оставить отзыв, ${error.message}`;
-      }));
-  }
-
   async attachReviewStats(products: Product[]): Promise<void> {
     const ids = products.map((p) => p.id);
     if (!ids.length) return;
@@ -238,7 +226,11 @@ ${specificationsText}
       .addSelect("COUNT(pr.id)", "review_count")
       .where("pr.product_id IN (:...ids)", { ids })
       .groupBy("pr.product_id")
-      .getRawMany<{ product_id: number; rating: string; review_count: string }>()
+      .getRawMany<{
+        product_id: number;
+        rating: string;
+        review_count: string;
+      }>()
       .catch((error) => {
         throw `Не удалось получить рейтинг товаров, ${error.message}`;
       });

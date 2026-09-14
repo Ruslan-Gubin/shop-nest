@@ -1,21 +1,21 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { SpecificationsService } from "../specifications.service";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Specification } from "../entities/specification.entity";
-import { CreateSpecificationDto } from "../dto/create-specification.dto";
+import { Test, TestingModule } from '@nestjs/testing';
+import { SpecificationsService } from '../specifications.service';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Specification } from '../entities/specification.entity';
+import { CreateSpecificationDto } from '../dto/create-specification.dto';
 
-describe("SpecificationsService", () => {
+describe('SpecificationsService', () => {
   let service: SpecificationsService;
   let repository: jest.Mocked<Repository<Specification>>;
 
   const mockSpecification: Specification = {
     id: 1,
-    name: "Материал",
-    type: "text",
+    name: 'Материал',
+    type: 'text',
     created_user_id: 1,
     createdBy: null as never,
-    created_at: new Date("2024-01-01"),
+    created_at: new Date('2024-01-01'),
     updated_at: null,
   };
 
@@ -40,19 +40,21 @@ describe("SpecificationsService", () => {
     }).compile();
 
     service = module.get<SpecificationsService>(SpecificationsService);
-    repository = module.get<jest.Mocked<Repository<Specification>>>(getRepositoryToken(Specification));
+    repository = module.get<jest.Mocked<Repository<Specification>>>(
+      getRepositoryToken(Specification),
+    );
 
     jest.clearAllMocks();
   });
 
-  describe("create", () => {
+  describe('create', () => {
     const createDto: CreateSpecificationDto = {
-      name: "Материал",
-      type: "text",
+      name: 'Материал',
+      type: 'text',
       created_user_id: 1,
     };
 
-    it("должен создать характеристику", async () => {
+    it('должен создать характеристику', async () => {
       mockRepository.save.mockResolvedValue(mockSpecification);
 
       const result = await service.create(createDto);
@@ -62,39 +64,39 @@ describe("SpecificationsService", () => {
     });
   });
 
-  describe("findAll", () => {
-    it("должен вернуть все характеристики без фильтров", async () => {
+  describe('findAll', () => {
+    it('должен вернуть все характеристики без фильтров', async () => {
       mockRepository.find.mockResolvedValue([mockSpecification]);
 
-      const result = await service.findAll("1", "10", "");
+      const result = await service.findAll('1', '10', '');
 
       expect(result).toEqual([mockSpecification]);
       expect(mockRepository.find).toHaveBeenCalledWith({
         skip: 0,
         take: 10,
         where: {},
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
       });
     });
 
-    it("должен фильтровать по name", async () => {
+    it('должен фильтровать по name', async () => {
       mockRepository.find.mockResolvedValue([mockSpecification]);
 
-      await service.findAll("1", "10", "Мате");
+      await service.findAll('1', '10', 'Мате');
 
       expect(mockRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            name: expect.objectContaining({ value: "%Мате%" }),
+            name: expect.objectContaining({ value: '%Мате%' }),
           }),
         }),
       );
     });
 
-    it("должен фильтровать по created_user_id", async () => {
+    it('должен фильтровать по created_user_id', async () => {
       mockRepository.find.mockResolvedValue([mockSpecification]);
 
-      await service.findAll("1", "10", "", 1);
+      await service.findAll('1', '10', '', 1);
 
       expect(mockRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -103,10 +105,10 @@ describe("SpecificationsService", () => {
       );
     });
 
-    it("должен корректно вычислять skip", async () => {
+    it('должен корректно вычислять skip', async () => {
       mockRepository.find.mockResolvedValue([mockSpecification]);
 
-      await service.findAll("3", "20", "");
+      await service.findAll('3', '20', '');
 
       expect(mockRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 40, take: 20 }),
@@ -114,8 +116,8 @@ describe("SpecificationsService", () => {
     });
   });
 
-  describe("getTotalCount", () => {
-    it("должен вернуть общее количество", async () => {
+  describe('getTotalCount', () => {
+    it('должен вернуть общее количество', async () => {
       mockRepository.count.mockResolvedValue(5);
 
       const result = await service.getTotalCount();
@@ -124,23 +126,23 @@ describe("SpecificationsService", () => {
       expect(mockRepository.count).toHaveBeenCalledWith({ where: {} });
     });
 
-    it("должен фильтровать по name", async () => {
+    it('должен фильтровать по name', async () => {
       mockRepository.count.mockResolvedValue(2);
 
-      await service.getTotalCount("Мате");
+      await service.getTotalCount('Мате');
 
       expect(mockRepository.count).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            name: expect.objectContaining({ value: "%Мате%" }),
+            name: expect.objectContaining({ value: '%Мате%' }),
           }),
         }),
       );
     });
   });
 
-  describe("findOne", () => {
-    it("должен вернуть характеристику по id", async () => {
+  describe('findOne', () => {
+    it('должен вернуть характеристику по id', async () => {
       mockRepository.findOne.mockResolvedValue(mockSpecification);
 
       const result = await service.findOne(1);
@@ -149,7 +151,7 @@ describe("SpecificationsService", () => {
       expect(mockRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
     });
 
-    it("должен вернуть null если не найден", async () => {
+    it('должен вернуть null если не найден', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
       const result = await service.findOne(999);
@@ -158,13 +160,13 @@ describe("SpecificationsService", () => {
     });
   });
 
-  describe("update", () => {
+  describe('update', () => {
     const updateDto: Partial<CreateSpecificationDto> = {
-      name: "Цвет",
-      type: "color",
+      name: 'Цвет',
+      type: 'color',
     };
 
-    it("должен обновить характеристику", async () => {
+    it('должен обновить характеристику', async () => {
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       await service.update(1, updateDto);
@@ -173,8 +175,8 @@ describe("SpecificationsService", () => {
     });
   });
 
-  describe("remove", () => {
-    it("должен удалить характеристику", async () => {
+  describe('remove', () => {
+    it('должен удалить характеристику', async () => {
       mockRepository.delete.mockResolvedValue({ affected: 1 } as any);
 
       await service.remove(1);

@@ -6,78 +6,82 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
-import { Order } from "src/orders/entities/order.entity";
+} from 'typeorm';
+import { Order } from 'src/orders/entities/order.entity';
 
 @Entity()
 export class OrderProduct {
-  @PrimaryGeneratedColumn({ type: "int", name: "id" })
+  @PrimaryGeneratedColumn({ type: 'int', name: 'id' })
   id: number;
 
-  @Column({ type: "int", default: 0, name: "product_id" })
+  @Column({ type: 'int', default: 0, name: 'product_id' })
   product_id: number;
 
-  @ManyToOne(() => Order, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "order_id" })
+  @ManyToOne(() => Order, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'order_id' })
   order: Order;
 
-  @Column({ type: "int", name: "order_id" })
+  @Column({ type: 'int', name: 'order_id' })
   order_id: number;
 
-  @Column({ type: "varchar", default: "", name: "name" })
+  @Column({ type: 'varchar', default: '', name: 'name' })
   name: string;
 
-  @Column({ type: "varchar", default: "", name: "code" })
+  @Column({ type: 'varchar', default: '', name: 'code' })
   code: string;
 
-  @Column({ type: "varchar", default: "", name: "brand_name" })
+  @Column({ type: 'varchar', default: '', name: 'brand_name' })
   brand_name: string;
 
-  @Column({ type: "int", nullable: true, default: null, name: "category_id" })
+  @Column({ type: 'int', nullable: true, default: null, name: 'category_id' })
   category_id: number;
 
-  @Column({ type: "varchar", default: "", name: "description" })
+  @Column({ type: 'varchar', default: '', name: 'description' })
   description: string;
 
-  @Column({ type: "varchar", default: "", name: "country" })
+  @Column({ type: 'varchar', default: '', name: 'country' })
   country: string;
 
-  @Column({ type: "varchar", default: "", name: "product_type" })
+  @Column({ type: 'varchar', default: '', name: 'product_type' })
   product_type: string;
 
-  @Column({ type: "varchar", default: "", name: "equipment" })
+  @Column({ type: 'varchar', default: '', name: 'equipment' })
   equipment: string;
 
-  @Column({ type: "int", nullable: true, default: null, name: "weight" })
+  @Column({ type: 'int', nullable: true, default: null, name: 'weight' })
   weight: number | null;
 
-  @Column({ type: "int", nullable: true, default: null, name: "height" })
+  @Column({ type: 'int', nullable: true, default: null, name: 'height' })
   height: number | null;
 
-  @Column({ type: "int", nullable: true, default: null, name: "length" })
+  @Column({ type: 'int', nullable: true, default: null, name: 'length' })
   length: number | null;
 
-  @Column({ type: "int", nullable: true, default: null, name: "width" })
+  @Column({ type: 'int', nullable: true, default: null, name: 'width' })
   width: number | null;
 
-  @Column({ type: "int", default: 1, name: "quantity" })
+  @Column({ type: 'int', default: 1, name: 'quantity' })
   quantity: number;
 
-  @Column({ type: "int", default: 0, name: "price" })
+  @Column({ type: 'int', default: 0, name: 'price' })
   price: number;
 
-  @Column({ type: "jsonb", default: [], name: "reservations" })
+  @Column({ type: 'jsonb', default: [], name: 'reservations' })
   reservations: { stock_id: number; warehouse_id: number; quantity: number }[];
 
-  @Column({ type: "jsonb", default: [], name: "transfers" })
+  @Column({ type: 'jsonb', default: [], name: 'transfers' })
   transfers: { stock_id: number; warehouse_id: number; quantity: number }[];
 
-  @Column({ type: "jsonb", default: [], name: "shortage_stocks" })
-  shortage_stocks: { stock_id: number; warehouse_id: number; quantity: number }[];
+  @Column({ type: 'jsonb', default: [], name: 'shortage_stocks' })
+  shortage_stocks: {
+    stock_id: number;
+    warehouse_id: number;
+    quantity: number;
+  }[];
 
-  @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
+  @UpdateDateColumn({ type: 'timestamp', nullable: true, default: null })
   updated_at: Date | null;
 }

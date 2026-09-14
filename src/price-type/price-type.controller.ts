@@ -8,22 +8,22 @@ import {
   Delete,
   UseGuards,
   Patch,
-} from "@nestjs/common";
-import { PriceTypeService } from "./price-type.service";
-import { RolesGuard } from "../auth/guards/roles.guard";
-import { Roles } from "../auth/decorators/roles.decorator";
-import { ResponseData, responseData } from "src/helpers/response";
-import { PriceType } from "./entities/price-type.entity";
-import { CreatePriceTypeDto } from "./dto/create-price-type.dto";
-import { CurrentUser } from "src/auth/decorators/current-user.decorator";
-import type { CurrentStrategyUser } from "src/auth/types/current-user";
+} from '@nestjs/common';
+import { PriceTypeService } from './price-type.service';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { ResponseData, responseData } from 'src/helpers/response';
+import { PriceType } from './entities/price-type.entity';
+import { CreatePriceTypeDto } from './dto/create-price-type.dto';
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import type { CurrentStrategyUser } from 'src/auth/types/current-user';
 
-@Controller("price-type")
+@Controller('price-type')
 export class PriceTypeController {
   constructor(private readonly priceTypeService: PriceTypeService) {}
 
-  @Post("create")
-  @Roles("admin")
+  @Post('create')
+  @Roles('admin')
   @UseGuards(RolesGuard)
   async create(
     @Body() createPriceTypeDto: CreatePriceTypeDto,
@@ -35,19 +35,28 @@ export class PriceTypeController {
         created_user_id: user.sub,
       });
 
-      return responseData(priceType, "success", [], "Тип цены успешно добавлен");
+      return responseData(
+        priceType,
+        'success',
+        [],
+        'Тип цены успешно добавлен',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Get("types")
+  @Get('types')
   async findAll(
-    @Query("page") page: string,
-    @Query("limit") limit: string,
-    @Query("name") name: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('name') name: string,
   ): Promise<
-    ResponseData<{ priceTypes: PriceType[]; totalCount: number; paginationPage: string } | null>
+    ResponseData<{
+      priceTypes: PriceType[];
+      totalCount: number;
+      paginationPage: string;
+    } | null>
   > {
     try {
       const priceTypes = await this.priceTypeService.findAll(page, limit, name);
@@ -55,76 +64,90 @@ export class PriceTypeController {
 
       return responseData(
         { priceTypes, totalCount, paginationPage: page },
-        "success",
+        'success',
         [],
-        "Список типов цен получен",
+        'Список типов цен получен',
       );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Get("price-types/my")
+  @Get('price-types/my')
   async findAllMy(
     @CurrentUser() user: CurrentStrategyUser,
-    @Query("page") page: string,
-    @Query("limit") limit: string,
-    @Query("name") name: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('name') name: string,
   ): Promise<
-    ResponseData<{ priceTypes: PriceType[]; totalCount: number; paginationPage: string } | null>
+    ResponseData<{
+      priceTypes: PriceType[];
+      totalCount: number;
+      paginationPage: string;
+    } | null>
   > {
     try {
-      const priceTypes = await this.priceTypeService.findAll(page, limit, name, user.sub);
-      const totalCount = await this.priceTypeService.getTotalCount(name, user.sub);
+      const priceTypes = await this.priceTypeService.findAll(
+        page,
+        limit,
+        name,
+        user.sub,
+      );
+      const totalCount = await this.priceTypeService.getTotalCount(
+        name,
+        user.sub,
+      );
 
       return responseData(
         { priceTypes, totalCount, paginationPage: page },
-        "success",
+        'success',
         [],
-        "Список типов цен получен",
+        'Список типов цен получен',
       );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Get(":id")
-  async findOne(@Param("id") id: string): Promise<ResponseData<PriceType | null>> {
+  @Get(':id')
+  async findOne(
+    @Param('id') id: string,
+  ): Promise<ResponseData<PriceType | null>> {
     try {
       const priceType = await this.priceTypeService.findOne(Number(id));
 
-      return responseData(priceType, "success", [], "Тип цены получен");
+      return responseData(priceType, 'success', [], 'Тип цены получен');
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Patch(":id")
-  @Roles("admin")
+  @Patch(':id')
+  @Roles('admin')
   @UseGuards(RolesGuard)
   async update(
-    @Param("id") id: string,
+    @Param('id') id: string,
     @Body() updatePriceTypeDto: CreatePriceTypeDto,
   ): Promise<ResponseData<null>> {
     try {
       await this.priceTypeService.update(Number(id), updatePriceTypeDto);
 
-      return responseData(null, "success", [], "Тип цены успешно обновлён");
+      return responseData(null, 'success', [], 'Тип цены успешно обновлён');
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Delete(":id")
-  @Roles("admin")
+  @Delete(':id')
+  @Roles('admin')
   @UseGuards(RolesGuard)
-  async remove(@Param("id") id: string): Promise<ResponseData<null>> {
+  async remove(@Param('id') id: string): Promise<ResponseData<null>> {
     try {
       await this.priceTypeService.remove(Number(id));
 
-      return responseData(null, "success", [], "Тип цены успешно удалён");
+      return responseData(null, 'success', [], 'Тип цены успешно удалён');
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 }

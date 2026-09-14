@@ -4,7 +4,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
+} from 'typeorm';
 
 export type ReceiptProduct = {
   product_id: number;
@@ -14,18 +14,18 @@ export type ReceiptProduct = {
 
 @Entity()
 export class Receipt {
-  @PrimaryGeneratedColumn({ type: "int", name: "id" })
+  @PrimaryGeneratedColumn({ type: 'int', name: 'id' })
   id: number;
 
-  @Column({ type: "int", nullable: true, default: null, name: "user_id" })
+  @Column({ type: 'int', nullable: true, default: null, name: 'user_id' })
   user_id: number;
 
-  @Column({ type: "jsonb", default: [], name: "products" })
+  @Column({ type: 'jsonb', default: [], name: 'products' })
   products: ReceiptProduct[];
 
-  @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
+  @UpdateDateColumn({ type: 'timestamp', nullable: true, default: null })
   updated_at: Date | null;
 }

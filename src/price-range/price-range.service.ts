@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository } from "typeorm";
-import { CreatePriceRangeDto } from "./dto/create-price-range.dto";
-import { UpdatePriceRangeDto } from "./dto/update-price-range.dto";
-import { PriceRange } from "./entities/price-range.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { type Repository } from 'typeorm';
+import { CreatePriceRangeDto } from './dto/create-price-range.dto';
+import { UpdatePriceRangeDto } from './dto/update-price-range.dto';
+import { PriceRange } from './entities/price-range.entity';
 
 @Injectable()
 export class PriceRangeService {
@@ -37,13 +37,16 @@ export class PriceRangeService {
 
   async findAll(range?: number) {
     const queryBuilder = this.priceRangeRepository
-      .createQueryBuilder("priceRange")
-      .orderBy("priceRange.price_from", "ASC");
+      .createQueryBuilder('priceRange')
+      .orderBy('priceRange.price_from', 'ASC');
 
     if (range !== undefined) {
-      queryBuilder.where("priceRange.price_from <= :range AND priceRange.price_to >= :range", {
-        range,
-      });
+      queryBuilder.where(
+        'priceRange.price_from <= :range AND priceRange.price_to >= :range',
+        {
+          range,
+        },
+      );
     }
 
     return queryBuilder.getMany().catch((error) => {
@@ -52,13 +55,18 @@ export class PriceRangeService {
   }
 
   async findOne(id: number) {
-    return this.priceRangeRepository.findOne({ where: { id } }).catch((error) => {
-      throw `Не удалось получить диапазон, ${error.message}`;
-    });
+    return this.priceRangeRepository
+      .findOne({ where: { id } })
+      .catch((error) => {
+        throw `Не удалось получить диапазон, ${error.message}`;
+      });
   }
 
   async update(id: number, updateDto: UpdatePriceRangeDto) {
-    if (updateDto.price_from !== undefined || updateDto.price_to !== undefined) {
+    if (
+      updateDto.price_from !== undefined ||
+      updateDto.price_to !== undefined
+    ) {
       const existingRanges = await this.findAll();
       const currentRange = existingRanges.find((r) => r.id === id);
 

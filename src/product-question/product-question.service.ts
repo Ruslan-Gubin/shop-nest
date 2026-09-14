@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Not, Repository } from "typeorm";
+import { Brackets, Repository } from "typeorm";
 import { CreateProductQuestionDto } from "./dto/create-product-question.dto";
 import { UpdateProductQuestionDto } from "./dto/update-product-question.dto";
 import { GenerateAnswerDto } from "./dto/generate-answer.dto";
@@ -31,19 +31,27 @@ export class ProductQuestionService {
       });
   }
 
-  async findByProductId(id: number, page: number, limit: number) {
+  async findByProductId(id: number, page: number, limit: number, create_user_id?: number) {
     const skip = (Number(page) - 1) * Number(limit);
 
-    return this.productQuestionRepository
-      .findAndCount({
-        skip,
-        take: Number(limit),
-        where: { product: { id }, answer: Not("") },
-        order: { id: "DESC" },
-      })
-      .catch((error) => {
-        throw `Не удалось получить вопросы, ${error.message}`;
-      });
+    const query = this.productQuestionRepository
+      .createQueryBuilder("pq")
+      .where("pq.product_id = :id", { id })
+      .andWhere(
+        new Brackets((qb) => {
+          qb.where("pq.answer != ''");
+          if (create_user_id) {
+            qb.orWhere("pq.create_user_id = :create_user_id", { create_user_id });
+          }
+        }),
+      )
+      .orderBy("pq.id", "DESC")
+      .skip(skip)
+      .take(Number(limit));
+
+    return query.getManyAndCount().catch((error) => {
+      throw `Не удалось получить вопросы, ${error.message}`;
+    });
   }
 
   async findByUserId(

@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository } from "typeorm";
-import { CreateProductPriceDto } from "./dto/create-product-price.dto";
-import { UpdateProductPriceDto } from "./dto/update-product-price.dto";
-import { ProductPrice } from "./entities/product-price.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { type Repository } from 'typeorm';
+import { CreateProductPriceDto } from './dto/create-product-price.dto';
+import { UpdateProductPriceDto } from './dto/update-product-price.dto';
+import { ProductPrice } from './entities/product-price.entity';
 
 @Injectable()
 export class ProductPriceService {
@@ -13,15 +13,17 @@ export class ProductPriceService {
   ) {}
 
   async create(createProductPriceDto: CreateProductPriceDto) {
-    return this.productPriceRepository.save(createProductPriceDto).catch((error) => {
-      throw `Не удалось добавить цену товара, ${error.message}`;
-    });
+    return this.productPriceRepository
+      .save(createProductPriceDto)
+      .catch((error) => {
+        throw `Не удалось добавить цену товара, ${error.message}`;
+      });
   }
 
   async findAll(product_id: string) {
     return this.productPriceRepository
       .find({
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
         where: { product_id: Number(product_id) },
       })
       .catch((error) => {
@@ -35,10 +37,10 @@ export class ProductPriceService {
   ): Promise<{ price: number; minQuantity: number }[]> {
     const prices = await this.productPriceRepository
       .find({
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
         where: { product_id: Number(product_id) },
-        select: ["price_type_id", "price", "price_type"],
-        relations: ["price_type"],
+        select: ['price_type_id', 'price', 'price_type'],
+        relations: ['price_type'],
       })
       .catch((error) => {
         throw `Не удалось получить список цен товаров, ${error.message}`;
@@ -57,14 +59,19 @@ export class ProductPriceService {
     let bestPriceIndex: number | null = null;
 
     const isRoleForBestPrice =
-      user_role === "admin" || user_role === "moderator" || user_role === "wholesaler";
+      user_role === 'admin' ||
+      user_role === 'moderator' ||
+      user_role === 'wholesaler';
 
     for (let i = 0; i < prices.length; i++) {
       const item = prices[i];
       const itemPrice = item.price;
 
       if (isRoleForBestPrice) {
-        if ((itemPrice && !bestPrice) || (itemPrice && bestPrice && itemPrice < bestPrice)) {
+        if (
+          (itemPrice && !bestPrice) ||
+          (itemPrice && bestPrice && itemPrice < bestPrice)
+        ) {
           bestPrice = itemPrice;
           bestPriceIndex = i;
         }
@@ -78,7 +85,7 @@ export class ProductPriceService {
       }
     }
 
-    if (isRoleForBestPrice && typeof bestPriceIndex === "number") {
+    if (isRoleForBestPrice && typeof bestPriceIndex === 'number') {
       if (prices[bestPriceIndex]) {
         pricesData.push({
           price: prices[bestPriceIndex].price,
@@ -126,14 +133,18 @@ export class ProductPriceService {
     });
   }
 
-  async getCurrentPrice(product_id: number, quantity: number, user_role: string): Promise<number> {
+  async getCurrentPrice(
+    product_id: number,
+    quantity: number,
+    user_role: string,
+  ): Promise<number> {
     let price = 0;
 
     const prices = await this.productPriceRepository
       .find({
         where: { product_id },
-        select: ["price_type_id", "price", "price_type"],
-        relations: ["price_type"],
+        select: ['price_type_id', 'price', 'price_type'],
+        relations: ['price_type'],
       })
       .catch((error) => {
         throw `Не удалось получить список цен товаров, ${error.message}`;
@@ -142,8 +153,15 @@ export class ProductPriceService {
     for (let i = 0; i < prices.length; i++) {
       const itemPrice = prices[i].price ?? 0;
 
-      if (user_role === "admin" || user_role === "moderator" || user_role === "wholesaler") {
-        if ((itemPrice && !price) || (itemPrice && price && itemPrice < price)) {
+      if (
+        user_role === 'admin' ||
+        user_role === 'moderator' ||
+        user_role === 'wholesaler'
+      ) {
+        if (
+          (itemPrice && !price) ||
+          (itemPrice && price && itemPrice < price)
+        ) {
           price = itemPrice;
         }
       } else {

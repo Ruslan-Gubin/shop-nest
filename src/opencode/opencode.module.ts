@@ -1,5 +1,5 @@
-import { Module } from "@nestjs/common";
-import { OpenCodeService } from "./opencode.service";
+import { Module } from '@nestjs/common';
+import { OpenCodeService } from './opencode.service';
 
 @Module({
   providers: [OpenCodeService],

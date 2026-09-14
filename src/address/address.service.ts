@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository } from "typeorm";
-import type { CreateAddressDto } from "./dto/create-address.dto";
-import type { UpdateAddressDto } from "./dto/update-address.dto";
-import { Address } from "./entities/address.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { type Repository } from 'typeorm';
+import type { CreateAddressDto } from './dto/create-address.dto';
+import type { UpdateAddressDto } from './dto/update-address.dto';
+import { Address } from './entities/address.entity';
 
 @Injectable()
 export class AddressService {
@@ -53,9 +53,11 @@ export class AddressService {
   }
 
   async update(id: number, updateAddressDto: UpdateAddressDto) {
-    return this.addressRepository.update(id, updateAddressDto).catch((error) => {
-      throw `Не удалось изменить адрес, ${error.message}`;
-    });
+    return this.addressRepository
+      .update(id, updateAddressDto)
+      .catch((error) => {
+        throw `Не удалось изменить адрес, ${error.message}`;
+      });
   }
 
   async remove(id: number) {

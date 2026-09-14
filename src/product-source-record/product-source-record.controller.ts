@@ -1,103 +1,131 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
-import { ProductSourceRecordService } from "./product-source-record.service";
-import { PickImagesDto } from "./dto/pick-images.dto";
-import { GenerateSeoDto } from "./dto/generate-seo.dto";
-import { SearchProductSourceRecordDto } from "./dto/product-source-record.dto";
-import { CheckImportItemDto } from "./dto/check-import-items.dto";
-import { CreateProductFromRecordDto } from "./dto/create-product-from-record.dto";
-import { responseData } from "src/helpers/response";
-import { RolesGuard } from "src/auth/guards/roles.guard";
-import { Roles } from "src/auth/decorators/roles.decorator";
-import { SuggestCategoryDto } from "./dto/suggest-category.dto";
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { ProductSourceRecordService } from './product-source-record.service';
+import { PickImagesDto } from './dto/pick-images.dto';
+import { GenerateSeoDto } from './dto/generate-seo.dto';
+import { SearchProductSourceRecordDto } from './dto/product-source-record.dto';
+import { CheckImportItemDto } from './dto/check-import-items.dto';
+import { CreateProductFromRecordDto } from './dto/create-product-from-record.dto';
+import { responseData } from 'src/helpers/response';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { SuggestCategoryDto } from './dto/suggest-category.dto';
 
-@Controller("product-source-record")
+@Controller('product-source-record')
 export class ProductSourceRecordController {
-  constructor(private readonly productSourceRecordService: ProductSourceRecordService) {}
+  constructor(
+    private readonly productSourceRecordService: ProductSourceRecordService,
+  ) {}
 
   @Post()
   async search(@Body() dto: SearchProductSourceRecordDto) {
     try {
-      const result = await this.productSourceRecordService.search(dto.name, dto.barcode);
+      const result = await this.productSourceRecordService.search(
+        dto.name,
+        dto.barcode,
+      );
 
-      return responseData(result, "success", [], "Информация о товаре успешно найдена");
+      return responseData(
+        result,
+        'success',
+        [],
+        'Информация о товаре успешно найдена',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Get("pick-images")
-  @Roles("admin", "moderator")
+  @Get('pick-images')
+  @Roles('admin', 'moderator')
   @UseGuards(RolesGuard)
   async pickImages(@Query() dto: PickImagesDto) {
     try {
-      const images = await this.productSourceRecordService.pickImages(dto.query);
+      const images = await this.productSourceRecordService.pickImages(
+        dto.query,
+      );
 
-      return responseData(images, "success", [], "Изображения подобраны");
+      return responseData(images, 'success', [], 'Изображения подобраны');
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Post("generate-seo")
-  @Roles("admin", "moderator")
+  @Post('generate-seo')
+  @Roles('admin', 'moderator')
   @UseGuards(RolesGuard)
   async generateSeo(@Body() dto: GenerateSeoDto) {
     try {
       const seo = await this.productSourceRecordService.generateSeo(dto);
 
-      return responseData(seo, "success", [], "SEO-поля сгенерированы");
+      return responseData(seo, 'success', [], 'SEO-поля сгенерированы');
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Post("suggest-category")
-  @Roles("admin", "moderator")
+  @Post('suggest-category')
+  @Roles('admin', 'moderator')
   @UseGuards(RolesGuard)
   async suggestCategory(@Body() payload: SuggestCategoryDto) {
     try {
-      const recommendCategory = await this.productSourceRecordService.suggestCategory(payload);
+      const recommendCategory =
+        await this.productSourceRecordService.suggestCategory(payload);
 
-      return responseData(recommendCategory, "success", [], "Получены рекомендации по категории");
+      return responseData(
+        recommendCategory,
+        'success',
+        [],
+        'Получены рекомендации по категории',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Post("apply-category-suggestion")
-  @Roles("admin", "moderator")
+  @Post('apply-category-suggestion')
+  @Roles('admin', 'moderator')
   @UseGuards(RolesGuard)
-  async applySuggestCategory(@Body() payload: { name: string; parent_id: number | null }[]) {
+  async applySuggestCategory(
+    @Body() payload: { name: string; parent_id: number | null }[],
+  ) {
     try {
-      const id = await this.productSourceRecordService.applySuggestCategory(payload);
+      const id =
+        await this.productSourceRecordService.applySuggestCategory(payload);
 
-      return responseData(id, "success", [], "Категории успешно добавлены");
+      return responseData(id, 'success', [], 'Категории успешно добавлены');
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Post("check-import-items")
+  @Post('check-import-items')
   async checkImportItems(@Body() items: CheckImportItemDto[]) {
     try {
-      const result = await this.productSourceRecordService.checkImportItems(items);
+      const result =
+        await this.productSourceRecordService.checkImportItems(items);
 
-      return responseData(result, "success", [], "Статусы получены");
+      return responseData(result, 'success', [], 'Статусы получены');
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Post("create-product")
-  @Roles("admin")
+  @Post('create-product')
+  @Roles('admin')
   @UseGuards(RolesGuard)
   async createProductFromRecord(@Body() dto: CreateProductFromRecordDto) {
     try {
-      const result = await this.productSourceRecordService.createProductFromRecord(dto);
+      const result =
+        await this.productSourceRecordService.createProductFromRecord(dto);
 
-      return responseData(result, "success", [], "Товар успешно создан из записи");
+      return responseData(
+        result,
+        'success',
+        [],
+        'Товар успешно создан из записи',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 }

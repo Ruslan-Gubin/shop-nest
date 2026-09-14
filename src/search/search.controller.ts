@@ -1,48 +1,70 @@
-import { Controller, Get, Query, Param, Delete, UseGuards } from "@nestjs/common";
-import { Public } from "src/auth/decorators/public.decorator";
-import { Roles } from "src/auth/decorators/roles.decorator";
-import { RolesGuard } from "src/auth/guards/roles.guard";
-import { SearchService } from "./search.service";
-import { ResponseData, responseData } from "src/helpers/response";
-import { Search } from "./entities/search.entity";
+import {
+  Controller,
+  Get,
+  Query,
+  Param,
+  Delete,
+  UseGuards,
+} from '@nestjs/common';
+import { Public } from 'src/auth/decorators/public.decorator';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { SearchService } from './search.service';
+import { ResponseData, responseData } from 'src/helpers/response';
+import { Search } from './entities/search.entity';
 
-@Controller("search")
+@Controller('search')
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
 
   @Public()
   @Get()
   async suggest(
-    @Query("text") text: string,
-    @Query("limit") limit?: number,
+    @Query('text') text: string,
+    @Query('limit') limit?: number,
   ): Promise<ResponseData<Search[] | null>> {
     try {
-      const suggestions = await this.searchService.getSuggestions(text, limit || 0);
-      return responseData(suggestions, "success", [], "Список поисковых запросов получен");
+      const suggestions = await this.searchService.getSuggestions(
+        text,
+        limit || 0,
+      );
+      return responseData(
+        suggestions,
+        'success',
+        [],
+        'Список поисковых запросов получен',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
   @Public()
-  @Get("popular")
-  async popular(@Query("limit") limit?: number): Promise<ResponseData<Search[] | null>> {
+  @Get('popular')
+  async popular(
+    @Query('limit') limit?: number,
+  ): Promise<ResponseData<Search[] | null>> {
     try {
       const popular = await this.searchService.getPopular(limit || 0);
 
-      return responseData(popular, "success", [], "Список популярных запросов получен");
+      return responseData(
+        popular,
+        'success',
+        [],
+        'Список популярных запросов получен',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Get("all")
-  @Roles("admin")
+  @Get('all')
+  @Roles('admin')
   @UseGuards(RolesGuard)
   async findAll(
-    @Query("page") page: string,
-    @Query("limit") limit: string,
-    @Query("text") text?: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('text') text?: string,
   ): Promise<
     ResponseData<{
       queries: Search[];
@@ -56,25 +78,25 @@ export class SearchController {
 
       return responseData(
         { queries, totalCount, paginationPage: page },
-        "success",
+        'success',
         [],
-        "Список запросов получен",
+        'Список запросов получен',
       );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Delete(":id")
-  @Roles("admin")
+  @Delete(':id')
+  @Roles('admin')
   @UseGuards(RolesGuard)
-  async remove(@Param("id") id: string): Promise<ResponseData<null>> {
+  async remove(@Param('id') id: string): Promise<ResponseData<null>> {
     try {
       await this.searchService.remove(Number(id));
 
-      return responseData(null, "success", [], "Запрос успешно удалён");
+      return responseData(null, 'success', [], 'Запрос успешно удалён');
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 }

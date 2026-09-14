@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { FindOperator, ILike, type Repository } from "typeorm";
-import { CreatePriceTypeDto } from "./dto/create-price-type.dto";
-import { UpdatePriceTypeDto } from "./dto/update-price-type.dto";
-import { PriceType } from "./entities/price-type.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { FindOperator, ILike, type Repository } from 'typeorm';
+import { CreatePriceTypeDto } from './dto/create-price-type.dto';
+import { UpdatePriceTypeDto } from './dto/update-price-type.dto';
+import { PriceType } from './entities/price-type.entity';
 
 @Injectable()
 export class PriceTypeService {
@@ -18,10 +18,18 @@ export class PriceTypeService {
     });
   }
 
-  async findAll(page: string, limit: string, name: string, created_user_id?: number) {
+  async findAll(
+    page: string,
+    limit: string,
+    name: string,
+    created_user_id?: number,
+  ) {
     const skip = (Number(page) - 1) * Number(limit);
 
-    const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
+    const whereCondition: {
+      name?: FindOperator<string>;
+      created_user_id?: number;
+    } = {};
 
     if (name) {
       whereCondition.name = ILike(`%${name}%`);
@@ -36,7 +44,7 @@ export class PriceTypeService {
         skip,
         take: Number(limit),
         where: whereCondition,
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось получить список типов цен, ${error.message}`;
@@ -50,7 +58,10 @@ export class PriceTypeService {
   }
 
   async getTotalCount(name?: string, created_user_id?: number) {
-    const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
+    const whereCondition: {
+      name?: FindOperator<string>;
+      created_user_id?: number;
+    } = {};
 
     if (name) {
       whereCondition.name = ILike(`%${name}%`);
@@ -60,15 +71,19 @@ export class PriceTypeService {
       whereCondition.created_user_id = created_user_id;
     }
 
-    return this.priceTypeRepository.count({ where: whereCondition }).catch((error) => {
-      throw `Не удалось получить общее количество типов цен, ${error.message}`;
-    });
+    return this.priceTypeRepository
+      .count({ where: whereCondition })
+      .catch((error) => {
+        throw `Не удалось получить общее количество типов цен, ${error.message}`;
+      });
   }
 
   async findOne(id: number) {
-    return this.priceTypeRepository.findOne({ where: { id } }).catch((error) => {
-      throw `Не удалось получить тип цены, ${error.message}`;
-    });
+    return this.priceTypeRepository
+      .findOne({ where: { id } })
+      .catch((error) => {
+        throw `Не удалось получить тип цены, ${error.message}`;
+      });
   }
 
   async update(id: number, updatePriceTypeDto: UpdatePriceTypeDto) {

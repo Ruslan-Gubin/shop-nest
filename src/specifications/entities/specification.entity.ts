@@ -1,4 +1,4 @@
-import { User } from "src/users/entities/user.entity";
+import { User } from 'src/users/entities/user.entity';
 import {
   Column,
   CreateDateColumn,
@@ -7,44 +7,50 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
+} from 'typeorm';
 
-export type SpecificationType = "text" | "color" | "number";
+export type SpecificationType = 'text' | 'color' | 'number';
 
 @Entity()
 export class Specification {
-  @PrimaryGeneratedColumn({ type: "int", name: "id" })
+  @PrimaryGeneratedColumn({ type: 'int', name: 'id' })
   id: number;
 
-  @Column({ type: "varchar", default: "", nullable: false, unique: true, name: "name" })
+  @Column({
+    type: 'varchar',
+    default: '',
+    nullable: false,
+    unique: true,
+    name: 'name',
+  })
   name: string;
 
   @Column({
-    type: "varchar",
+    type: 'varchar',
     length: 20,
-    name: "type",
-    default: "text",
+    name: 'type',
+    default: 'text',
   })
   type: SpecificationType;
 
   @ManyToOne(() => User, {
-    onDelete: "SET NULL",
+    onDelete: 'SET NULL',
     eager: false,
   })
-  @JoinColumn({ name: "created_user_id" })
+  @JoinColumn({ name: 'created_user_id' })
   createdBy: User;
 
   @Column({
-    type: "int",
+    type: 'int',
     nullable: true,
     default: null,
-    name: "created_user_id",
+    name: 'created_user_id',
   })
   created_user_id: number | null;
 
-  @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
+  @UpdateDateColumn({ type: 'timestamp', nullable: true, default: null })
   updated_at: Date | null;
 }

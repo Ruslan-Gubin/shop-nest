@@ -1,7 +1,7 @@
-import "reflect-metadata";
-import { plainToInstance } from "class-transformer";
-import { validate } from "class-validator";
-import { SetShortageDto } from "../dto/set-shortage.dto";
+import 'reflect-metadata';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { SetShortageDto } from '../dto/set-shortage.dto';
 
 // ─── Валидация тела запроса PATCH /orders/shortage/:id ─────
 //
@@ -13,7 +13,7 @@ import { SetShortageDto } from "../dto/set-shortage.dto";
 //   - warehouse_id — обязательное положительное число
 //   - stock_id — необязательное положительное число
 
-describe("SetShortageDto", () => {
+describe('SetShortageDto', () => {
   const validItem = { id: 10, stock_id: 1, warehouse_id: 1, quantity: 5 };
 
   const validateDto = async (body: unknown) => {
@@ -33,85 +33,87 @@ describe("SetShortageDto", () => {
     };
   };
 
-  it("валидный items → без ошибок", async () => {
+  it('валидный items → без ошибок', async () => {
     const errors = await validateDto({ items: [validItem] });
     expect(errors).toHaveLength(0);
   });
 
-  it("items отсутствует → ошибка IsArray", async () => {
+  it('items отсутствует → ошибка IsArray', async () => {
     const { top } = await collectConstraints({});
-    expect(top).toContain("isArray");
+    expect(top).toContain('isArray');
   });
 
-  it("items пустой массив → ошибка ArrayNotEmpty", async () => {
+  it('items пустой массив → ошибка ArrayNotEmpty', async () => {
     const { top } = await collectConstraints({ items: [] });
-    expect(top).toContain("arrayNotEmpty");
+    expect(top).toContain('arrayNotEmpty');
   });
 
-  it("items не массив → ошибка IsArray", async () => {
-    const { top } = await collectConstraints({ items: "не массив" });
-    expect(top).toContain("isArray");
+  it('items не массив → ошибка IsArray', async () => {
+    const { top } = await collectConstraints({ items: 'не массив' });
+    expect(top).toContain('isArray');
   });
 
-  it("quantity отрицательное → ошибка", async () => {
+  it('quantity отрицательное → ошибка', async () => {
     const { nested } = await collectConstraints({
       items: [{ ...validItem, quantity: -1 }],
     });
-    expect(nested).toContain("min");
+    expect(nested).toContain('min');
   });
 
-  it("quantity не число → ошибка", async () => {
+  it('quantity не число → ошибка', async () => {
     const { nested } = await collectConstraints({
-      items: [{ ...validItem, quantity: "пять" }],
+      items: [{ ...validItem, quantity: 'пять' }],
     });
-    expect(nested).toContain("isInt");
+    expect(nested).toContain('isInt');
   });
 
-  it("quantity дробное (5.5) → ошибка IsInt", async () => {
+  it('quantity дробное (5.5) → ошибка IsInt', async () => {
     const { nested } = await collectConstraints({
       items: [{ ...validItem, quantity: 5.5 }],
     });
-    expect(nested).toContain("isInt");
+    expect(nested).toContain('isInt');
   });
 
-  it("stock_id отрицательный → ошибка Min", async () => {
+  it('stock_id отрицательный → ошибка Min', async () => {
     const { nested } = await collectConstraints({
       items: [{ ...validItem, stock_id: -1 }],
     });
-    expect(nested).toContain("min");
+    expect(nested).toContain('min');
   });
 
-  it("дубль id с разными stock_id → валиден (ArrayUnique идёт по stock_id)", async () => {
+  it('дубль id с разными stock_id → валиден (ArrayUnique идёт по stock_id)', async () => {
     const errors = await validateDto({
       items: [validItem, { ...validItem, id: 20, stock_id: 2 }],
     });
     expect(errors).toHaveLength(0);
   });
 
-  it("id = 0 → ошибка", async () => {
+  it('id = 0 → ошибка', async () => {
     const { nested } = await collectConstraints({
       items: [{ ...validItem, id: 0 }],
     });
-    expect(nested).toContain("min");
+    expect(nested).toContain('min');
   });
 
-  it("warehouse_id отсутствует → ошибка", async () => {
+  it('warehouse_id отсутствует → ошибка', async () => {
     const { nested } = await collectConstraints({
       items: [{ ...validItem, warehouse_id: undefined }],
     });
-    expect(nested).toContain("isInt");
+    expect(nested).toContain('isInt');
   });
 
-  it("stock_id необязателен → без ошибок", async () => {
+  it('stock_id необязателен → без ошибок', async () => {
     const { id, quantity, warehouse_id } = validItem;
-    const errors = await validateDto({ items: [{ id, quantity, warehouse_id }] });
+    const errors = await validateDto({
+      items: [{ id, quantity, warehouse_id }],
+    });
     expect(errors).toHaveLength(0);
   });
 
-  it("дубли stock_id в items → ошибка ArrayUnique", async () => {
+  it('дубли stock_id в items → ошибка ArrayUnique', async () => {
     const { top } = await collectConstraints({
       items: [validItem, { ...validItem, id: 20 }],
     });
-    expect(top).toContain("arrayUnique");
+    expect(top).toContain('arrayUnique');
   });
 });

@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository } from "typeorm";
-import type { CreateTransferDto } from "./dto/create-transfer.dto";
-import type { UpdateTransferDto } from "./dto/update-transfer.dto";
-import { Transfer } from "./entities/transfer.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { type Repository } from 'typeorm';
+import type { CreateTransferDto } from './dto/create-transfer.dto';
+import type { UpdateTransferDto } from './dto/update-transfer.dto';
+import { Transfer } from './entities/transfer.entity';
 
 @Injectable()
 export class TransfersService {
@@ -18,7 +18,9 @@ export class TransfersService {
         type: payload.type,
         order_id: payload.order_id,
         from_warehouse: { id: payload.from_warehouse_id },
-        to_warehouse: payload.to_warehouse_id ? { id: payload.to_warehouse_id } : undefined,
+        to_warehouse: payload.to_warehouse_id
+          ? { id: payload.to_warehouse_id }
+          : undefined,
         to_address: payload.address_id ? { id: payload.address_id } : undefined,
       })
       .catch((error) => {
@@ -26,31 +28,36 @@ export class TransfersService {
       });
   }
 
-  async findAll(page: string, limit: string, status?: "processing" | "completed" | "rejected") {
+  async findAll(
+    page: string,
+    limit: string,
+    status?: 'processing' | 'completed' | 'rejected',
+  ) {
     const skip = (Number(page) - 1) * Number(limit);
 
     const query = this.transfersRepository
-      .createQueryBuilder("tr")
-      .addSelect("CASE WHEN tr.status = 'processing' THEN 0 ELSE 1 END", "in_transit_sort")
-      .orderBy("in_transit_sort", "ASC")
-      .addOrderBy("tr.id", "DESC")
+      .createQueryBuilder('tr')
+      .addSelect(
+        "CASE WHEN tr.status = 'processing' THEN 0 ELSE 1 END",
+        'in_transit_sort',
+      )
+      .orderBy('in_transit_sort', 'ASC')
+      .addOrderBy('tr.id', 'DESC')
       .skip(skip)
       .take(Number(limit))
-      .leftJoinAndSelect("tr.from_warehouse", "from_warehouse")
-      .leftJoinAndSelect("from_warehouse.address", "from_warehouse_address")
-      .leftJoinAndSelect("tr.to_warehouse", "to_warehouse")
-      .leftJoinAndSelect("to_warehouse.address", "to_warehouse_address")
-      .leftJoinAndSelect("tr.to_address", "to_address");
+      .leftJoinAndSelect('tr.from_warehouse', 'from_warehouse')
+      .leftJoinAndSelect('from_warehouse.address', 'from_warehouse_address')
+      .leftJoinAndSelect('tr.to_warehouse', 'to_warehouse')
+      .leftJoinAndSelect('to_warehouse.address', 'to_warehouse_address')
+      .leftJoinAndSelect('tr.to_address', 'to_address');
 
     if (status) {
-      query.andWhere("tr.status = :status", { status });
+      query.andWhere('tr.status = :status', { status });
     }
 
-    return query
-      .getManyAndCount()
-      .catch((error) => {
-        throw `Не удалось получить список перемещений, ${error.message}`;
-      });
+    return query.getManyAndCount().catch((error) => {
+      throw `Не удалось получить список перемещений, ${error.message}`;
+    });
   }
 
   async findAllInTransit(page: number, limit: number) {
@@ -60,8 +67,8 @@ export class TransfersService {
       .findAndCount({
         skip,
         take: limit,
-        where: { status: "processing" },
-        order: { id: "DESC" },
+        where: { status: 'processing' },
+        order: { id: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось получить перемещения в пути, ${error.message}`;
@@ -73,11 +80,11 @@ export class TransfersService {
       .findOne({
         where: { id },
         relations: [
-          "from_warehouse",
-          "from_warehouse.address",
-          "to_warehouse",
-          "to_warehouse.address",
-          "to_address",
+          'from_warehouse',
+          'from_warehouse.address',
+          'to_warehouse',
+          'to_warehouse.address',
+          'to_address',
         ],
       })
       .catch((error) => {
@@ -86,21 +93,23 @@ export class TransfersService {
   }
 
   async update(id: number, updateTransferDto: UpdateTransferDto) {
-    return this.transfersRepository.update(id, updateTransferDto).catch((error) => {
-      throw `Не удалось изменить перемещение, ${error.message}`;
-    });
+    return this.transfersRepository
+      .update(id, updateTransferDto)
+      .catch((error) => {
+        throw `Не удалось изменить перемещение, ${error.message}`;
+      });
   }
 
   async findByOrderId(order_id: number) {
     return this.transfersRepository
       .find({
-        where: { order_id, type: "transfer" },
+        where: { order_id, type: 'transfer' },
         relations: [
-          "from_warehouse",
-          "from_warehouse.address",
-          "to_warehouse",
-          "to_warehouse.address",
-          "to_address",
+          'from_warehouse',
+          'from_warehouse.address',
+          'to_warehouse',
+          'to_warehouse.address',
+          'to_address',
         ],
       })
       .catch((error) => {
@@ -111,8 +120,8 @@ export class TransfersService {
   async findDeliveryByOrderId(order_id: number) {
     return this.transfersRepository
       .find({
-        where: { order_id, type: "delivery" },
-        relations: ["from_warehouse", "from_warehouse.address", "to_address"],
+        where: { order_id, type: 'delivery' },
+        relations: ['from_warehouse', 'from_warehouse.address', 'to_address'],
       })
       .catch((error) => {
         throw `Не удалось получить перемещения доставки заказа, ${error.message}`;
@@ -121,12 +130,14 @@ export class TransfersService {
 
   async updateStatusByOrderAndType(
     order_id: number,
-    type: "transfer" | "delivery",
-    status: "processing" | "completed" | "rejected",
+    type: 'transfer' | 'delivery',
+    status: 'processing' | 'completed' | 'rejected',
   ) {
-    return this.transfersRepository.update({ order_id, type }, { status }).catch((error) => {
-      throw `Не удалось обновить статус перемещений, ${error.message}`;
-    });
+    return this.transfersRepository
+      .update({ order_id, type }, { status })
+      .catch((error) => {
+        throw `Не удалось обновить статус перемещений, ${error.message}`;
+      });
   }
 
   async remove(id: number) {

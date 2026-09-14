@@ -1,8 +1,8 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository, type FindOperator, ILike } from "typeorm";
-import { UpdateSearchDto } from "./dto/update-search.dto";
-import { Search } from "./entities/search.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { type Repository, type FindOperator, ILike } from 'typeorm';
+import { UpdateSearchDto } from './dto/update-search.dto';
+import { Search } from './entities/search.entity';
 
 const GARBAGE_PATTERNS: RegExp[] = [
   /^(.?)\1{4,}$/, // ааааа, ббббб, 55555
@@ -23,12 +23,12 @@ export class SearchService {
 
   async getSuggestions(text: string, limit: number): Promise<Search[]> {
     return this.searchRepository
-      .createQueryBuilder("search")
-      .where("search.text ILIKE :text", { text: `${text}%` })
-      .andWhere("search.text != :exactText", { exactText: text })
-      .andWhere("search.result_count > 0")
-      .orderBy("search.views", "DESC")
-      .addOrderBy("search.updated_at", "DESC")
+      .createQueryBuilder('search')
+      .where('search.text ILIKE :text', { text: `${text}%` })
+      .andWhere('search.text != :exactText', { exactText: text })
+      .andWhere('search.result_count > 0')
+      .orderBy('search.views', 'DESC')
+      .addOrderBy('search.updated_at', 'DESC')
       .take(limit)
       .getMany()
       .catch((error) => {
@@ -38,24 +38,31 @@ export class SearchService {
 
   async updateOrCreate(updateDto: UpdateSearchDto): Promise<string> {
     if (this.isGarbage(updateDto.text)) {
-      throw "Не верный формат поискового запроса для записи";
+      throw 'Не верный формат поискового запроса для записи';
     }
 
-    const existing = await this.searchRepository.findOne({ where: { text: updateDto.text } });
+    const existing = await this.searchRepository.findOne({
+      where: { text: updateDto.text },
+    });
 
     if (existing) {
       await this.searchRepository
-        .update(existing.id, { views: existing.views + 1, result_count: updateDto.result_count })
+        .update(existing.id, {
+          views: existing.views + 1,
+          result_count: updateDto.result_count,
+        })
         .catch((error) => {
           throw `Не удалось обновить поисковый запрос, ${error.message}`;
         });
     } else {
-      await this.searchRepository.save({ ...updateDto, views: 1 }).catch((error) => {
-        throw `Не удалось создать новый поисковый запрос, ${error.message}`;
-      });
+      await this.searchRepository
+        .save({ ...updateDto, views: 1 })
+        .catch((error) => {
+          throw `Не удалось создать новый поисковый запрос, ${error.message}`;
+        });
     }
 
-    return "success";
+    return 'success';
   }
 
   private isGarbage(text: string): boolean {
@@ -70,10 +77,10 @@ export class SearchService {
 
   async getPopular(limit: number): Promise<Search[]> {
     return this.searchRepository
-      .createQueryBuilder("search")
-      .where("search.result_count > 0")
-      .orderBy("search.views", "DESC")
-      .addOrderBy("search.updated_at", "DESC")
+      .createQueryBuilder('search')
+      .where('search.result_count > 0')
+      .orderBy('search.views', 'DESC')
+      .addOrderBy('search.updated_at', 'DESC')
       .take(limit)
       .getMany()
       .catch((error) => {
@@ -95,7 +102,7 @@ export class SearchService {
         skip,
         take: Number(limit),
         where: whereCondition,
-        order: { views: "DESC" },
+        order: { views: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось получить список поисковых запросов, ${error.message}`;
@@ -109,9 +116,11 @@ export class SearchService {
       whereCondition.text = ILike(`%${text}%`);
     }
 
-    return this.searchRepository.count({ where: whereCondition }).catch((error) => {
-      throw `Не удалось получить общее количество поисковых запросов, ${error.message}`;
-    });
+    return this.searchRepository
+      .count({ where: whereCondition })
+      .catch((error) => {
+        throw `Не удалось получить общее количество поисковых запросов, ${error.message}`;
+      });
   }
 
   async remove(id: number): Promise<void> {

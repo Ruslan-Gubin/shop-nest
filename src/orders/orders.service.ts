@@ -1,36 +1,39 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { FindOptionsSelect, type Repository } from "typeorm";
-import type { CreateOrderDto } from "./dto/create-order.dto";
-import type { UpdateOrderDto } from "./dto/update-order.dto";
-import type { ShipOrderDto, ShipReservationItemDto } from "./dto/ship-order.dto";
-import type { SetShortageItemDto } from "src/order-product/dto/set-shortage.dto";
-import { Order } from "./entities/order.entity";
-import { AddressService } from "src/address/address.service";
-import { OrderProductService } from "src/order-product/order-product.service";
-import { ProductService } from "src/product/product.service";
-import { CartDiscountsService } from "src/cart-discounts/cart-discounts.service";
-import { PromotionsService } from "src/promotions/promotions.service";
-import { ProductStockService } from "src/product-stock/product-stock.service";
-import { WarehouseService } from "src/warehouse/warehouse.service";
-import { TransfersService } from "src/transfers/transfers.service";
-import { PaymentsService } from "src/payments/payments.service";
-import { ReservationItemDto } from "src/order-product/dto/create-order-product.dto";
-import { OrderProduct } from "src/order-product/entities/order-product.entity";
-import { ShortageItemDto } from "src/order-product/dto/update-order-product.dto";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { FindOptionsSelect, type Repository } from 'typeorm';
+import type { CreateOrderDto } from './dto/create-order.dto';
+import type { UpdateOrderDto } from './dto/update-order.dto';
+import type {
+  ShipOrderDto,
+  ShipReservationItemDto,
+} from './dto/ship-order.dto';
+import type { SetShortageItemDto } from 'src/order-product/dto/set-shortage.dto';
+import { Order } from './entities/order.entity';
+import { AddressService } from 'src/address/address.service';
+import { OrderProductService } from 'src/order-product/order-product.service';
+import { ProductService } from 'src/product/product.service';
+import { CartDiscountsService } from 'src/cart-discounts/cart-discounts.service';
+import { PromotionsService } from 'src/promotions/promotions.service';
+import { ProductStockService } from 'src/product-stock/product-stock.service';
+import { WarehouseService } from 'src/warehouse/warehouse.service';
+import { TransfersService } from 'src/transfers/transfers.service';
+import { PaymentsService } from 'src/payments/payments.service';
+import { ReservationItemDto } from 'src/order-product/dto/create-order-product.dto';
+import { OrderProduct } from 'src/order-product/entities/order-product.entity';
+import { ShortageItemDto } from 'src/order-product/dto/update-order-product.dto';
 
 export const VIEW_STATUSES: Record<string, string[]> = {
   orders: [
-    "new",
-    "processing",
-    "cancelled_new",
-    "cancelled_assembly",
-    "cancelled_customer",
-    "cancelled_ready",
-    "cancelled_delivery",
+    'new',
+    'processing',
+    'cancelled_new',
+    'cancelled_assembly',
+    'cancelled_customer',
+    'cancelled_ready',
+    'cancelled_delivery',
   ],
-  purchases: ["completed"],
-  waiting: ["ready", "in_delivery"],
+  purchases: ['completed'],
+  waiting: ['ready', 'in_delivery'],
 };
 
 @Injectable()
@@ -75,7 +78,9 @@ export class OrdersService {
       const findTransfer = payload.transfers.find((el) => el.order_id);
 
       if (findTransfer) {
-        await this.ordersRepository.update(findTransfer.order_id, { status: "processing" });
+        await this.ordersRepository.update(findTransfer.order_id, {
+          status: 'processing',
+        });
       }
     } catch (error) {
       for (const id of createdTransferIds) {
@@ -100,7 +105,10 @@ export class OrdersService {
 
     for (const [stockId, old] of oldMap) {
       if (!newMap.has(stockId)) {
-        await this.productStockRepository.decrementReserved(stockId, old.quantity);
+        await this.productStockRepository.decrementReserved(
+          stockId,
+          old.quantity,
+        );
       }
     }
 
@@ -118,21 +126,28 @@ export class OrdersService {
       const old = oldMap.get(stockId);
       const oldQty = old?.quantity ?? 0;
       if (newRes.quantity > oldQty) {
-        await this.productStockRepository.incrementReserved(stockId, newRes.quantity - oldQty);
+        await this.productStockRepository.incrementReserved(
+          stockId,
+          newRes.quantity - oldQty,
+        );
       }
     }
 
-    await this.orderProductRepository.update(item.id, { reservations: newReservations });
+    await this.orderProductRepository.update(item.id, {
+      reservations: newReservations,
+    });
   }
 
   async setShortageStocks(id: number, shortage_stocks: SetShortageItemDto[]) {
-    const order = await this.getOrderSelect(id, ["status"] as FindOptionsSelect<Order>);
+    const order = await this.getOrderSelect(id, [
+      'status',
+    ] as FindOptionsSelect<Order>);
 
     if (!order) {
       throw `Заказ ${id} не найден`;
     }
 
-    if (order.status !== "new" && order.status !== "processing") {
+    if (order.status !== 'new' && order.status !== 'processing') {
       throw `Невозможно установить дефицит для заказа в статусе ${order.status}`;
     }
 
@@ -141,41 +156,47 @@ export class OrdersService {
 
   async acceptShortage(id: number, userId: number, userRole: string) {
     const order = await this.getOrderSelect(id, [
-      "id",
-      "status",
-      "create_user_id",
-      "subtotal",
-      "discount_percent",
-      "discount_total",
-      "discount_name",
-      "discount_quantity",
-      "total",
-      "method_receipt",
-      "delivery_price",
+      'id',
+      'status',
+      'create_user_id',
+      'subtotal',
+      'discount_percent',
+      'discount_total',
+      'discount_name',
+      'discount_quantity',
+      'total',
+      'method_receipt',
+      'delivery_price',
     ] as FindOptionsSelect<Order>);
 
     if (!order) {
       throw `Заказ ${id} не найден`;
     }
 
-    if (userId !== order.create_user_id && userRole !== "admin" && userRole !== "moderator") {
+    if (
+      userId !== order.create_user_id &&
+      userRole !== 'admin' &&
+      userRole !== 'moderator'
+    ) {
       throw `Недостаточно прав для принятия изменений в заказе ${id}`;
     }
 
-    if (order.status !== "new" && order.status !== "processing") {
+    if (order.status !== 'new' && order.status !== 'processing') {
       throw `Невозможно принять изменения для заказа в статусе ${order.status}`;
     }
 
     const orderProducts = await this.orderProductRepository.findAll(id);
 
     if (!orderProducts || orderProducts.length === 0) {
-      throw "Не удалось найти список товаров для этого заказа";
+      throw 'Не удалось найти список товаров для этого заказа';
     }
 
-    const hasShortageStocks = orderProducts.some((op) => op.shortage_stocks.length > 0);
+    const hasShortageStocks = orderProducts.some(
+      (op) => op.shortage_stocks.length > 0,
+    );
 
     if (!hasShortageStocks) {
-      throw "Нет изменений по остаткам для принятия";
+      throw 'Нет изменений по остаткам для принятия';
     }
 
     let newSubtotal = 0;
@@ -189,7 +210,9 @@ export class OrdersService {
         for (let i = 0; i < shortage_stocks.length; i++) {
           const shortage = shortage_stocks[i];
           const findReservation = orderProduct.reservations.find(
-            (el) => el.stock_id === shortage.stock_id && el.warehouse_id === shortage.warehouse_id,
+            (el) =>
+              el.stock_id === shortage.stock_id &&
+              el.warehouse_id === shortage.warehouse_id,
           );
 
           if (findReservation && shortage.quantity < findReservation.quantity) {
@@ -225,7 +248,10 @@ export class OrdersService {
           updateOrderProduct.reservations = reservations;
         }
 
-        await this.orderProductRepository.update(orderProduct.id, updateOrderProduct);
+        await this.orderProductRepository.update(
+          orderProduct.id,
+          updateOrderProduct,
+        );
 
         newSubtotal += updateOrderProduct.quantity * orderProduct.price;
       } else {
@@ -234,7 +260,9 @@ export class OrdersService {
     }
 
     const deliveryPrice = order.delivery_price || 0;
-    const newDiscountTotal = Math.round((newSubtotal * order.discount_percent) / 100);
+    const newDiscountTotal = Math.round(
+      (newSubtotal * order.discount_percent) / 100,
+    );
     const newTotal = Math.floor(newSubtotal - newDiscountTotal + deliveryPrice);
 
     const oldOpticSum = order.total + order.discount_total - deliveryPrice;
@@ -244,7 +272,7 @@ export class OrdersService {
         ? Math.round(order.discount_quantity * (newSubtotal / oldOpticSum))
         : 0;
 
-    if (order.status === "processing") {
+    if (order.status === 'processing') {
       await this.cleanupTransfers(id, orderProducts);
     }
 
@@ -267,14 +295,19 @@ export class OrdersService {
     for (let i = 0; i < shortage_stocks.length; i++) {
       const shortage = shortage_stocks[i];
       const reservation = reservations.find(
-        (el) => el.stock_id === shortage.stock_id && el.warehouse_id === shortage.warehouse_id,
+        (el) =>
+          el.stock_id === shortage.stock_id &&
+          el.warehouse_id === shortage.warehouse_id,
       );
 
       if (reservation && reservation.quantity > shortage.quantity) {
         const diff = reservation.quantity - shortage.quantity;
 
         if (diff > 0) {
-          await this.productStockRepository.decrementReserved(reservation.stock_id, diff);
+          await this.productStockRepository.decrementReserved(
+            reservation.stock_id,
+            diff,
+          );
           reservation.quantity = shortage.quantity;
         }
       }
@@ -283,10 +316,13 @@ export class OrdersService {
     return reservations.filter((r) => r.quantity > 0);
   }
 
-  private async cleanupTransfers(orderId: number, orderProducts: OrderProduct[]) {
+  private async cleanupTransfers(
+    orderId: number,
+    orderProducts: OrderProduct[],
+  ) {
     const transfers = await this.transfersService.findByOrderId(orderId);
     const processingTransfers = transfers.filter(
-      (t) => t.status === "processing" && t.type === "transfer",
+      (t) => t.status === 'processing' && t.type === 'transfer',
     );
 
     if (processingTransfers.length === 0) return;
@@ -304,7 +340,10 @@ export class OrdersService {
     }
 
     for (const transfer of processingTransfers) {
-      if (transfer.from_warehouse && !activeWarehouseIds.has(transfer.from_warehouse.id)) {
+      if (
+        transfer.from_warehouse &&
+        !activeWarehouseIds.has(transfer.from_warehouse.id)
+      ) {
         await this.transfersService.remove(transfer.id);
       }
     }
@@ -318,13 +357,15 @@ export class OrdersService {
       );
     let discount_total = 0;
     let discount_percent = 0;
-    let discount_name = "";
-    let delivery_price = createOrderDto.method_receipt === "courier" ? 100 : 0;
+    let discount_name = '';
+    const delivery_price =
+      createOrderDto.method_receipt === 'courier' ? 100 : 0;
 
-    const cartDiscount = await this.cartDiscountsRepository.getCartDiscountForOrder(
-      total,
-      createOrderDto.user_role,
-    );
+    const cartDiscount =
+      await this.cartDiscountsRepository.getCartDiscountForOrder(
+        total,
+        createOrderDto.user_role,
+      );
 
     const promotion = await this.promotionsRepository.getPromotionForOrder();
 
@@ -332,7 +373,9 @@ export class OrdersService {
       cartDiscount.discount_percent > 0 &&
       cartDiscount.discount_percent > promotion.discount_percent
     ) {
-      discount_total = Math.round((total * cartDiscount.discount_percent) / 100);
+      discount_total = Math.round(
+        (total * cartDiscount.discount_percent) / 100,
+      );
       discount_percent = cartDiscount.discount_percent;
       discount_name = cartDiscount.discount_name;
     } else if (
@@ -367,7 +410,7 @@ export class OrdersService {
         discount_total: Math.round(discount_total),
         subtotal: Math.floor(subtotal),
         total: Math.floor(total - discount_total + delivery_price),
-        order_number: "",
+        order_number: '',
         warehouse,
         address: {
           entrance: createOrderDto.address.entrance,
@@ -391,12 +434,13 @@ export class OrdersService {
       const product = products[i];
       const quantity = productOptionsMap.get(product.id)?.quantity || 0;
 
-      const reservations = await this.productStockRepository.reservedProductsForOrder(
-        products[i].id,
-        quantity,
-        createOrderDto?.address?.lng,
-        createOrderDto?.address?.lat,
-      );
+      const reservations =
+        await this.productStockRepository.reservedProductsForOrder(
+          products[i].id,
+          quantity,
+          createOrderDto?.address?.lng,
+          createOrderDto?.address?.lat,
+        );
 
       await this.orderProductRepository.create({
         reservations,
@@ -426,24 +470,30 @@ export class OrdersService {
   async generateOrderNumber(orderId: number): Promise<string> {
     const now = new Date();
     const y = now.getFullYear();
-    const m = (now.getMonth() + 1).toString().padStart(2, "0");
-    const d = now.getDate().toString().padStart(2, "0");
+    const m = (now.getMonth() + 1).toString().padStart(2, '0');
+    const d = now.getDate().toString().padStart(2, '0');
     const orderNumber = `${y}${m}${d}${orderId}`;
 
-    await this.ordersRepository.update(orderId, { order_number: orderNumber }).catch((error) => {
-      throw `Не удалось сгенерировать номер заказа, ${error.message}`;
-    });
+    await this.ordersRepository
+      .update(orderId, { order_number: orderNumber })
+      .catch((error) => {
+        throw `Не удалось сгенерировать номер заказа, ${error.message}`;
+      });
 
     return orderNumber;
   }
 
-  async findByUserId(userId: number, page: number, limit: number): Promise<[Order[], number]> {
+  async findByUserId(
+    userId: number,
+    page: number,
+    limit: number,
+  ): Promise<[Order[], number]> {
     const skip = (page - 1) * limit;
 
     return this.ordersRepository
       .findAndCount({
         where: { create_user_id: userId },
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
         skip,
         take: limit,
       })
@@ -463,27 +513,27 @@ export class OrdersService {
     const skip = (Number(page) - 1) * Number(limit);
 
     const query = this.ordersRepository
-      .createQueryBuilder("o")
-      .addSelect("COALESCE(o.updated_at, o.created_at)", "last_activity")
-      .orderBy("last_activity", "DESC")
-      .addOrderBy("o.id", "DESC")
+      .createQueryBuilder('o')
+      .addSelect('COALESCE(o.updated_at, o.created_at)', 'last_activity')
+      .orderBy('last_activity', 'DESC')
+      .addOrderBy('o.id', 'DESC')
       .skip(skip)
       .take(Number(limit));
 
     if (order_number) {
-      query.andWhere("o.order_number ILIKE :order_number", {
+      query.andWhere('o.order_number ILIKE :order_number', {
         order_number: `%${order_number}%`,
       });
     }
 
     if (statuses && statuses.length > 0) {
-      query.andWhere("o.status IN (:...statuses)", { statuses });
+      query.andWhere('o.status IN (:...statuses)', { statuses });
     } else if (status) {
-      query.andWhere("o.status = :status", { status });
+      query.andWhere('o.status = :status', { status });
     }
 
-    if (typeof create_user_id === "number" && create_user_id > 0) {
-      query.andWhere("o.create_user_id = :create_user_id", { create_user_id });
+    if (typeof create_user_id === 'number' && create_user_id > 0) {
+      query.andWhere('o.create_user_id = :create_user_id', { create_user_id });
     }
 
     return query.getManyAndCount().catch((error) => {
@@ -493,11 +543,20 @@ export class OrdersService {
 
   async getClientCounts(create_user_id: number) {
     return this.ordersRepository
-      .createQueryBuilder("o")
-      .select("COUNT(*) FILTER (WHERE o.status IN (:...ordersStatuses))::int", "orders_count")
-      .addSelect("COUNT(*) FILTER (WHERE o.status = 'completed')::int", "purchases_count")
-      .addSelect("COUNT(*) FILTER (WHERE o.status IN (:...waitingStatuses))::int", "waiting_count")
-      .where("o.create_user_id = :create_user_id", { create_user_id })
+      .createQueryBuilder('o')
+      .select(
+        'COUNT(*) FILTER (WHERE o.status IN (:...ordersStatuses))::int',
+        'orders_count',
+      )
+      .addSelect(
+        "COUNT(*) FILTER (WHERE o.status = 'completed')::int",
+        'purchases_count',
+      )
+      .addSelect(
+        'COUNT(*) FILTER (WHERE o.status IN (:...waitingStatuses))::int',
+        'waiting_count',
+      )
+      .where('o.create_user_id = :create_user_id', { create_user_id })
       .setParameters({
         ordersStatuses: VIEW_STATUSES.orders,
         waitingStatuses: VIEW_STATUSES.waiting,
@@ -512,7 +571,7 @@ export class OrdersService {
     return this.ordersRepository
       .findOne({
         where: { id },
-        relations: ["address", "warehouse"],
+        relations: ['address', 'warehouse'],
       })
       .catch((error) => {
         throw `Не удалось получить заказ, ${error.message}`;
@@ -536,9 +595,14 @@ export class OrdersService {
     });
   }
 
-  async rejectOrder(id: number, rejected_reason: string, user_id?: number, user_role?: string) {
+  async rejectOrder(
+    id: number,
+    rejected_reason: string,
+    user_id?: number,
+    user_role?: string,
+  ) {
     if (!user_id || !user_role) {
-      throw "Не найдена информация о пользователе который совершает действие";
+      throw 'Не найдена информация о пользователе который совершает действие';
     }
 
     const order = await this.findOne(id);
@@ -547,15 +611,31 @@ export class OrdersService {
       throw `Заказ ${id} не найден`;
     }
 
-    if (user_id !== order.create_user_id && user_role !== "admin" && user_role !== "moderator") {
+    if (
+      user_id !== order.create_user_id &&
+      user_role !== 'admin' &&
+      user_role !== 'moderator'
+    ) {
       throw `Недостаточно прав для отмены заказа ${id}`;
     }
 
-    const statusMap: Record<string, Order["status"]> = {
-      new: user_id === order.create_user_id ? "cancelled_customer" : "cancelled_new",
-      processing: user_id === order.create_user_id ? "cancelled_customer" : "cancelled_assembly",
-      ready: user_id === order.create_user_id ? "cancelled_customer" : "cancelled_ready",
-      in_delivery: user_id === order.create_user_id ? "cancelled_customer" : "cancelled_delivery",
+    const statusMap: Record<string, Order['status']> = {
+      new:
+        user_id === order.create_user_id
+          ? 'cancelled_customer'
+          : 'cancelled_new',
+      processing:
+        user_id === order.create_user_id
+          ? 'cancelled_customer'
+          : 'cancelled_assembly',
+      ready:
+        user_id === order.create_user_id
+          ? 'cancelled_customer'
+          : 'cancelled_ready',
+      in_delivery:
+        user_id === order.create_user_id
+          ? 'cancelled_customer'
+          : 'cancelled_delivery',
     };
 
     const status = statusMap[order.status];
@@ -575,12 +655,20 @@ export class OrdersService {
 
     await this.releaseReservations(order.id);
 
-    if (order.status === "processing") {
-      await this.transfersService.updateStatusByOrderAndType(id, "transfer", "rejected");
+    if (order.status === 'processing') {
+      await this.transfersService.updateStatusByOrderAndType(
+        id,
+        'transfer',
+        'rejected',
+      );
     }
 
-    if (order.status === "in_delivery") {
-      await this.transfersService.updateStatusByOrderAndType(id, "delivery", "rejected");
+    if (order.status === 'in_delivery') {
+      await this.transfersService.updateStatusByOrderAndType(
+        id,
+        'delivery',
+        'rejected',
+      );
     }
   }
 
@@ -611,13 +699,13 @@ export class OrdersService {
     }
 
     const statusMap: Record<string, string> = {
-      new: "processing",
-      processing: "ready",
-      ready: order.method_receipt === "courier" ? "in_delivery" : "completed",
-      in_delivery: "completed",
+      new: 'processing',
+      processing: 'ready',
+      ready: order.method_receipt === 'courier' ? 'in_delivery' : 'completed',
+      in_delivery: 'completed',
     };
 
-    const status = statusMap[order.status] || "";
+    const status = statusMap[order.status] || '';
 
     if (!status) {
       throw `Невозможно перевести заказ в следующий статус из статуса ${order.status}`;
@@ -627,15 +715,15 @@ export class OrdersService {
       throw `Заказ ожидает решения клиента по изменению количества товара в заказе`;
     }
 
-    if (order.status === "processing" && status === "ready") {
+    if (order.status === 'processing' && status === 'ready') {
       await this.handleReadyTransfers(order.id, order.warehouse?.id || 0);
 
-      if (order.payment_method === "card") {
+      if (order.payment_method === 'card') {
         await this.paymentsService.createPayment(order.id, order.total);
       }
     }
 
-    if (order.status === "ready" && status === "in_delivery") {
+    if (order.status === 'ready' && status === 'in_delivery') {
       await this.handleInDeliveryTransfer(
         order.id,
         order.warehouse?.id || 0,
@@ -643,17 +731,26 @@ export class OrdersService {
       );
     }
 
-    if ((order.status === "in_delivery" || order.status === "ready") && status === "completed") {
+    if (
+      (order.status === 'in_delivery' || order.status === 'ready') &&
+      status === 'completed'
+    ) {
       await this.handleCompletedTransfers(order.id);
     }
 
-    if (order.status === "in_delivery" && status === "completed") {
-      await this.transfersService.updateStatusByOrderAndType(order.id, "delivery", "completed");
+    if (order.status === 'in_delivery' && status === 'completed') {
+      await this.transfersService.updateStatusByOrderAndType(
+        order.id,
+        'delivery',
+        'completed',
+      );
     }
 
-    await this.ordersRepository.update(id, { status: status as Order["status"] }).catch((error) => {
-      throw `Не удалось изменить статус заказа, ${error.message}`;
-    });
+    await this.ordersRepository
+      .update(id, { status: status as Order['status'] })
+      .catch((error) => {
+        throw `Не удалось изменить статус заказа, ${error.message}`;
+      });
   }
 
   private async handleCompletedTransfers(order_id: number) {
@@ -686,7 +783,7 @@ export class OrdersService {
     }
 
     await this.transfersService.create({
-      type: "delivery",
+      type: 'delivery',
       order_id,
       from_warehouse_id,
       address_id,
@@ -701,7 +798,10 @@ export class OrdersService {
 
       if (!baseWarehouseId) {
         for (let i = 0; i < transfers.length; i++) {
-          if (transfers[i]?.to_warehouse && typeof transfers[i]?.to_warehouse?.id === "number") {
+          if (
+            transfers[i]?.to_warehouse &&
+            typeof transfers[i]?.to_warehouse?.id === 'number'
+          ) {
             baseWarehouseId = transfers[i]?.to_warehouse?.id || 0;
             break;
           }
@@ -719,8 +819,16 @@ export class OrdersService {
 
         if (reservations.length === 0) continue;
 
-        let baseStock: { stock_id: number; warehouse_id: number; quantity: number } | null = null;
-        const transfersHistory: { stock_id: number; warehouse_id: number; quantity: number }[] = [];
+        let baseStock: {
+          stock_id: number;
+          warehouse_id: number;
+          quantity: number;
+        } | null = null;
+        const transfersHistory: {
+          stock_id: number;
+          warehouse_id: number;
+          quantity: number;
+        }[] = [];
 
         let needAddQuantity = 0;
 
@@ -740,10 +848,11 @@ export class OrdersService {
           );
           baseStock.quantity += needAddQuantity;
         } else {
-          const stock = await this.productStockRepository.findByProductAndWarehouse(
-            orderProducts[i].product_id,
-            baseWarehouseId,
-          );
+          const stock =
+            await this.productStockRepository.findByProductAndWarehouse(
+              orderProducts[i].product_id,
+              baseWarehouseId,
+            );
 
           if (stock) {
             await this.productStockRepository.incrementQuantityAndReserved(
@@ -784,7 +893,11 @@ export class OrdersService {
         });
       }
 
-      await this.transfersService.updateStatusByOrderAndType(order_id, "transfer", "completed");
+      await this.transfersService.updateStatusByOrderAndType(
+        order_id,
+        'transfer',
+        'completed',
+      );
     }
   }
 
@@ -796,7 +909,15 @@ export class OrdersService {
 
     if (!from && !to) {
       startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999); // последний день месяца
+      endDate = new Date(
+        today.getFullYear(),
+        today.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      ); // последний день месяца
     } else {
       if (from) {
         const fromDate = new Date(from);
@@ -824,7 +945,15 @@ export class OrdersService {
           999,
         );
       } else {
-        endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+        endDate = new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate(),
+          23,
+          59,
+          59,
+          999,
+        );
       }
     }
 
@@ -832,18 +961,21 @@ export class OrdersService {
     const toStr = endDate.toISOString();
 
     const query = this.ordersRepository
-      .createQueryBuilder("order")
+      .createQueryBuilder('order')
       .select([
         'DATE(order.created_at) AS "date"',
-        "COALESCE(SUM(CASE WHEN order.payment_method = 'card' THEN order.total ELSE 0 END), 0) AS \"card\"",
-        "COALESCE(SUM(CASE WHEN order.payment_method = 'cash' THEN order.total ELSE 0 END), 0) AS \"cash\"",
+        'COALESCE(SUM(CASE WHEN order.payment_method = \'card\' THEN order.total ELSE 0 END), 0) AS "card"',
+        'COALESCE(SUM(CASE WHEN order.payment_method = \'cash\' THEN order.total ELSE 0 END), 0) AS "cash"',
       ])
       .where("order.status = 'completed'")
-      .andWhere("order.created_at BETWEEN :from AND :to", { from: fromStr, to: toStr });
+      .andWhere('order.created_at BETWEEN :from AND :to', {
+        from: fromStr,
+        to: toStr,
+      });
 
     return await query
-      .groupBy("DATE(order.created_at)")
-      .orderBy("DATE(order.created_at)", "ASC")
+      .groupBy('DATE(order.created_at)')
+      .orderBy('DATE(order.created_at)', 'ASC')
       .getRawMany<{ date: string; card: string; cash: string }>()
       .catch((error) => {
         throw `Не удалось получить список продаж, ${error}`;
@@ -852,11 +984,11 @@ export class OrdersService {
 
   async getStats() {
     const result = await this.ordersRepository
-      .createQueryBuilder("order")
+      .createQueryBuilder('order')
       .select([
         'COALESCE(SUM(order.total), 0) AS "total"',
-        "COALESCE(SUM(CASE WHEN order.payment_method = 'card' THEN order.total ELSE 0 END), 0) AS \"totalCart\"",
-        "COALESCE(SUM(CASE WHEN order.payment_method = 'cash' THEN order.total ELSE 0 END), 0) AS \"totalCash\"",
+        'COALESCE(SUM(CASE WHEN order.payment_method = \'card\' THEN order.total ELSE 0 END), 0) AS "totalCart"',
+        'COALESCE(SUM(CASE WHEN order.payment_method = \'cash\' THEN order.total ELSE 0 END), 0) AS "totalCash"',
         'COUNT(order.id) AS "ordersCount"',
         'COALESCE(SUM(order.discount_total), 0) AS "discount"',
       ])
@@ -879,7 +1011,7 @@ export class OrdersService {
   async delete(id: number) {
     const order = await this.ordersRepository.findOne({
       where: { id },
-      relations: ["address"],
+      relations: ['address'],
     });
 
     await this.ordersRepository.delete(id).catch((error) => {

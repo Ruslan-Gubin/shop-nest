@@ -5,14 +5,14 @@ type ErrorItem = {
 
 export interface ResponseData<T> {
   data: T | null;
-  status: "success" | "error";
+  status: 'success' | 'error';
   message: string;
   errors: ErrorItem[];
 }
 
 export const responseData = <T>(
   data: T | null,
-  status: "success" | "error",
+  status: 'success' | 'error',
   errors: ErrorItem[],
   messageText?: string | Error,
 ): ResponseData<T | null> => {
@@ -22,11 +22,11 @@ export const responseData = <T>(
     errors,
     message:
       messageText instanceof Error &&
-      typeof messageText.message === "string" &&
+      typeof messageText.message === 'string' &&
       messageText.message.length > 0
         ? messageText.message
-        : typeof messageText === "string" && messageText.length > 0
+        : typeof messageText === 'string' && messageText.length > 0
           ? messageText
-          : "Ошибка на стороне сервера",
+          : 'Ошибка на стороне сервера',
   };
 };

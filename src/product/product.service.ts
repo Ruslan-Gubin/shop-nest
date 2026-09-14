@@ -20,6 +20,7 @@ export interface FieldCheck {
   message: string;
 }
 
+//TODO под вопросом
 export interface ProductCompletenessCheck {
   id: number;
   name: string;
@@ -233,7 +234,11 @@ export class ProductService {
     specifications?: string;
     country?: string;
     product_types?: string;
-  }): Promise<{ products: Product[]; totalCount: number; paginationPage: string }> {
+  }): Promise<{
+    products: Product[];
+    totalCount: number;
+    paginationPage: string;
+  }> {
     const take = Number(limit);
     const skip = (Number(page) - 1) * take;
 
@@ -248,7 +253,9 @@ export class ProductService {
         Number(category_id),
       );
       if (categoryIds.length > 0) {
-        query.andWhere("product.category_id IN (:...categoryIds)", { categoryIds });
+        query.andWhere("product.category_id IN (:...categoryIds)", {
+          categoryIds,
+        });
       }
     }
 
@@ -269,12 +276,16 @@ export class ProductService {
 
     if (price_from) {
       const priceSubQuery = `(SELECT COALESCE(${sortPriceType}(pp.price), 0) FROM product_price pp WHERE pp.product_id = product.id AND pp.price > 0)`;
-      query.andWhere(`${priceSubQuery} >= :price_from`, { price_from: Number(price_from) });
+      query.andWhere(`${priceSubQuery} >= :price_from`, {
+        price_from: Number(price_from),
+      });
     }
 
     if (price_to) {
       const priceSubQuery = `(SELECT COALESCE(${sortPriceType}(pp.price), 0) FROM product_price pp WHERE pp.product_id = product.id AND pp.price > 0)`;
-      query.andWhere(`${priceSubQuery} <= :price_to`, { price_to: Number(price_to) });
+      query.andWhere(`${priceSubQuery} <= :price_to`, {
+        price_to: Number(price_to),
+      });
     }
 
     if (specifications) {
@@ -310,7 +321,9 @@ export class ProductService {
         .map((c) => c.trim())
         .filter(Boolean);
       if (countryList.length > 0) {
-        query.andWhere("product.country IN (:...countries)", { countries: countryList });
+        query.andWhere("product.country IN (:...countries)", {
+          countries: countryList,
+        });
       }
     }
 
@@ -320,7 +333,9 @@ export class ProductService {
         .map((t) => t.trim())
         .filter(Boolean);
       if (typeList.length > 0) {
-        query.andWhere("product.product_type IN (:...productTypes)", { productTypes: typeList });
+        query.andWhere("product.product_type IN (:...productTypes)", {
+          productTypes: typeList,
+        });
       }
     }
 
@@ -345,7 +360,10 @@ export class ProductService {
     }
 
     if (search) {
-      await this.searchService.updateOrCreate({ text: search.trim(), result_count: totalCount });
+      await this.searchService.updateOrCreate({
+        text: search.trim(),
+        result_count: totalCount,
+      });
     }
 
     await this.attachPhotos(products);
@@ -419,7 +437,11 @@ export class ProductService {
     limit: string;
     sort?: string;
     role: string;
-  }): Promise<{ products: Product[]; totalCount: number; paginationPage: string }> {
+  }): Promise<{
+    products: Product[];
+    totalCount: number;
+    paginationPage: string;
+  }> {
     const take = Number(limit);
     const skip = (Number(page) - 1) * take;
 
@@ -1321,5 +1343,110 @@ export class ProductService {
     return this.productRepository.delete(id).catch((error) => {
       throw `Не удалось удалить товаров, ${error.message}`;
     });
+  }
+
+  async findProductsCanReview(
+    user_id: number,
+    page: number,
+    limit: number,
+  ): Promise<[Product[], number]> {
+    const skip = (Number(page) - 1) * Number(limit);
+
+    return this.productRepository
+      .createQueryBuilder("p")
+      .where(
+        `EXISTS (
+          SELECT 1 FROM order_product op
+          INNER JOIN "order" o ON o.id = op.order_id
+          WHERE op.product_id = p.id
+            AND o.create_user_id = :user_id
+            AND o.status = 'completed'
+        )`,
+        { user_id },
+      )
+      .andWhere(
+        `NOT EXISTS (
+          SELECT 1 FROM product_review pr
+          WHERE pr.product_id = p.id
+            AND pr.create_user_id = :user_id
+        )`,
+        { user_id },
+      )
+      .skip(skip)
+      .take(Number(limit))
+      .getManyAndCount()
+      .catch((error) => {
+        throw `Не удалось получить товары для отзыва, ${error.message}`;
+      });
+  }
+
+  async findProductsWithReviews(
+    user_id: number,
+    page: number,
+    limit: number,
+  ): Promise<[Product[], number]> {
+    const skip = (Number(page) - 1) * Number(limit);
+
+    return this.productRepository
+      .createQueryBuilder("p")
+      .where(
+        `EXISTS (
+          SELECT 1 FROM product_review pr
+          WHERE pr.product_id = p.id
+            AND pr.create_user_id = :user_id
+        )`,
+        { user_id },
+      )
+      .skip(skip)
+      .take(Number(limit))
+      .getManyAndCount()
+      .catch((error) => {
+        throw `Не удалось получить товары с отзывами, ${error.message}`;
+      });
+  }
+
+  async findProductsWithQuestions(
+    user_id: number,
+    page: number,
+    limit: number,
+  ): Promise<[Product[], number]> {
+    const skip = (Number(page) - 1) * Number(limit);
+
+    return this.productRepository
+      .createQueryBuilder("p")
+      .where(
+        `EXISTS (
+          SELECT 1 FROM product_question pq
+          WHERE pq.product_id = p.id
+            AND pq.create_user_id = :user_id
+        )`,
+        { user_id },
+      )
+      .skip(skip)
+      .take(Number(limit))
+      .getManyAndCount()
+      .catch((error) => {
+        throw `Не удалось получить товары с вопросами, ${error.message}`;
+      });
+  }
+
+  async canReview(product_id: number, create_user_id: number): Promise<boolean> {
+    return this.productRepository
+      .createQueryBuilder("p")
+      .where("p.id = :product_id", { product_id })
+      .andWhere(
+        `EXISTS (
+          SELECT 1 FROM order_product op
+          INNER JOIN "order" o ON o.id = op.order_id
+          WHERE op.product_id = p.id
+            AND o.create_user_id = :create_user_id
+            AND o.status = 'completed'
+        )`,
+        { create_user_id },
+      )
+      .getExists()
+      .catch((error) => {
+        throw `Не удалось проверить возможность оставить отзыв, ${error.message}`;
+      });
   }
 }

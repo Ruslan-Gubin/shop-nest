@@ -1,7 +1,7 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository } from "typeorm";
-import { Payment } from "./entities/payment.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { type Repository } from 'typeorm';
+import { Payment } from './entities/payment.entity';
 
 @Injectable()
 export class PaymentsService {
@@ -15,7 +15,7 @@ export class PaymentsService {
       .save({
         order_id: orderId,
         amount,
-        status: "pending",
+        status: 'pending',
       })
       .catch((error) => {
         throw `Не удалось создать платёж для заказа ${orderId}, ${error.message}`;
@@ -24,7 +24,7 @@ export class PaymentsService {
 
   async findByOrder(orderId: number): Promise<Payment[]> {
     return this.paymentsRepository
-      .find({ where: { order_id: orderId }, order: { id: "DESC" } })
+      .find({ where: { order_id: orderId }, order: { id: 'DESC' } })
       .catch((error) => {
         throw `Не удалось получить платежи заказа ${orderId}, ${error.message}`;
       });

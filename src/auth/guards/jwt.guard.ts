@@ -1,10 +1,10 @@
-import { type ExecutionContext, Injectable } from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
-import { AuthGuard } from "@nestjs/passport";
-import { Observable } from "rxjs";
+import { type ExecutionContext, Injectable } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { AuthGuard } from '@nestjs/passport';
+import { Observable } from 'rxjs';
 
 @Injectable()
-export class JwtGuard extends AuthGuard("jwt") {
+export class JwtGuard extends AuthGuard('jwt') {
   constructor(private readonly reflector: Reflector) {
     super();
   }
@@ -13,7 +13,7 @@ export class JwtGuard extends AuthGuard("jwt") {
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
     const isPublic: true | undefined = this.reflector.getAllAndOverride(
-      "isPublic",
+      'isPublic',
       [context.getHandler(), context.getClass()],
     );
 

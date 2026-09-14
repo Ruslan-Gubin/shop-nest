@@ -1,12 +1,12 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { PriceFillService } from "../price-fill.service";
-import { PriceFill } from "../entities/price-fill.entity";
-import { CreatePriceFillDto } from "../dto/create-price-fill.dto";
-import { UpdatePriceFillDto } from "../dto/update-price-fill.dto";
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { PriceFillService } from '../price-fill.service';
+import { PriceFill } from '../entities/price-fill.entity';
+import { CreatePriceFillDto } from '../dto/create-price-fill.dto';
+import { UpdatePriceFillDto } from '../dto/update-price-fill.dto';
 
-describe("PriceFillService", () => {
+describe('PriceFillService', () => {
   let service: PriceFillService;
   let repository: jest.Mocked<Repository<PriceFill>>;
 
@@ -15,7 +15,7 @@ describe("PriceFillService", () => {
     price_type_id: 1,
     price_range_id: 1,
     percent: 100,
-    created_at: new Date("2024-01-01"),
+    created_at: new Date('2024-01-01'),
     updated_at: null,
     price_type: null as never,
     price_range: null as never,
@@ -42,19 +42,21 @@ describe("PriceFillService", () => {
     }).compile();
 
     service = module.get<PriceFillService>(PriceFillService);
-    repository = module.get<jest.Mocked<Repository<PriceFill>>>(getRepositoryToken(PriceFill));
+    repository = module.get<jest.Mocked<Repository<PriceFill>>>(
+      getRepositoryToken(PriceFill),
+    );
 
     jest.clearAllMocks();
   });
 
-  describe("create", () => {
+  describe('create', () => {
     const createDto: CreatePriceFillDto = {
       price_type_id: 1,
       price_range_id: 1,
       percent: 100,
     };
 
-    it("должен создать правило автозаполнения", async () => {
+    it('должен создать правило автозаполнения', async () => {
       mockRepository.save.mockResolvedValue(mockPriceFill);
 
       const result = await service.create(createDto);
@@ -64,21 +66,21 @@ describe("PriceFillService", () => {
     });
   });
 
-  describe("findAll", () => {
-    it("должен вернуть все правила", async () => {
+  describe('findAll', () => {
+    it('должен вернуть все правила', async () => {
       mockRepository.find.mockResolvedValue([mockPriceFill]);
 
       const result = await service.findAll();
 
       expect(result).toEqual([mockPriceFill]);
       expect(mockRepository.find).toHaveBeenCalledWith({
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
       });
     });
   });
 
-  describe("findOne", () => {
-    it("должен вернуть правило по id", async () => {
+  describe('findOne', () => {
+    it('должен вернуть правило по id', async () => {
       mockRepository.findOne.mockResolvedValue(mockPriceFill);
 
       const result = await service.findOne(1);
@@ -87,7 +89,7 @@ describe("PriceFillService", () => {
       expect(mockRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
     });
 
-    it("должен вернуть null если не найден", async () => {
+    it('должен вернуть null если не найден', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
       const result = await service.findOne(999);
@@ -96,12 +98,12 @@ describe("PriceFillService", () => {
     });
   });
 
-  describe("update", () => {
+  describe('update', () => {
     const updateDto: UpdatePriceFillDto = {
       percent: 90,
     };
 
-    it("должен обновить правило", async () => {
+    it('должен обновить правило', async () => {
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       await service.update(1, updateDto);
@@ -110,8 +112,8 @@ describe("PriceFillService", () => {
     });
   });
 
-  describe("remove", () => {
-    it("должен удалить правило", async () => {
+  describe('remove', () => {
+    it('должен удалить правило', async () => {
       mockRepository.delete.mockResolvedValue({ affected: 1 } as any);
 
       await service.remove(1);

@@ -1,4 +1,4 @@
-import { Address } from "src/address/entities/address.entity";
+import { Address } from 'src/address/entities/address.entity';
 import {
   Column,
   CreateDateColumn,
@@ -7,38 +7,43 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
+} from 'typeorm';
 
 @Entity()
 export class Warehouse {
-  @PrimaryGeneratedColumn({ type: "int", name: "id" })
+  @PrimaryGeneratedColumn({ type: 'int', name: 'id' })
   id: number;
 
-  @Column({ type: "varchar", default: "", name: "name" })
+  @Column({ type: 'varchar', default: '', name: 'name' })
   name: string;
 
   @OneToOne(() => Address, { cascade: true, eager: false })
-  @JoinColumn({ name: "address_id" })
+  @JoinColumn({ name: 'address_id' })
   address: Address | null;
 
-  @Column({ type: "int", nullable: true, default: null, name: "create_user_id" })
+  @Column({
+    type: 'int',
+    nullable: true,
+    default: null,
+    name: 'create_user_id',
+  })
   create_user_id: number;
 
-  @Column({ type: "varchar", default: "", name: "description" })
+  @Column({ type: 'varchar', default: '', name: 'description' })
   description: string;
 
-  @Column({ type: "boolean", default: true, name: "is_active" })
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
   is_active: boolean;
 
-  @Column({ type: "boolean", default: false, name: "default_warehouse" })
+  @Column({ type: 'boolean', default: false, name: 'default_warehouse' })
   default_warehouse: boolean;
 
-  @Column({ type: "boolean", default: true, name: "is_public" })
+  @Column({ type: 'boolean', default: true, name: 'is_public' })
   is_public: boolean;
 
-  @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
+  @UpdateDateColumn({ type: 'timestamp', nullable: true, default: null })
   updated_at: Date | null;
 }

@@ -93,23 +93,6 @@ export class ProductReviewController {
     }
   }
 
-  @Get("can-review/:product_id")
-  async canReview(
-    @Param("product_id") product_id: string,
-    @CurrentUser() user?: CurrentStrategyUser,
-  ): Promise<ResponseData<boolean | null>> {
-    try {
-      const canReview = await this.productReviewService.canReview(
-        Number(product_id),
-        Number(user?.sub),
-      );
-
-      return responseData(canReview, "success", [], "");
-    } catch (error) {
-      return responseData(null, "error", [], error);
-    }
-  }
-
   @Get("all")
   @Roles("admin", "moderator")
   @UseGuards(RolesGuard)

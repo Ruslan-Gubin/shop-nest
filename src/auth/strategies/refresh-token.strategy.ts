@@ -1,13 +1,13 @@
-import { Injectable } from "@nestjs/common";
-import { PassportStrategy } from "@nestjs/passport";
-import type { Request } from "express";
-import { ExtractJwt, Strategy } from "passport-jwt";
-import { CurrentStrategyUser } from "../types/current-user";
+import { Injectable } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import type { Request } from 'express';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { CurrentStrategyUser } from '../types/current-user';
 
 @Injectable()
 export class RefreshTokenStrategy extends PassportStrategy(
   Strategy,
-  "refresh-token",
+  'refresh-token',
 ) {
   constructor() {
     super({
@@ -19,8 +19,7 @@ export class RefreshTokenStrategy extends PassportStrategy(
 
   async validate(
     req: Request,
-    payload: 
-    CurrentStrategyUser,
+    payload: CurrentStrategyUser,
   ): Promise<{
     sub: number;
     password: string;
@@ -31,8 +30,8 @@ export class RefreshTokenStrategy extends PassportStrategy(
     email: string;
     name: string;
   }> {
-    const authorization = req.get("Authorization") ?? "";
-    const refresh = authorization.replace("Bearer", "").trim();
+    const authorization = req.get('Authorization') ?? '';
+    const refresh = authorization.replace('Bearer', '').trim();
     return {
       ...payload,
       refresh,

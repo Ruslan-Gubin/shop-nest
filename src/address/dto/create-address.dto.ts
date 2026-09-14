@@ -1,11 +1,11 @@
-import { IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
+import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateAddressDto {
   @IsOptional()
-  @IsEnum(["pickup", "courier"], {
-    message: "Тип адреса должен быть pickup или courier",
+  @IsEnum(['pickup', 'courier'], {
+    message: 'Тип адреса должен быть pickup или courier',
   })
-  type: "pickup" | "courier";
+  type: 'pickup' | 'courier';
 
   @IsOptional()
   @IsString()
@@ -15,10 +15,10 @@ export class CreateAddressDto {
   @IsString()
   place: string;
 
-  @IsNumber({}, { message: "Долгота должна быть числом" })
+  @IsNumber({}, { message: 'Долгота должна быть числом' })
   lng: number;
 
-  @IsNumber({}, { message: "Широта должна быть числом" })
+  @IsNumber({}, { message: 'Широта должна быть числом' })
   lat: number;
 
   @IsOptional()

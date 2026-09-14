@@ -1,6 +1,6 @@
-import { ProductPrice } from "src/product-price/entities/product-price.entity";
-import { ProductStock } from "src/product-stock/entities/product-stock.entity";
-import { Photo } from "src/photo/entities/photo.entity";
+import { ProductPrice } from 'src/product-price/entities/product-price.entity';
+import { ProductStock } from 'src/product-stock/entities/product-stock.entity';
+import { Photo } from 'src/photo/entities/photo.entity';
 import {
   Column,
   CreateDateColumn,
@@ -8,89 +8,94 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
+} from 'typeorm';
 
 @Entity()
 export class Product {
-  @PrimaryGeneratedColumn({ type: "int", name: "id" })
+  @PrimaryGeneratedColumn({ type: 'int', name: 'id' })
   id: number;
 
-  @Column({ type: "varchar", default: "", name: "name" })
+  @Column({ type: 'varchar', default: '', name: 'name' })
   name: string;
 
-  @Column({ type: "varchar", default: "", name: "code" })
+  @Column({ type: 'varchar', default: '', name: 'code' })
   code: string;
 
-  @Column({ type: "varchar", default: "", name: "brand_name" })
+  @Column({ type: 'varchar', default: '', name: 'brand_name' })
   brand_name: string;
 
-  @Column({ type: "int", nullable: true, default: null, name: "category_id" })
+  @Column({ type: 'int', nullable: true, default: null, name: 'category_id' })
   category_id: number;
 
-  @Column({ type: "varchar", default: "", name: "description" })
+  @Column({ type: 'varchar', default: '', name: 'description' })
   description: string;
 
-  @Column({ type: "varchar", default: "", name: "country" })
+  @Column({ type: 'varchar', default: '', name: 'country' })
   country: string;
 
-  @Column({ type: "varchar", default: "", name: "product_type" })
+  @Column({ type: 'varchar', default: '', name: 'product_type' })
   product_type: string;
 
-  @Column({ type: "varchar", default: "", name: "equipment" })
+  @Column({ type: 'varchar', default: '', name: 'equipment' })
   equipment: string;
 
-  @Column({ type: "int", nullable: true, default: null, name: "weight" })
+  @Column({ type: 'int', nullable: true, default: null, name: 'weight' })
   weight: number;
 
-  @Column({ type: "int", nullable: true, default: null, name: "height" })
+  @Column({ type: 'int', nullable: true, default: null, name: 'height' })
   height: number;
 
-  @Column({ type: "int", nullable: true, default: null, name: "length" })
+  @Column({ type: 'int', nullable: true, default: null, name: 'length' })
   length: number;
 
-  @Column({ type: "int", nullable: true, default: null, name: "width" })
+  @Column({ type: 'int', nullable: true, default: null, name: 'width' })
   width: number;
 
-  @Column({ type: "int", nullable: true, default: null, name: "purchase_price" })
+  @Column({
+    type: 'int',
+    nullable: true,
+    default: null,
+    name: 'purchase_price',
+  })
   purchase_price: number;
 
-  @Column({ type: "varchar", default: "", name: "seo_title" })
+  @Column({ type: 'varchar', default: '', name: 'seo_title' })
   seo_title: string;
 
-  @Column({ type: "varchar", default: "", name: "seo_description" })
+  @Column({ type: 'varchar', default: '', name: 'seo_description' })
   seo_description: string;
 
-  @Column({ type: "varchar", default: "", name: "slug" })
+  @Column({ type: 'varchar', default: '', name: 'slug' })
   slug: string;
 
-  @Column({ type: "varchar", default: "", name: "og_title" })
+  @Column({ type: 'varchar', default: '', name: 'og_title' })
   og_title: string;
 
-  @Column({ type: "varchar", default: "", name: "og_description" })
+  @Column({ type: 'varchar', default: '', name: 'og_description' })
   og_description: string;
 
-  @Column({ type: "varchar", default: "", name: "og_type" })
+  @Column({ type: 'varchar', default: '', name: 'og_type' })
   og_type: string;
 
-  @Column({ type: "varchar", default: "", name: "keywords" })
+  @Column({ type: 'varchar', default: '', name: 'keywords' })
   keywords: string;
 
-  @Column({ type: "int", default: 0, name: "available" })
+  @Column({ type: 'int', default: 0, name: 'available' })
   available: number;
 
-  @Column({ type: "boolean", default: false, name: "accounting" })
+  @Column({ type: 'boolean', default: false, name: 'accounting' })
   accounting: boolean;
 
-  @Column({ type: "jsonb", default: [], name: "price_list" })
+  @Column({ type: 'jsonb', default: [], name: 'price_list' })
   price_list: { price: number; minQuantity: number }[];
 
-  @Column({ type: "int", default: 0, name: "views" })
+  @Column({ type: 'int', default: 0, name: 'views' })
   views: number;
 
-  @Column({ type: "float", default: 0, name: "rating" })
+  @Column({ type: 'float', default: 0, name: 'rating' })
   rating: number;
 
-  @Column({ type: "int", default: 0, name: "review_count" })
+  @Column({ type: 'int', default: 0, name: 'review_count' })
   review_count: number;
 
   @OneToMany(() => ProductStock, (productStock) => productStock.product)
@@ -101,9 +106,9 @@ export class Product {
 
   photos: Photo[];
 
-  @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
+  @UpdateDateColumn({ type: 'timestamp', nullable: true, default: null })
   updated_at: Date | null;
 }

@@ -1,5 +1,5 @@
-import { Global, Module } from "@nestjs/common";
-import { BrowserManagerService } from "./browser-manager.service";
+import { Global, Module } from '@nestjs/common';
+import { BrowserManagerService } from './browser-manager.service';
 
 @Global()
 @Module({

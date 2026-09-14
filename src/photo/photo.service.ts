@@ -1,9 +1,12 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { In, type Repository } from "typeorm";
-import { CreatePhotoAndPositionDto, CreatePhotoDto } from "./dto/create-photo.dto";
-import { UpdatePhotoDto } from "./dto/update-photo.dto";
-import { Photo } from "./entities/photo.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { In, type Repository } from 'typeorm';
+import {
+  CreatePhotoAndPositionDto,
+  CreatePhotoDto,
+} from './dto/create-photo.dto';
+import { UpdatePhotoDto } from './dto/update-photo.dto';
+import { Photo } from './entities/photo.entity';
 
 @Injectable()
 export class PhotoService {
@@ -15,7 +18,10 @@ export class PhotoService {
   async create(createPhotoDto: CreatePhotoDto) {
     const photo = {
       ...createPhotoDto,
-      position: await this.getNextPosition(createPhotoDto.parent_type, createPhotoDto.parent_id),
+      position: await this.getNextPosition(
+        createPhotoDto.parent_type,
+        createPhotoDto.parent_id,
+      ),
     };
 
     return this.photoRepository.save(photo).catch((error) => {
@@ -51,7 +57,7 @@ export class PhotoService {
     return this.photoRepository
       .find({
         where: whereCondition,
-        order: { position: "ASC", id: "ASC" },
+        order: { position: 'ASC', id: 'ASC' },
       })
       .catch((error) => {
         throw `Не удалось получить список фото, ${error.message}`;
@@ -68,7 +74,7 @@ export class PhotoService {
     return this.photoRepository
       .find({
         where: { parent_type: parentType, parent_id: In(parentIds) },
-        order: { position: "ASC", id: "ASC" },
+        order: { position: 'ASC', id: 'ASC' },
       })
       .catch((error) => {
         throw `Не удалось получить список фото, ${error.message}`;

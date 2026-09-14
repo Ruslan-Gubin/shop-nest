@@ -1,10 +1,10 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository } from "typeorm";
-import { CreateOrderProductDto } from "./dto/create-order-product.dto";
-import { UpdateOrderProductDto } from "./dto/update-order-product.dto";
-import type { SetShortageItemDto } from "./dto/set-shortage.dto";
-import { OrderProduct } from "./entities/order-product.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { type Repository } from 'typeorm';
+import { CreateOrderProductDto } from './dto/create-order-product.dto';
+import { UpdateOrderProductDto } from './dto/update-order-product.dto';
+import type { SetShortageItemDto } from './dto/set-shortage.dto';
+import { OrderProduct } from './entities/order-product.entity';
 
 @Injectable()
 export class OrderProductService {
@@ -33,7 +33,7 @@ export class OrderProductService {
   async findAll(order_id: number) {
     return this.orderProductRepository
       .find({
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
         where: { order_id: Number(order_id) },
       })
       .catch((error) => {
@@ -52,9 +52,11 @@ export class OrderProductService {
   }
 
   async update(id: number, updateOrderProductDto: UpdateOrderProductDto) {
-    return this.orderProductRepository.update(id, updateOrderProductDto).catch((error) => {
-      throw `Не удалось изменить товар заказа, ${error.message}`;
-    });
+    return this.orderProductRepository
+      .update(id, updateOrderProductDto)
+      .catch((error) => {
+        throw `Не удалось изменить товар заказа, ${error.message}`;
+      });
   }
 
   async setShortageStocks(shortage_stocks: SetShortageItemDto[]) {
@@ -83,7 +85,9 @@ export class OrderProductService {
       }
 
       const reservation = orderProduct.reservations.find(
-        (el) => el.stock_id === item.stock_id && el.warehouse_id === item.warehouse_id,
+        (el) =>
+          el.stock_id === item.stock_id &&
+          el.warehouse_id === item.warehouse_id,
       );
 
       if (!reservation) {
@@ -91,12 +95,16 @@ export class OrderProductService {
       }
 
       const prevShortageItem = orderProduct.shortage_stocks.find(
-        (el) => el.stock_id === item.stock_id && el.warehouse_id === item.warehouse_id,
+        (el) =>
+          el.stock_id === item.stock_id &&
+          el.warehouse_id === item.warehouse_id,
       );
 
       if (prevShortageItem && item.quantity === reservation.quantity) {
         orderProduct.shortage_stocks = orderProduct.shortage_stocks.filter(
-          (el) => el.stock_id !== item.stock_id && el.warehouse_id !== item.warehouse_id,
+          (el) =>
+            el.stock_id !== item.stock_id &&
+            el.warehouse_id !== item.warehouse_id,
         );
       } else if (!prevShortageItem) {
         orderProduct.shortage_stocks.push({
@@ -125,7 +133,10 @@ export class OrderProductService {
   async hasShortage(order_id: number): Promise<boolean> {
     return this.findAll(order_id)
       .then((response) =>
-        response.some((el) => Array.isArray(el.shortage_stocks) && el.shortage_stocks.length > 0),
+        response.some(
+          (el) =>
+            Array.isArray(el.shortage_stocks) && el.shortage_stocks.length > 0,
+        ),
       )
       .catch(() => false);
   }

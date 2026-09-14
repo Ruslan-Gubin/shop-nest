@@ -1,26 +1,26 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { getRepositoryToken } from "@nestjs/typeorm";
-import { Repository, SelectQueryBuilder } from "typeorm";
-import { PromotionsService } from "../promotions.service";
-import { Promotion } from "../entities/promotion.entity";
-import { CreatePromotionDto } from "../dto/create-promotion.dto";
-import { UpdatePromotionDto } from "../dto/update-promotion.dto";
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
+import { PromotionsService } from '../promotions.service';
+import { Promotion } from '../entities/promotion.entity';
+import { CreatePromotionDto } from '../dto/create-promotion.dto';
+import { UpdatePromotionDto } from '../dto/update-promotion.dto';
 
-describe("PromotionsService", () => {
+describe('PromotionsService', () => {
   let service: PromotionsService;
   let repository: jest.Mocked<Repository<Promotion>>;
 
   const mockPromotion: Promotion = {
     id: 1,
-    name: "Новогодняя скидка",
-    description: "Скидка 20% на все товары",
+    name: 'Новогодняя скидка',
+    description: 'Скидка 20% на все товары',
     percent: 20,
-    date_from: new Date("2024-01-01"),
-    date_to: new Date("2024-01-31"),
+    date_from: new Date('2024-01-01'),
+    date_to: new Date('2024-01-31'),
     is_active: true,
     created_user_id: 1,
     createdBy: null as never,
-    created_at: new Date("2024-01-01"),
+    created_at: new Date('2024-01-01'),
     updated_at: null,
   };
 
@@ -55,23 +55,25 @@ describe("PromotionsService", () => {
     }).compile();
 
     service = module.get<PromotionsService>(PromotionsService);
-    repository = module.get<jest.Mocked<Repository<Promotion>>>(getRepositoryToken(Promotion));
+    repository = module.get<jest.Mocked<Repository<Promotion>>>(
+      getRepositoryToken(Promotion),
+    );
 
     jest.clearAllMocks();
   });
 
-  describe("create", () => {
+  describe('create', () => {
     const createDto: CreatePromotionDto = {
-      name: "Новогодняя скидка",
-      description: "Скидка 20% на все товары",
+      name: 'Новогодняя скидка',
+      description: 'Скидка 20% на все товары',
       percent: 20,
-      date_from: "2024-01-01",
-      date_to: "2024-01-31",
+      date_from: '2024-01-01',
+      date_to: '2024-01-31',
       is_active: true,
       created_user_id: 1,
     };
 
-    it("должен создать акцию", async () => {
+    it('должен создать акцию', async () => {
       const queryBuilder = createMockQueryBuilder();
       mockRepository.createQueryBuilder.mockReturnValue(queryBuilder);
       mockRepository.save.mockResolvedValue(mockPromotion);
@@ -82,48 +84,50 @@ describe("PromotionsService", () => {
       expect(mockRepository.save).toHaveBeenCalledWith(createDto);
     });
 
-    it("должен выбросить ошибку при перекрывающихся датах", async () => {
+    it('должен выбросить ошибку при перекрывающихся датах', async () => {
       const queryBuilder = createMockQueryBuilder();
       queryBuilder.getMany.mockResolvedValue([mockPromotion]);
       mockRepository.createQueryBuilder.mockReturnValue(queryBuilder);
 
-      await expect(service.create(createDto)).rejects.toBe("Даты акции перекрываются с существующей активной акцией");
+      await expect(service.create(createDto)).rejects.toBe(
+        'Даты акции перекрываются с существующей активной акцией',
+      );
     });
   });
 
-  describe("findAll", () => {
-    it("должен вернуть все акции без фильтров", async () => {
+  describe('findAll', () => {
+    it('должен вернуть все акции без фильтров', async () => {
       mockRepository.find.mockResolvedValue([mockPromotion]);
 
-      const result = await service.findAll("1", "10", "");
+      const result = await service.findAll('1', '10', '');
 
       expect(result).toEqual([mockPromotion]);
       expect(mockRepository.find).toHaveBeenCalledWith({
         skip: 0,
         take: 10,
         where: {},
-        order: { created_at: "DESC" },
+        order: { created_at: 'DESC' },
       });
     });
 
-    it("должен фильтровать по name", async () => {
+    it('должен фильтровать по name', async () => {
       mockRepository.find.mockResolvedValue([mockPromotion]);
 
-      await service.findAll("1", "10", "Новогодняя");
+      await service.findAll('1', '10', 'Новогодняя');
 
       expect(mockRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            name: expect.objectContaining({ value: "%Новогодняя%" }),
+            name: expect.objectContaining({ value: '%Новогодняя%' }),
           }),
         }),
       );
     });
 
-    it("должен фильтровать по created_user_id", async () => {
+    it('должен фильтровать по created_user_id', async () => {
       mockRepository.find.mockResolvedValue([mockPromotion]);
 
-      await service.findAll("1", "10", "", 1);
+      await service.findAll('1', '10', '', 1);
 
       expect(mockRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -132,10 +136,10 @@ describe("PromotionsService", () => {
       );
     });
 
-    it("должен корректно вычислять skip", async () => {
+    it('должен корректно вычислять skip', async () => {
       mockRepository.find.mockResolvedValue([mockPromotion]);
 
-      await service.findAll("3", "20", "");
+      await service.findAll('3', '20', '');
 
       expect(mockRepository.find).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 40, take: 20 }),
@@ -143,8 +147,8 @@ describe("PromotionsService", () => {
     });
   });
 
-  describe("getTotalCount", () => {
-    it("должен вернуть общее количество", async () => {
+  describe('getTotalCount', () => {
+    it('должен вернуть общее количество', async () => {
       mockRepository.count.mockResolvedValue(5);
 
       const result = await service.getTotalCount();
@@ -153,24 +157,24 @@ describe("PromotionsService", () => {
       expect(mockRepository.count).toHaveBeenCalledWith({ where: {} });
     });
 
-    it("должен фильтровать по name", async () => {
+    it('должен фильтровать по name', async () => {
       mockRepository.count.mockResolvedValue(2);
 
-      await service.getTotalCount("Новогодняя");
+      await service.getTotalCount('Новогодняя');
 
       expect(mockRepository.count).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            name: expect.objectContaining({ value: "%Новогодняя%" }),
+            name: expect.objectContaining({ value: '%Новогодняя%' }),
           }),
         }),
       );
     });
 
-    it("должен фильтровать по created_user_id", async () => {
+    it('должен фильтровать по created_user_id', async () => {
       mockRepository.count.mockResolvedValue(1);
 
-      await service.getTotalCount("", 1);
+      await service.getTotalCount('', 1);
 
       expect(mockRepository.count).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -180,8 +184,8 @@ describe("PromotionsService", () => {
     });
   });
 
-  describe("findOne", () => {
-    it("должен вернуть акцию по id", async () => {
+  describe('findOne', () => {
+    it('должен вернуть акцию по id', async () => {
       mockRepository.findOne.mockResolvedValue(mockPromotion);
 
       const result = await service.findOne(1);
@@ -190,7 +194,7 @@ describe("PromotionsService", () => {
       expect(mockRepository.findOne).toHaveBeenCalledWith({ where: { id: 1 } });
     });
 
-    it("должен вернуть null если не найден", async () => {
+    it('должен вернуть null если не найден', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
       const result = await service.findOne(999);
@@ -199,8 +203,8 @@ describe("PromotionsService", () => {
     });
   });
 
-  describe("findActive", () => {
-    it("должен вернуть активные акции", async () => {
+  describe('findActive', () => {
+    it('должен вернуть активные акции', async () => {
       mockRepository.find.mockResolvedValue([mockPromotion]);
 
       const result = await service.findActive();
@@ -217,13 +221,13 @@ describe("PromotionsService", () => {
     });
   });
 
-  describe("update", () => {
+  describe('update', () => {
     const updateDto: UpdatePromotionDto = {
-      name: "Летняя скидка",
+      name: 'Летняя скидка',
       percent: 30,
     };
 
-    it("должен обновить акцию", async () => {
+    it('должен обновить акцию', async () => {
       const queryBuilder = createMockQueryBuilder();
       mockRepository.createQueryBuilder.mockReturnValue(queryBuilder);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
@@ -233,26 +237,28 @@ describe("PromotionsService", () => {
       expect(mockRepository.update).toHaveBeenCalledWith(1, updateDto);
     });
 
-    it("должен проверять перекрытие дат при обновлении", async () => {
+    it('должен проверять перекрытие дат при обновлении', async () => {
       const queryBuilder = createMockQueryBuilder();
       queryBuilder.getMany.mockResolvedValue([]);
       mockRepository.createQueryBuilder.mockReturnValue(queryBuilder);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       const updateDtoWithDates: UpdatePromotionDto = {
-        date_from: "2024-02-01",
-        date_to: "2024-02-28",
+        date_from: '2024-02-01',
+        date_to: '2024-02-28',
       };
 
       await service.update(1, updateDtoWithDates);
 
-      expect(mockRepository.createQueryBuilder).toHaveBeenCalledWith("promotion");
+      expect(mockRepository.createQueryBuilder).toHaveBeenCalledWith(
+        'promotion',
+      );
       expect(queryBuilder.andWhere).toHaveBeenCalled();
     });
   });
 
-  describe("remove", () => {
-    it("должен удалить акцию", async () => {
+  describe('remove', () => {
+    it('должен удалить акцию', async () => {
       mockRepository.delete.mockResolvedValue({ affected: 1 } as any);
 
       await service.remove(1);

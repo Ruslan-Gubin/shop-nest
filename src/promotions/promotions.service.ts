@@ -1,9 +1,15 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { FindOperator, ILike, LessThanOrEqual, MoreThanOrEqual, type Repository } from "typeorm";
-import { CreatePromotionDto } from "./dto/create-promotion.dto";
-import { UpdatePromotionDto } from "./dto/update-promotion.dto";
-import { Promotion } from "./entities/promotion.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import {
+  FindOperator,
+  ILike,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  type Repository,
+} from 'typeorm';
+import { CreatePromotionDto } from './dto/create-promotion.dto';
+import { UpdatePromotionDto } from './dto/update-promotion.dto';
+import { Promotion } from './entities/promotion.entity';
 
 @Injectable()
 export class PromotionsService {
@@ -16,7 +22,7 @@ export class PromotionsService {
     const promotions = await this.findActive();
 
     let discount_percent = 0;
-    let discount_name = "";
+    let discount_name = '';
 
     for (let i = 0; i < promotions.length; i++) {
       const percent = promotions[i].percent;
@@ -35,13 +41,13 @@ export class PromotionsService {
     const dateTo = new Date(createPromotionDto.date_to);
 
     const overlappingPromotions = await this.promotionRepository
-      .createQueryBuilder("promotion")
-      .where("promotion.date_from <= :dateTo", { dateTo })
-      .andWhere("promotion.date_to >= :dateFrom", { dateFrom })
+      .createQueryBuilder('promotion')
+      .where('promotion.date_from <= :dateTo', { dateTo })
+      .andWhere('promotion.date_to >= :dateFrom', { dateFrom })
       .getMany();
 
     if (overlappingPromotions.length > 0) {
-      throw "Даты акции перекрываются с существующей активной акцией";
+      throw 'Даты акции перекрываются с существующей активной акцией';
     }
 
     return this.promotionRepository.save(createPromotionDto).catch((error) => {
@@ -49,10 +55,18 @@ export class PromotionsService {
     });
   }
 
-  async findAll(page: string, limit: string, name: string, created_user_id?: number) {
+  async findAll(
+    page: string,
+    limit: string,
+    name: string,
+    created_user_id?: number,
+  ) {
     const skip = (Number(page) - 1) * Number(limit);
 
-    const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
+    const whereCondition: {
+      name?: FindOperator<string>;
+      created_user_id?: number;
+    } = {};
 
     if (name) {
       whereCondition.name = ILike(`%${name}%`);
@@ -67,7 +81,7 @@ export class PromotionsService {
         skip,
         take: Number(limit),
         where: whereCondition,
-        order: { created_at: "DESC" },
+        order: { created_at: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось получить список акций, ${error.message}`;
@@ -75,7 +89,10 @@ export class PromotionsService {
   }
 
   async getTotalCount(name?: string, created_user_id?: number) {
-    const whereCondition: { name?: FindOperator<string>; created_user_id?: number } = {};
+    const whereCondition: {
+      name?: FindOperator<string>;
+      created_user_id?: number;
+    } = {};
 
     if (name) {
       whereCondition.name = ILike(`%${name}%`);
@@ -85,15 +102,19 @@ export class PromotionsService {
       whereCondition.created_user_id = created_user_id;
     }
 
-    return this.promotionRepository.count({ where: whereCondition }).catch((error) => {
-      throw `Не удалось получить общее количество акций, ${error.message}`;
-    });
+    return this.promotionRepository
+      .count({ where: whereCondition })
+      .catch((error) => {
+        throw `Не удалось получить общее количество акций, ${error.message}`;
+      });
   }
 
   async findOne(id: number) {
-    return this.promotionRepository.findOne({ where: { id } }).catch((error) => {
-      throw `Не удалось получить акцию, ${error.message}`;
-    });
+    return this.promotionRepository
+      .findOne({ where: { id } })
+      .catch((error) => {
+        throw `Не удалось получить акцию, ${error.message}`;
+      });
   }
 
   async findActive() {
@@ -111,19 +132,23 @@ export class PromotionsService {
   }
 
   async update(id: number, updatePromotionDto: UpdatePromotionDto) {
-    const dateFrom = updatePromotionDto.date_from ? new Date(updatePromotionDto.date_from) : null;
-    const dateTo = updatePromotionDto.date_to ? new Date(updatePromotionDto.date_to) : null;
+    const dateFrom = updatePromotionDto.date_from
+      ? new Date(updatePromotionDto.date_from)
+      : null;
+    const dateTo = updatePromotionDto.date_to
+      ? new Date(updatePromotionDto.date_to)
+      : null;
 
     if (dateFrom && dateTo) {
       const overlappingPromotions = await this.promotionRepository
-        .createQueryBuilder("promotion")
-        .where("promotion.id != :id", { id })
-        .andWhere("promotion.date_from <= :dateTo", { dateTo })
-        .andWhere("promotion.date_to >= :dateFrom", { dateFrom })
+        .createQueryBuilder('promotion')
+        .where('promotion.id != :id', { id })
+        .andWhere('promotion.date_from <= :dateTo', { dateTo })
+        .andWhere('promotion.date_to >= :dateFrom', { dateFrom })
         .getMany();
 
       if (overlappingPromotions.length > 0) {
-        throw "Даты акции перекрываются с существующей активной акцией";
+        throw 'Даты акции перекрываются с существующей активной акцией';
       }
     }
 

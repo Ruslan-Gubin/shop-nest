@@ -1,22 +1,22 @@
-import { Injectable } from "@nestjs/common";
-import { execSync } from "child_process";
+import { Injectable } from '@nestjs/common';
+import { execSync } from 'child_process';
 
 @Injectable()
 export class OpenCodeService {
-  private readonly baseUrl = "http://localhost:8080/v1/chat/completions";
-  private readonly modelName = "gemma-4-E2B_q4_0-it";
+  private readonly baseUrl = 'http://localhost:8080/v1/chat/completions';
+  private readonly modelName = 'gemma-4-E2B_q4_0-it';
 
   async query2(prompt: string): Promise<string> {
     return await fetch(this.baseUrl, {
-      method: "POST",
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: this.modelName,
         messages: [
           {
-            role: "user",
+            role: 'user',
             content: prompt,
           },
         ],
@@ -29,11 +29,14 @@ export class OpenCodeService {
     })
       .then((response) => response.json())
       .then((response) => {
-        if (Object.hasOwn(response, "error") && typeof response.error.message === "string") {
+        if (
+          Object.hasOwn(response, 'error') &&
+          typeof response.error.message === 'string'
+        ) {
           throw response.error.message;
         }
 
-        return response.choices?.[0]?.message?.content ?? "";
+        return response.choices?.[0]?.message?.content ?? '';
       })
       .catch((error) => {
         console.error(`LLM запрос завершился с ошибкой: ${error}`);
@@ -43,37 +46,37 @@ export class OpenCodeService {
 
   async query(prompt: string) {
     const model = [
-      "deepseek-v4-flash-free",
-      "opencode/ling-3.0-flash-free",
-      "opencode/north-mini-code-free",
-      "opencode/laguna-s-2.1-free",
-      "opencode/big-pickle",
+      'deepseek-v4-flash-free',
+      'opencode/ling-3.0-flash-free',
+      'opencode/north-mini-code-free',
+      'opencode/laguna-s-2.1-free',
+      'opencode/big-pickle',
     ];
     const currentModel = model[4];
 
     const escaped = prompt
-      .replace(/\\/g, "\\\\")
+      .replace(/\\/g, '\\\\')
       .replace(/"/g, '\\"')
-      .replace(/\n/g, "\\n")
-      .replace(/\r/g, "")
-      .replace(/\$/g, "\\$")
-      .replace(/`/g, "\\`");
+      .replace(/\n/g, '\\n')
+      .replace(/\r/g, '')
+      .replace(/\$/g, '\\$')
+      .replace(/`/g, '\\`');
 
     const cmd = `opencode run "${escaped}" -m ${currentModel} --format json --auto`;
 
     try {
       const exec = execSync(cmd, {
-        encoding: "utf-8",
+        encoding: 'utf-8',
         timeout: 120_000,
       });
-      const lines = exec.trim().split("\n");
+      const lines = exec.trim().split('\n');
 
-      let result: string = "";
+      let result: string = '';
 
       for (const line of lines) {
         const event = JSON.parse(line);
 
-        if (event.type === "text" && event.part?.text) {
+        if (event.type === 'text' && event.part?.text) {
           result = event.part.text;
         }
       }

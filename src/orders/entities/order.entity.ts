@@ -1,5 +1,5 @@
-import { Address } from "src/address/entities/address.entity";
-import { Warehouse } from "src/warehouse/entities/warehouse.entity";
+import { Address } from 'src/address/entities/address.entity';
+import { Warehouse } from 'src/warehouse/entities/warehouse.entity';
 import {
   Column,
   CreateDateColumn,
@@ -9,93 +9,93 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
+} from 'typeorm';
 
 export type OrderStatus =
-  | "new"
-  | "cancelled_new"
-  | "processing"
-  | "cancelled_assembly"
-  | "ready"
-  | "cancelled_ready"
-  | "in_delivery"
-  | "cancelled_delivery"
-  | "completed"
-  | "cancelled_customer";
+  | 'new'
+  | 'cancelled_new'
+  | 'processing'
+  | 'cancelled_assembly'
+  | 'ready'
+  | 'cancelled_ready'
+  | 'in_delivery'
+  | 'cancelled_delivery'
+  | 'completed'
+  | 'cancelled_customer';
 
 @Entity()
 export class Order {
-  @PrimaryGeneratedColumn({ type: "int", name: "id" })
+  @PrimaryGeneratedColumn({ type: 'int', name: 'id' })
   id: number;
 
   @OneToOne(() => Address, { cascade: true, eager: false })
-  @JoinColumn({ name: "address_id" })
+  @JoinColumn({ name: 'address_id' })
   address: Address | null;
 
-  @Column({ type: "int", name: "create_user_id" })
+  @Column({ type: 'int', name: 'create_user_id' })
   create_user_id: number;
 
-  @Column({ type: "varchar", default: "", name: "order_number" })
+  @Column({ type: 'varchar', default: '', name: 'order_number' })
   order_number: string;
 
-  @Column({ type: "varchar", default: "", name: "comment" })
+  @Column({ type: 'varchar', default: '', name: 'comment' })
   comment: string;
 
-  @Column({ type: "varchar", default: "new", name: "status" })
+  @Column({ type: 'varchar', default: 'new', name: 'status' })
   status: OrderStatus;
 
-  @Column({ type: "varchar", default: "", name: "rejected_reason" })
+  @Column({ type: 'varchar', default: '', name: 'rejected_reason' })
   rejected_reason: string;
 
-  @Column({ type: "varchar", default: "", name: "phone" })
+  @Column({ type: 'varchar', default: '', name: 'phone' })
   phone: string;
 
-  @Column({ type: "varchar", default: "", name: "phone_code" })
+  @Column({ type: 'varchar', default: '', name: 'phone_code' })
   phoneCode: string;
 
-  @Column({ type: "varchar", default: "", name: "recipient_name" })
+  @Column({ type: 'varchar', default: '', name: 'recipient_name' })
   recipient_name: string;
 
-  @Column({ type: "varchar", default: "cash", name: "payment_method" })
+  @Column({ type: 'varchar', default: 'cash', name: 'payment_method' })
   payment_method: string;
 
-  @Column({ type: "varchar", default: "pickup", name: "method_receipt" })
+  @Column({ type: 'varchar', default: 'pickup', name: 'method_receipt' })
   method_receipt: string;
 
-  @Column({ type: "int", default: 0, name: "delivery_price" })
+  @Column({ type: 'int', default: 0, name: 'delivery_price' })
   delivery_price: number;
 
   @ManyToOne(() => Warehouse, { nullable: true })
-  @JoinColumn({ name: "warehouse_id" })
+  @JoinColumn({ name: 'warehouse_id' })
   warehouse: Warehouse | null;
 
-  @Column({ type: "timestamp", nullable: true, name: "date_from" })
+  @Column({ type: 'timestamp', nullable: true, name: 'date_from' })
   date_from: Date | null;
 
-  @Column({ type: "timestamp", nullable: true, name: "date_to" })
+  @Column({ type: 'timestamp', nullable: true, name: 'date_to' })
   date_to: Date | null;
 
-  @Column({ type: "int", default: 0, name: "discount_quantity" })
+  @Column({ type: 'int', default: 0, name: 'discount_quantity' })
   discount_quantity: number;
 
-  @Column({ type: "varchar", default: "", name: "discount_name" })
+  @Column({ type: 'varchar', default: '', name: 'discount_name' })
   discount_name: string;
 
-  @Column({ type: "int", default: 0, name: "discount_percent" })
+  @Column({ type: 'int', default: 0, name: 'discount_percent' })
   discount_percent: number;
 
-  @Column({ type: "int", default: 0, name: "discount_total" })
+  @Column({ type: 'int', default: 0, name: 'discount_total' })
   discount_total: number;
 
-  @Column({ type: "int", default: 0, name: "subtotal" })
+  @Column({ type: 'int', default: 0, name: 'subtotal' })
   subtotal: number;
 
-  @Column({ type: "int", default: 0, name: "total" })
+  @Column({ type: 'int', default: 0, name: 'total' })
   total: number;
 
-  @CreateDateColumn({ type: "timestamp", default: () => "CURRENT_TIMESTAMP" })
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
 
-  @UpdateDateColumn({ type: "timestamp", nullable: true, default: null })
+  @UpdateDateColumn({ type: 'timestamp', nullable: true, default: null })
   updated_at: Date | null;
 }

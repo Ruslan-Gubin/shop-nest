@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository } from "typeorm";
-import { CreatePriceFillDto } from "./dto/create-price-fill.dto";
-import { UpdatePriceFillDto } from "./dto/update-price-fill.dto";
-import { PriceFill } from "./entities/price-fill.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { type Repository } from 'typeorm';
+import { CreatePriceFillDto } from './dto/create-price-fill.dto';
+import { UpdatePriceFillDto } from './dto/update-price-fill.dto';
+import { PriceFill } from './entities/price-fill.entity';
 
 @Injectable()
 export class PriceFillService {
@@ -21,7 +21,7 @@ export class PriceFillService {
   async findAll() {
     return this.priceFillRepository
       .find({
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось получить список правил автозаполнения, ${error.message}`;
@@ -54,4 +54,3 @@ export class PriceFillService {
     });
   }
 }
-

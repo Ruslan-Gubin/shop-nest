@@ -1,14 +1,14 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { FindOperator, Repository } from "typeorm";
-import type { CreateProductStockDto } from "./dto/create-product-stock.dto";
-import type { UpdateProductStockDto } from "./dto/update-product-stock.dto";
-import { ProductStock } from "./entities/product-stock.entity";
-import { CheckingBalancesItemDto } from "./dto/checking-balances.dto";
-import { Product } from "src/product/entities/product.entity";
-import { Warehouse } from "src/warehouse/entities/warehouse.entity";
-import { OrderProduct } from "src/order-product/entities/order-product.entity";
-import { haversine } from "src/helpers/haversine";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { FindOperator, Repository } from 'typeorm';
+import type { CreateProductStockDto } from './dto/create-product-stock.dto';
+import type { UpdateProductStockDto } from './dto/update-product-stock.dto';
+import { ProductStock } from './entities/product-stock.entity';
+import { CheckingBalancesItemDto } from './dto/checking-balances.dto';
+import { Product } from 'src/product/entities/product.entity';
+import { Warehouse } from 'src/warehouse/entities/warehouse.entity';
+import { OrderProduct } from 'src/order-product/entities/order-product.entity';
+import { haversine } from 'src/helpers/haversine';
 
 @Injectable()
 export class ProductStockService {
@@ -25,7 +25,7 @@ export class ProductStockService {
   ) {
     const stocks = await this.findByFromReservedOrder(product_id);
 
-    if (typeof lng === "number" && typeof lat === "number") {
+    if (typeof lng === 'number' && typeof lat === 'number') {
       stocks.sort((a, b) => {
         const distA = haversine(
           lat,
@@ -44,7 +44,11 @@ export class ProductStockService {
     }
 
     let needQuantity = quantity;
-    const reservations: { stock_id: number; warehouse_id: number; quantity: number }[] = [];
+    const reservations: {
+      stock_id: number;
+      warehouse_id: number;
+      quantity: number;
+    }[] = [];
 
     for (let i = 0; i < stocks.length; i++) {
       const stock = stocks[i];
@@ -113,7 +117,12 @@ export class ProductStockService {
       });
   }
 
-  async findAll(page: string, limit: string, product_id?: number, warehouse_id?: number) {
+  async findAll(
+    page: string,
+    limit: string,
+    product_id?: number,
+    warehouse_id?: number,
+  ) {
     const skip = (Number(page) - 1) * Number(limit);
 
     const whereCondition: {
@@ -122,20 +131,24 @@ export class ProductStockService {
     } = {};
 
     if (product_id) {
-      whereCondition.product = { id: product_id } as unknown as FindOperator<Product>;
+      whereCondition.product = {
+        id: product_id,
+      } as unknown as FindOperator<Product>;
     }
 
     if (warehouse_id) {
-      whereCondition.warehouse = { id: warehouse_id } as unknown as FindOperator<Warehouse>;
+      whereCondition.warehouse = {
+        id: warehouse_id,
+      } as unknown as FindOperator<Warehouse>;
     }
 
     return this.productStockRepository
       .find({
         skip,
         take: Number(limit),
-        relations: ["warehouse", "product"],
+        relations: ['warehouse', 'product'],
         where: whereCondition,
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось получить список остатков товаров, ${error.message}`;
@@ -149,16 +162,22 @@ export class ProductStockService {
     } = {};
 
     if (product_id) {
-      whereCondition.product = { id: product_id } as unknown as FindOperator<Product>;
+      whereCondition.product = {
+        id: product_id,
+      } as unknown as FindOperator<Product>;
     }
 
     if (warehouse_id) {
-      whereCondition.warehouse = { id: warehouse_id } as unknown as FindOperator<Warehouse>;
+      whereCondition.warehouse = {
+        id: warehouse_id,
+      } as unknown as FindOperator<Warehouse>;
     }
 
-    return this.productStockRepository.count({ where: whereCondition }).catch((error) => {
-      throw `Не удалось получить общее количество остатков товаров, ${error.message}`;
-    });
+    return this.productStockRepository
+      .count({ where: whereCondition })
+      .catch((error) => {
+        throw `Не удалось получить общее количество остатков товаров, ${error.message}`;
+      });
   }
 
   async findOne(id: number) {
@@ -174,7 +193,7 @@ export class ProductStockService {
   async findByProductId(product_id: number) {
     return this.productStockRepository
       .find({
-        relations: ["product", "warehouse"],
+        relations: ['product', 'warehouse'],
         where: { product: { id: product_id } },
       })
       .catch((error) => {
@@ -185,7 +204,7 @@ export class ProductStockService {
   async findByFromReservedOrder(product_id: number) {
     return this.productStockRepository
       .find({
-        relations: ["warehouse", "warehouse.address"],
+        relations: ['warehouse', 'warehouse.address'],
         where: { product: { id: product_id } },
       })
       .catch((error) => {
@@ -200,7 +219,7 @@ export class ProductStockService {
           product: { id: product_id },
           warehouse: { id: warehouse_id },
         },
-        relations: ["warehouse"],
+        relations: ['warehouse'],
       })
       .catch((error) => {
         throw `Не удалось получить остаток товара на складе, ${error.message}`;
@@ -213,7 +232,9 @@ export class ProductStockService {
     const availability: { product_id: number; available: number }[] = [];
 
     for (const item of items) {
-      const { available, accounting } = await this.getProductAvailable(item.product_id);
+      const { available, accounting } = await this.getProductAvailable(
+        item.product_id,
+      );
 
       if (accounting && available < item.quantity) {
         availability.push({
@@ -234,7 +255,10 @@ export class ProductStockService {
     return this.getStockParams(stocks);
   }
 
-  getStockParams(stocks: ProductStock[]): { available: number; accounting: boolean } {
+  getStockParams(stocks: ProductStock[]): {
+    available: number;
+    accounting: boolean;
+  } {
     let available = 0;
     let accounting = true;
 
@@ -252,7 +276,8 @@ export class ProductStockService {
   async getManyProductAvailable(
     products: number[],
   ): Promise<Record<string, { available: number; accounting: boolean }>> {
-    const stocks: Record<string, { available: number; accounting: boolean }> = {};
+    const stocks: Record<string, { available: number; accounting: boolean }> =
+      {};
 
     for (const product_id of products) {
       stocks[String(product_id)] = await this.getProductAvailable(product_id);
@@ -263,11 +288,11 @@ export class ProductStockService {
 
   async getStocksByOrderId(orderId: number): Promise<ProductStock[]> {
     return this.productStockRepository
-      .createQueryBuilder("ps")
-      .innerJoin(OrderProduct, "op", "op.product_id = ps.product_id")
-      .where("op.order_id = :orderId", { orderId })
-      .leftJoinAndSelect("ps.warehouse", "warehouse")
-      .leftJoinAndSelect("ps.product", "product")
+      .createQueryBuilder('ps')
+      .innerJoin(OrderProduct, 'op', 'op.product_id = ps.product_id')
+      .where('op.order_id = :orderId', { orderId })
+      .leftJoinAndSelect('ps.warehouse', 'warehouse')
+      .leftJoinAndSelect('ps.product', 'product')
       .getMany()
       .catch((error) => {
         throw `Не удалось получить остатки товаров по заказу, ${error.message}`;
@@ -286,7 +311,7 @@ export class ProductStockService {
 
   async decrementQuantityAndReserved(id: number, amount: number) {
     const stock = await this.findOne(id);
-    if (!stock) throw "Остатки товара не найдены";
+    if (!stock) throw 'Остатки товара не найдены';
 
     return this.productStockRepository
       .update(id, {
@@ -300,7 +325,7 @@ export class ProductStockService {
 
   async incrementQuantityAndReserved(id: number, amount: number) {
     const stock = await this.findOne(id);
-    if (!stock) throw "Остатки товара не найдены";
+    if (!stock) throw 'Остатки товара не найдены';
 
     return this.productStockRepository
       .update(id, {
@@ -313,22 +338,26 @@ export class ProductStockService {
   }
 
   async update(id: number, updateProductStockDto: UpdateProductStockDto) {
-    return this.productStockRepository.update(id, updateProductStockDto).catch((error) => {
-      throw `Не удалось обновить остатки товара, ${error.message}`;
-    });
+    return this.productStockRepository
+      .update(id, updateProductStockDto)
+      .catch((error) => {
+        throw `Не удалось обновить остатки товара, ${error.message}`;
+      });
   }
 
   async updateQuantity(id: number, quantity: number) {
-    return this.productStockRepository.update(id, { quantity }).catch((error) => {
-      throw `Не удалось обновить количество остатков товара, ${error.message}`;
-    });
+    return this.productStockRepository
+      .update(id, { quantity })
+      .catch((error) => {
+        throw `Не удалось обновить количество остатков товара, ${error.message}`;
+      });
   }
 
   async incrementReserved(id: number, amount: number) {
     const stock = await this.findOne(id);
 
     if (!stock) {
-      throw "Остатки товара не найдены";
+      throw 'Остатки товара не найдены';
     }
 
     const reserved = stock.reserved;
@@ -355,7 +384,7 @@ export class ProductStockService {
     const stock = await this.findOne(id);
 
     if (!stock) {
-      throw "Остатки товара не найдены";
+      throw 'Остатки товара не найдены';
     }
 
     const reserved = stock.reserved;

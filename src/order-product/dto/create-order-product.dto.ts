@@ -7,54 +7,54 @@ import {
   MaxLength,
   Min,
   ValidateNested,
-} from "class-validator";
-import { Type } from "class-transformer";
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class ReservationItemDto {
-  @IsInt({ message: "ID остатка должен быть числом" })
+  @IsInt({ message: 'ID остатка должен быть числом' })
   stock_id: number;
 
-  @IsInt({ message: "ID склада должен быть числом" })
+  @IsInt({ message: 'ID склада должен быть числом' })
   warehouse_id: number;
 
-  @IsInt({ message: "Количество должно быть числом" })
-  @Min(1, { message: "Количество должно быть минимум 1" })
+  @IsInt({ message: 'Количество должно быть числом' })
+  @Min(1, { message: 'Количество должно быть минимум 1' })
   quantity: number;
 }
 
 export class OrderProductDto {
-  @IsInt({ message: "ID товара должно быть целым числом" })
-  @Min(1, { message: "ID товара должен быть положительным" })
+  @IsInt({ message: 'ID товара должно быть целым числом' })
+  @Min(1, { message: 'ID товара должен быть положительным' })
   product_id: number;
 
-  @IsInt({ message: "Количество должно быть целым числом" })
-  @Min(1, { message: "Количество должно быть минимум 1" })
+  @IsInt({ message: 'Количество должно быть целым числом' })
+  @Min(1, { message: 'Количество должно быть минимум 1' })
   quantity: number;
 }
 
 export class CreateOrderProductDto {
-  @IsInt({ message: "ID товара должно быть числом" })
-  @IsNotEmpty({ message: "Необходимо ID товара" })
+  @IsInt({ message: 'ID товара должно быть числом' })
+  @IsNotEmpty({ message: 'Необходимо ID товара' })
   product_id: number;
 
-  @Min(0, { message: "ID Не может быть отрицательным" })
-  @IsInt({ message: "ID заказа должно быть числом" })
+  @Min(0, { message: 'ID Не может быть отрицательным' })
+  @IsInt({ message: 'ID заказа должно быть числом' })
   order_id: number;
 
-  @IsString({ message: "Название товара должно быть строкой" })
-  @IsNotEmpty({ message: "Необходимо название товара" })
+  @IsString({ message: 'Название товара должно быть строкой' })
+  @IsNotEmpty({ message: 'Необходимо название товара' })
   name: string;
 
-  @IsString({ message: "Код товара должен быть строкой" })
+  @IsString({ message: 'Код товара должен быть строкой' })
   code: string;
 
   @IsOptional()
-  @IsString({ message: "Бренд должен быть строкой" })
+  @IsString({ message: 'Бренд должен быть строкой' })
   brand_name: string;
 
   @IsOptional()
-  @Min(0, { message: "Не может быть отрицательным" })
-  @IsInt({ message: "Категория ID должна быть числом" })
+  @Min(0, { message: 'Не может быть отрицательным' })
+  @IsInt({ message: 'Категория ID должна быть числом' })
   category_id: number;
 
   @IsString()
@@ -62,55 +62,55 @@ export class CreateOrderProductDto {
   description: string;
 
   @IsOptional()
-  @IsString({ message: "Страна должна быть строкой" })
-  @MaxLength(100, { message: "Максимум 100 символов" })
+  @IsString({ message: 'Страна должна быть строкой' })
+  @MaxLength(100, { message: 'Максимум 100 символов' })
   country: string;
 
   @IsOptional()
-  @IsString({ message: "Вид товара должен быть строкой" })
-  @MaxLength(100, { message: "Максимум 100 символов" })
+  @IsString({ message: 'Вид товара должен быть строкой' })
+  @MaxLength(100, { message: 'Максимум 100 символов' })
   product_type: string;
 
   @IsOptional()
-  @IsString({ message: "Состав товара должен быть строкой" })
-  @MaxLength(100, { message: "Максимум 100 символов" })
+  @IsString({ message: 'Состав товара должен быть строкой' })
+  @MaxLength(100, { message: 'Максимум 100 символов' })
   equipment: string;
 
   @IsOptional()
-  @Min(0, { message: "Значение не может быть отрицательным" })
-  @IsInt({ message: "Вес должен быть числом" })
+  @Min(0, { message: 'Значение не может быть отрицательным' })
+  @IsInt({ message: 'Вес должен быть числом' })
   weight: number;
 
   @IsOptional()
-  @Min(0, { message: "Значение не может быть отрицательным" })
-  @IsInt({ message: "Высота должна быть числом" })
+  @Min(0, { message: 'Значение не может быть отрицательным' })
+  @IsInt({ message: 'Высота должна быть числом' })
   height: number;
 
   @IsOptional()
-  @Min(0, { message: "Значение не может быть отрицательным" })
-  @IsInt({ message: "Длина должна быть числом" })
+  @Min(0, { message: 'Значение не может быть отрицательным' })
+  @IsInt({ message: 'Длина должна быть числом' })
   length: number;
 
   @IsOptional()
-  @Min(0, { message: "Значение не может быть отрицательным" })
-  @IsInt({ message: "Ширина должна быть числом" })
+  @Min(0, { message: 'Значение не может быть отрицательным' })
+  @IsInt({ message: 'Ширина должна быть числом' })
   width: number;
 
   @IsOptional()
-  @Min(0, { message: "Закупочная цена не может быть отрицательной" })
-  @IsInt({ message: "Закупочная цена должна быть числом" })
+  @Min(0, { message: 'Закупочная цена не может быть отрицательной' })
+  @IsInt({ message: 'Закупочная цена должна быть числом' })
   purchase_price: number;
 
-  @Min(0, { message: "Цена не может быть отрицательной" })
-  @IsInt({ message: "Цена должна быть числом" })
+  @Min(0, { message: 'Цена не может быть отрицательной' })
+  @IsInt({ message: 'Цена должна быть числом' })
   price: number;
 
-  @Min(1, { message: "Количество не может быть отрицательной" })
-  @IsInt({ message: "Количество должна быть числом" })
+  @Min(1, { message: 'Количество не может быть отрицательной' })
+  @IsInt({ message: 'Количество должна быть числом' })
   quantity: number;
 
   @IsOptional()
-  @IsArray({ message: "Резервации должны быть массивом" })
+  @IsArray({ message: 'Резервации должны быть массивом' })
   @ValidateNested({ each: true })
   @Type(() => ReservationItemDto)
   reservations?: ReservationItemDto[] | null;
