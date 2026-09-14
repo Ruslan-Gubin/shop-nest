@@ -150,6 +150,41 @@ export class ProductQuestionController {
     }
   }
 
+  @Get("my-questions-from-product/:product_id")
+  async findMyByProduct(
+    @Param("product_id") product_id: string,
+    @CurrentUser() user: CurrentStrategyUser,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ): Promise<
+    ResponseData<{
+      questions: ProductQuestion[];
+      totalCount: number;
+      paginationPage: number;
+    } | null>
+  > {
+    try {
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+      const pageNum = page ? parseInt(page, 10) : 1;
+
+      const [questions, totalCount] = await this.productQuestionService.findByProductAndUserId(
+        Number(product_id),
+        Number(user.sub),
+        pageNum,
+        limitNum,
+      );
+
+      return responseData(
+        { questions, totalCount, paginationPage: pageNum },
+        "success",
+        [],
+        "Вопросы по товару получены",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Get("user/:user_id")
   async findByUser(
     @Param("user_id") user_id: string,

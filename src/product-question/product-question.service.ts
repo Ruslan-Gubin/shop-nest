@@ -74,6 +74,26 @@ export class ProductQuestionService {
       });
   }
 
+  async findByProductAndUserId(
+    product_id: number,
+    create_user_id: number,
+    page: number,
+    limit: number,
+  ): Promise<[ProductQuestion[], number]> {
+    const skip = (page - 1) * limit;
+
+    return this.productQuestionRepository
+      .findAndCount({
+        where: { product: { id: product_id }, create_user_id },
+        order: { id: "DESC" },
+        skip,
+        take: limit,
+      })
+      .catch((error) => {
+        throw `Не удалось получить вопросы пользователя по товару, ${error.message}`;
+      });
+  }
+
   async findAll(page: number, limit: number) {
     const skip = (Number(page) - 1) * Number(limit);
 
