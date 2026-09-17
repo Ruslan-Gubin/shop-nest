@@ -1,17 +1,20 @@
-import { Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as argon from 'argon2';
-import type { User } from 'src/users/entities/user.entity';
-import { UsersService } from 'src/users/users.service';
-import type { SignInDto } from './dto/sign-in.dto';
-import type { Tokens } from './types/tokens.type';
-import { CreateUserDto } from 'src/users/dto/create-user.dto';
+import { Injectable } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as argon from "argon2";
+import type { User } from "src/users/entities/user.entity";
+import { UsersService } from "src/users/users.service";
+import type { SignInDto } from "./dto/sign-in.dto";
+import type { Tokens } from "./types/tokens.type";
+import { CreateUserDto } from "src/users/dto/create-user.dto";
+import { SmsService } from "src/sms/sms.service";
+import { VerifyOtpDto } from "src/sms/dto/verify-otp.dto";
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly jwt: JwtService,
     private usersService: UsersService,
+    private readonly smsService: SmsService,
   ) {}
 
   async signUp(createUserDto: CreateUserDto): Promise<Tokens> {
@@ -31,7 +34,7 @@ export class AuthService {
       if (passwordsMatch) {
         return await this.getAccessAndRefreshToken(user);
       } else {
-        throw 'Неверный адрес электронной почты или пароль';
+        throw "Неверный адрес электронной почты или пароль";
       }
     }
 
@@ -39,7 +42,7 @@ export class AuthService {
   }
 
   async logout(id: number) {
-    return this.usersService.updateRefresh(id, '');
+    return this.usersService.updateRefresh(id, "");
   }
 
   async refreshToken(id: number, refresh: string) {
@@ -49,7 +52,7 @@ export class AuthService {
       const refreshTokensMatch = await argon.verify(user.refresh, refresh);
 
       if (!refreshTokensMatch) {
-        throw 'Токены не совпали';
+        throw "Токены не совпали";
       }
 
       return await this.getAccessAndRefreshToken(user);
@@ -69,6 +72,7 @@ export class AuthService {
       user.password,
       user.role,
       user.name,
+      user.phone,
     );
 
     await this.updateRefreshToken(user.id, tokens.refresh);
@@ -77,10 +81,11 @@ export class AuthService {
 
   private async generateTokens(
     id: number,
-    email: string,
+    email: string | null,
     password: string,
     role: string,
     name: string,
+    phone: string,
   ): Promise<Tokens> {
     const payload = {
       sub: id,
@@ -88,6 +93,7 @@ export class AuthService {
       role,
       email,
       name,
+      phone,
     };
     return new Promise((res) => {
       this.jwt
@@ -106,19 +112,31 @@ export class AuthService {
               res({ token, refresh });
             })
             .catch(() => {
-              throw 'Не удалось создать токен';
+              throw "Не удалось создать токен";
             });
         })
         .catch(() => {
-          throw 'Не удалось создать токен';
+          throw "Не удалось создать токен";
         });
     });
   }
 
   private async getHashedRefreshToken(refresh: string) {
     return this.hash(refresh).catch(() => {
-      throw 'Не удалось обработать токен';
+      throw "Не удалось обработать токен";
     });
+  }
+
+  async verifyOtp(dto: VerifyOtpDto): Promise<Tokens> {
+    await this.smsService.verifyOtp(dto);
+
+    let user = await this.usersService.findByPhone(dto.phone);
+
+    if (!user) {
+      user = await this.usersService.createPhoneUser(dto.phone);
+    }
+
+    return this.getAccessAndRefreshToken(user);
   }
 
   private async updateRefreshToken(id: number, refresh: string) {

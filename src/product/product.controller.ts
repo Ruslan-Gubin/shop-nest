@@ -347,11 +347,12 @@ export class ProductController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [products, totalCount] = await this.productService.findProductsCanReview(
-        user.sub,
-        pageNum,
-        limitNum,
-      );
+      const [products, totalCount] =
+        await this.productService.findProductsCanReview(
+          user.sub,
+          pageNum,
+          limitNum,
+        );
 
       return responseData(
         { products, totalCount, paginationPage: pageNum },
@@ -397,11 +398,12 @@ export class ProductController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [products, totalCount] = await this.productService.findProductsWithReviews(
-        user.sub,
-        pageNum,
-        limitNum,
-      );
+      const [products, totalCount] =
+        await this.productService.findProductsWithReviews(
+          user.sub,
+          pageNum,
+          limitNum,
+        );
 
       return responseData(
         { products, totalCount, paginationPage: pageNum },
@@ -430,11 +432,12 @@ export class ProductController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [products, totalCount] = await this.productService.findProductsWithQuestions(
-        user.sub,
-        pageNum,
-        limitNum,
-      );
+      const [products, totalCount] =
+        await this.productService.findProductsWithQuestions(
+          user.sub,
+          pageNum,
+          limitNum,
+        );
 
       return responseData(
         { products, totalCount, paginationPage: pageNum },

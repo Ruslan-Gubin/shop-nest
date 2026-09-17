@@ -1,11 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import type { DeleteResult, FindOperator, Repository } from 'typeorm';
-import { ILike } from 'typeorm';
-import { User } from './entities/user.entity';
-import type { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user-dto';
-import * as argon from 'argon2';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import type { DeleteResult, FindOperator, Repository } from "typeorm";
+import { ILike } from "typeorm";
+import { User } from "./entities/user.entity";
+import type { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateUserDto } from "./dto/update-user-dto";
+import * as argon from "argon2";
 
 @Injectable()
 export class UsersService {
@@ -15,7 +15,7 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const hashedPassword = await this.hash(createUserDto.password ?? '');
+    const hashedPassword = await this.hash(createUserDto.password ?? "");
     createUserDto.password = hashedPassword;
 
     return this.userRepository.save(createUserDto).catch((error) => {
@@ -23,11 +23,7 @@ export class UsersService {
     });
   }
 
-  async getAllUsers(
-    page: string,
-    limit: string,
-    name: string,
-  ): Promise<User[]> {
+  async getAllUsers(page: string, limit: string, name: string): Promise<User[]> {
     const skip = (Number(page) - 1) * Number(limit);
 
     const whereCondition: { name?: FindOperator<string> } = {};
@@ -41,7 +37,7 @@ export class UsersService {
         skip,
         take: Number(limit),
         where: whereCondition,
-        order: { id: 'DESC' },
+        order: { id: "DESC" },
       })
       .catch((error) => {
         throw `Не удалось получить список пользователей, ${error.message}`;
@@ -55,11 +51,9 @@ export class UsersService {
       whereCondition.name = ILike(`%${name}%`);
     }
 
-    return this.userRepository
-      .count({ where: whereCondition })
-      .catch((error) => {
-        throw `Не удалось получить общее количество пользователей, ${error.message}`;
-      });
+    return this.userRepository.count({ where: whereCondition }).catch((error) => {
+      throw `Не удалось получить общее количество пользователей, ${error.message}`;
+    });
   }
 
   async findById(id: number): Promise<User | null> {
@@ -79,6 +73,26 @@ export class UsersService {
       })
       .catch((error) => {
         throw `Не удалось получить пользователя, ${error.message}`;
+      });
+  }
+
+  async findByPhone(phone: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { phone } }).catch((error) => {
+      throw `Не удалось получить пользователя по телефону, ${error.message}`;
+    });
+  }
+
+  async createPhoneUser(phone: string): Promise<User> {
+    return this.userRepository
+      .save({
+        phone,
+        email: null,
+        password: "",
+        role: "user",
+        refresh: "",
+      })
+      .catch((error) => {
+        throw `Не удалось создать пользователя по телефону, ${error.message}`;
       });
   }
 

@@ -32,6 +32,7 @@ import { ReceiptModule } from 'src/receipt/receipt.module';
 import { ProductSourceRecordModule } from 'src/product-source-record/product-source-record.module';
 import { BrowserManagerModule } from 'src/browser-manager/browser-manager.module';
 import { PhotoModule } from 'src/photo/photo.module';
+import { SmsModule } from 'src/sms/sms.module';
 
 const isDev = process.env.npm_lifecycle_event === 'start:dev';
 
@@ -64,6 +65,7 @@ const isDev = process.env.npm_lifecycle_event === 'start:dev';
     ProductSourceRecordModule,
     BrowserManagerModule,
     PhotoModule,
+    SmsModule,
     ConfigModule.forRoot({
       isGlobal: true,
     }),

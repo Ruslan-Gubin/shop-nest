@@ -1,14 +1,14 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository } from "typeorm";
-import type { CreateProductReviewDto } from "./dto/create-product-review.dto";
-import type { UpdateProductReviewDto } from "./dto/update-product-review.dto";
-import type { GenerateAnswerProductReviewDto } from "./dto/generate-answer-product-review.dto";
-import { ProductReview } from "./entities/product-review.entity";
-import type { Product } from "src/product/entities/product.entity";
-import { OpenCodeService } from "src/opencode/opencode.service";
-import { CategoryService } from "src/category/category.service";
-import { ProductSpecificationService } from "src/product-specification/product-specification.service";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { type Repository } from 'typeorm';
+import type { CreateProductReviewDto } from './dto/create-product-review.dto';
+import type { UpdateProductReviewDto } from './dto/update-product-review.dto';
+import type { GenerateAnswerProductReviewDto } from './dto/generate-answer-product-review.dto';
+import { ProductReview } from './entities/product-review.entity';
+import type { Product } from 'src/product/entities/product.entity';
+import { OpenCodeService } from 'src/opencode/opencode.service';
+import { CategoryService } from 'src/category/category.service';
+import { ProductSpecificationService } from 'src/product-specification/product-specification.service';
 
 @Injectable()
 export class ProductReviewService {
@@ -26,9 +26,9 @@ export class ProductReviewService {
         product: { id: createProductReviewDto.product_id },
         create_user_id: createProductReviewDto.create_user_id,
         rating: createProductReviewDto.rating,
-        dignities: createProductReviewDto.dignities ?? "",
-        disadvantages: createProductReviewDto.disadvantages ?? "",
-        comment: createProductReviewDto.comment ?? "",
+        dignities: createProductReviewDto.dignities ?? '',
+        disadvantages: createProductReviewDto.disadvantages ?? '',
+        comment: createProductReviewDto.comment ?? '',
       })
       .catch((error) => {
         throw `Не удалось добавить отзыв, ${error.message}`;
@@ -43,7 +43,7 @@ export class ProductReviewService {
         skip,
         take: Number(limit),
         where: { product: { id } },
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось получить отзывы товара, ${error.message}`;
@@ -60,8 +60,8 @@ export class ProductReviewService {
     return this.productReviewRepository
       .findAndCount({
         where: { create_user_id },
-        relations: ["product"],
-        order: { id: "DESC" },
+        relations: ['product'],
+        order: { id: 'DESC' },
         skip,
         take: limit,
       })
@@ -74,13 +74,13 @@ export class ProductReviewService {
     const skip = (Number(page) - 1) * Number(limit);
 
     return this.productReviewRepository
-      .createQueryBuilder("pr")
+      .createQueryBuilder('pr')
       .addSelect(
         "CASE WHEN COALESCE(pr.answer, '') = '' THEN 0 ELSE 1 END",
-        "answer_order",
+        'answer_order',
       )
-      .orderBy("answer_order", "ASC")
-      .addOrderBy("pr.id", "DESC")
+      .orderBy('answer_order', 'ASC')
+      .addOrderBy('pr.id', 'DESC')
       .skip(skip)
       .take(Number(limit))
       .getManyAndCount()
@@ -93,7 +93,7 @@ export class ProductReviewService {
     return this.productReviewRepository
       .findOne({
         where: { id },
-        relations: ["product"],
+        relations: ['product'],
       })
       .catch((error) => {
         throw `Не удалось получить отзыв, ${error.message}`;
@@ -101,47 +101,52 @@ export class ProductReviewService {
   }
 
   async update(id: number, updateProductReviewDto: UpdateProductReviewDto) {
-    return this.productReviewRepository.update(id, updateProductReviewDto).catch((error) => {
-      throw `Не удалось изменить отзыв, ${error.message}`;
-    });
+    return this.productReviewRepository
+      .update(id, updateProductReviewDto)
+      .catch((error) => {
+        throw `Не удалось изменить отзыв, ${error.message}`;
+      });
   }
 
   async answerReview(id: number, answer: string) {
-    return this.productReviewRepository.update(id, { answer }).catch((error) => {
-      throw `Не удалось добавить ответ на отзыв, ${error.message}`;
-    });
+    return this.productReviewRepository
+      .update(id, { answer })
+      .catch((error) => {
+        throw `Не удалось добавить ответ на отзыв, ${error.message}`;
+      });
   }
 
   async generateAnswer(dto: GenerateAnswerProductReviewDto) {
     const review = await this.findOne(dto.review_id);
 
     if (!review) {
-      throw "Не удалось получить отзыв для ответа";
+      throw 'Не удалось получить отзыв для ответа';
     }
 
     const product = review.product;
 
     if (!product) {
-      throw "Не удалось получить товар для ответа на отзыв";
+      throw 'Не удалось получить товар для ответа на отзыв';
     }
 
     const categoryPath = product?.category_id
       ? await this.categoryService.getFullPathFromCategory(product.category_id)
       : [];
 
-    const category = categoryPath.map((item) => item.name).join(" / ");
+    const category = categoryPath.map((item) => item.name).join(' / ');
 
-    const specifications = await this.productSpecificationService.findByProductId(product.id);
+    const specifications =
+      await this.productSpecificationService.findByProductId(product.id);
 
     const specificationsText =
       specifications.length > 0
         ? specifications
             .map(
               (item) =>
-                `- ${item.specification?.name ? item.specification.name : "Характеристика"}: ${item.value}`,
+                `- ${item.specification?.name ? item.specification.name : 'Характеристика'}: ${item.value}`,
             )
-            .join("\n")
-        : "Отсутствуют";
+            .join('\n')
+        : 'Отсутствуют';
 
     const validAnswer = `{
       "answer": "Текст ответа покупателю"
@@ -151,23 +156,23 @@ export class ProductReviewService {
 Ты — представитель интернет-магазина. Твоя задача — составить ответ на отзыв покупателя о товаре.
 
 Данные о товаре:
-- Название: ${product.name ? product.name : "Отсутствует"}
-- Бренд: ${product.brand_name ? product.brand_name : "Отсутствует"}
-- Категория: ${category ? category : "Отсутствует"}
-- Описание: ${product.description ? product.description : "Отсутствует"}
-- Страна: ${product.country ? product.country : "Отсутствует"}
-- Тип: ${product.product_type ? product.product_type : "Отсутствует"}
-- Комплектация: ${product.equipment ? product.equipment : "Отсутствует"}
+- Название: ${product.name ? product.name : 'Отсутствует'}
+- Бренд: ${product.brand_name ? product.brand_name : 'Отсутствует'}
+- Категория: ${category ? category : 'Отсутствует'}
+- Описание: ${product.description ? product.description : 'Отсутствует'}
+- Страна: ${product.country ? product.country : 'Отсутствует'}
+- Тип: ${product.product_type ? product.product_type : 'Отсутствует'}
+- Комплектация: ${product.equipment ? product.equipment : 'Отсутствует'}
 - Характеристики:
 ${specificationsText}
 
 Отзыв покупателя:
-- Оценка: ${review.rating ? `${review.rating} из 5` : "Отсутствует"}
-- Достоинства: ${review.dignities ? review.dignities : "Отсутствуют"}
-- Недостатки: ${review.disadvantages ? review.disadvantages : "Отсутствуют"}
-- Комментарий: ${review.comment ? review.comment : "Отсутствует"}
+- Оценка: ${review.rating ? `${review.rating} из 5` : 'Отсутствует'}
+- Достоинства: ${review.dignities ? review.dignities : 'Отсутствуют'}
+- Недостатки: ${review.disadvantages ? review.disadvantages : 'Отсутствуют'}
+- Комментарий: ${review.comment ? review.comment : 'Отсутствует'}
 
-Дополнительный контекст от администратора (может содержать инструкции, уточнения или справочную информацию): ${dto.context ? `"${dto.context}"` : "Отсутствует"}
+Дополнительный контекст от администратора (может содержать инструкции, уточнения или справочную информацию): ${dto.context ? `"${dto.context}"` : 'Отсутствует'}
 
 Правила ответа:
 1. Поблагодари покупателя за отзыв и удели внимание его оценке.
@@ -190,9 +195,11 @@ ${specificationsText}
         const match = response.match(/\{[\s\S]*\}/);
         const json = match ? JSON.parse(match[0]) : null;
 
-        return json && Object.hasOwn(json, "answer") && typeof json.answer === "string"
+        return json &&
+          Object.hasOwn(json, 'answer') &&
+          typeof json.answer === 'string'
           ? json.answer
-          : "";
+          : '';
       })
       .catch((error) => {
         throw `Ошибка генерации ответа: ${error instanceof Error ? error.message : String(error)}`;
@@ -205,7 +212,10 @@ ${specificationsText}
     });
   }
 
-  async findMyReview(productId: number, userId: number): Promise<ProductReview | null> {
+  async findMyReview(
+    productId: number,
+    userId: number,
+  ): Promise<ProductReview | null> {
     return this.productReviewRepository
       .findOne({
         where: { product: { id: productId }, create_user_id: userId },
@@ -220,12 +230,12 @@ ${specificationsText}
     if (!ids.length) return;
 
     const stats = await this.productReviewRepository
-      .createQueryBuilder("pr")
-      .select("pr.product_id", "product_id")
-      .addSelect("COALESCE(AVG(pr.rating), 0)", "rating")
-      .addSelect("COUNT(pr.id)", "review_count")
-      .where("pr.product_id IN (:...ids)", { ids })
-      .groupBy("pr.product_id")
+      .createQueryBuilder('pr')
+      .select('pr.product_id', 'product_id')
+      .addSelect('COALESCE(AVG(pr.rating), 0)', 'rating')
+      .addSelect('COUNT(pr.id)', 'review_count')
+      .where('pr.product_id IN (:...ids)', { ids })
+      .groupBy('pr.product_id')
       .getRawMany<{
         product_id: number;
         rating: string;
@@ -264,8 +274,8 @@ ${specificationsText}
       .findAndCount({
         skip,
         take: Number(limit),
-        where: { answer: "" },
-        order: { id: "DESC" },
+        where: { answer: '' },
+        order: { id: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось получить неотвеченные отзывы, ${error.message}`;

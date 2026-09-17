@@ -1,13 +1,13 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Brackets, Repository } from "typeorm";
-import { CreateProductQuestionDto } from "./dto/create-product-question.dto";
-import { UpdateProductQuestionDto } from "./dto/update-product-question.dto";
-import { GenerateAnswerDto } from "./dto/generate-answer.dto";
-import { ProductQuestion } from "./entities/product-question.entity";
-import { OpenCodeService } from "src/opencode/opencode.service";
-import { ProductService } from "src/product/product.service";
-import { ProductSpecificationService } from "src/product-specification/product-specification.service";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Brackets, Repository } from 'typeorm';
+import { CreateProductQuestionDto } from './dto/create-product-question.dto';
+import { UpdateProductQuestionDto } from './dto/update-product-question.dto';
+import { GenerateAnswerDto } from './dto/generate-answer.dto';
+import { ProductQuestion } from './entities/product-question.entity';
+import { OpenCodeService } from 'src/opencode/opencode.service';
+import { ProductService } from 'src/product/product.service';
+import { ProductSpecificationService } from 'src/product-specification/product-specification.service';
 
 @Injectable()
 export class ProductQuestionService {
@@ -24,28 +24,37 @@ export class ProductQuestionService {
       .save({
         product: { id: createDto.product_id },
         question: createDto.question,
-        create_user_id: createDto.create_user_id ? createDto.create_user_id : null,
+        create_user_id: createDto.create_user_id
+          ? createDto.create_user_id
+          : null,
       })
       .catch((error) => {
         throw `Не удалось добавить вопрос, ${error.message}`;
       });
   }
 
-  async findByProductId(id: number, page: number, limit: number, create_user_id?: number) {
+  async findByProductId(
+    id: number,
+    page: number,
+    limit: number,
+    create_user_id?: number,
+  ) {
     const skip = (Number(page) - 1) * Number(limit);
 
     const query = this.productQuestionRepository
-      .createQueryBuilder("pq")
-      .where("pq.product_id = :id", { id })
+      .createQueryBuilder('pq')
+      .where('pq.product_id = :id', { id })
       .andWhere(
         new Brackets((qb) => {
           qb.where("pq.answer != ''");
           if (create_user_id) {
-            qb.orWhere("pq.create_user_id = :create_user_id", { create_user_id });
+            qb.orWhere('pq.create_user_id = :create_user_id', {
+              create_user_id,
+            });
           }
         }),
       )
-      .orderBy("pq.id", "DESC")
+      .orderBy('pq.id', 'DESC')
       .skip(skip)
       .take(Number(limit));
 
@@ -64,8 +73,8 @@ export class ProductQuestionService {
     return this.productQuestionRepository
       .findAndCount({
         where: { create_user_id: userId },
-        relations: ["product"],
-        order: { id: "DESC" },
+        relations: ['product'],
+        order: { id: 'DESC' },
         skip,
         take: limit,
       })
@@ -85,7 +94,7 @@ export class ProductQuestionService {
     return this.productQuestionRepository
       .findAndCount({
         where: { product: { id: product_id }, create_user_id },
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
         skip,
         take: limit,
       })
@@ -98,9 +107,12 @@ export class ProductQuestionService {
     const skip = (Number(page) - 1) * Number(limit);
 
     return this.productQuestionRepository
-      .createQueryBuilder("pq")
-      .orderBy("CASE WHEN COALESCE(pq.answer, '') = '' THEN 0 ELSE 1 END", "ASC")
-      .addOrderBy("pq.id", "DESC")
+      .createQueryBuilder('pq')
+      .orderBy(
+        "CASE WHEN COALESCE(pq.answer, '') = '' THEN 0 ELSE 1 END",
+        'ASC',
+      )
+      .addOrderBy('pq.id', 'DESC')
       .skip(skip)
       .take(Number(limit))
       .getManyAndCount()
@@ -116,9 +128,9 @@ export class ProductQuestionService {
       .findAndCount({
         skip,
         take: Number(limit),
-        where: { answer: "" },
-        relations: ["product"],
-        order: { id: "DESC" },
+        where: { answer: '' },
+        relations: ['product'],
+        order: { id: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось получить неотвеченные вопросы, ${error.message}`;
@@ -127,16 +139,18 @@ export class ProductQuestionService {
 
   async findOne(id: number) {
     return this.productQuestionRepository
-      .findOne({ where: { id }, relations: ["product"] })
+      .findOne({ where: { id }, relations: ['product'] })
       .catch((error) => {
         throw `Не удалось получить вопрос, ${error.message}`;
       });
   }
 
   async update(id: number, updateDto: UpdateProductQuestionDto) {
-    return this.productQuestionRepository.update(id, updateDto).catch((error) => {
-      throw `Не удалось обновить вопрос, ${error.message}`;
-    });
+    return this.productQuestionRepository
+      .update(id, updateDto)
+      .catch((error) => {
+        throw `Не удалось обновить вопрос, ${error.message}`;
+      });
   }
 
   async remove(id: number) {
@@ -149,26 +163,27 @@ export class ProductQuestionService {
     const product = await this.productService.findOne(dto.product_id);
 
     if (!product) {
-      throw "Не удалось получить товар для вопроса";
+      throw 'Не удалось получить товар для вопроса';
     }
 
     const categoryPath = product?.category_id
       ? await this.productService.getFullPathCategories(product.id)
       : [];
 
-    const category = categoryPath.map((item) => item.name).join(" / ");
+    const category = categoryPath.map((item) => item.name).join(' / ');
 
-    const specifications = await this.productSpecificationService.findByProductId(product.id);
+    const specifications =
+      await this.productSpecificationService.findByProductId(product.id);
 
     const specificationsText =
       specifications.length > 0
         ? specifications
             .map(
               (item) =>
-                `- ${item.specification?.name ? item.specification.name : "Характеристика"}: ${item.value}`,
+                `- ${item.specification?.name ? item.specification.name : 'Характеристика'}: ${item.value}`,
             )
-            .join("\n")
-        : "Отсутствуют";
+            .join('\n')
+        : 'Отсутствуют';
 
     const validAnswer = `{
       "answer": "Текст ответа покупателю"
@@ -178,19 +193,19 @@ export class ProductQuestionService {
 Ты — консультант интернет-магазина. Твоя задача — составить ответ покупателю на его вопрос о товаре.
 
 Данные о товаре:
-- Название: ${product.name ? product.name : "Отсутствует"}
-- Бренд: ${product.brand_name ? product.brand_name : "Отсутствует"}
-- Категория: ${category ? category : "Отсутствует"}
-- Описание: ${product.description ? product.description : "Отсутствует"}
-- Страна: ${product.country ? product.country : "Отсутствует"}
-- Тип: ${product.product_type ? product.product_type : "Отсутствует"}
-- Комплектация: ${product.equipment ? product.equipment : "Отсутствует"}
+- Название: ${product.name ? product.name : 'Отсутствует'}
+- Бренд: ${product.brand_name ? product.brand_name : 'Отсутствует'}
+- Категория: ${category ? category : 'Отсутствует'}
+- Описание: ${product.description ? product.description : 'Отсутствует'}
+- Страна: ${product.country ? product.country : 'Отсутствует'}
+- Тип: ${product.product_type ? product.product_type : 'Отсутствует'}
+- Комплектация: ${product.equipment ? product.equipment : 'Отсутствует'}
 - Характеристики:
 ${specificationsText}
 
 Вопрос покупателя: "${dto.question}"
 
-Дополнительный контекст от администратора (может содержать инструкции, уточнения или справочную информацию): ${dto.context ? `"${dto.context}"` : "Отсутствует"}
+Дополнительный контекст от администратора (может содержать инструкции, уточнения или справочную информацию): ${dto.context ? `"${dto.context}"` : 'Отсутствует'}
 
 Правила ответа:
 1. Отвечай ТОЛЬКО на основе фактов из данных о товаре, ничего не выдумывай.
@@ -212,9 +227,11 @@ ${specificationsText}
         const match = response.match(/\{[\s\S]*\}/);
         const json = match ? JSON.parse(match[0]) : null;
 
-        return json && Object.hasOwn(json, "answer") && typeof json.answer === "string"
+        return json &&
+          Object.hasOwn(json, 'answer') &&
+          typeof json.answer === 'string'
           ? json.answer
-          : "";
+          : '';
       })
       .catch((error) => {
         throw `Ошибка генерации ответа: ${error instanceof Error ? error.message : String(error)}`;
