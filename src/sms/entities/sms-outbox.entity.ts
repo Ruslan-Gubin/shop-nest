@@ -6,7 +6,20 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 
-export type SmsOutboxStatus = "pending" | "delivered" | "failed";
+export const SMS_ERROR_STATUSES: SmsOutboxStatus[] = [
+  "failed",
+  "failed_no_balance",
+  "failed_gateway",
+];
+
+export type SmsOutboxStatus =
+  | "pending"
+  | "in_work"
+  | "delivered"
+  | "failed"
+  | "failed_no_balance"
+  | "failed_invalid_number"
+  | "failed_gateway";
 
 @Entity("sms_outbox")
 export class SmsOutbox {
@@ -25,14 +38,11 @@ export class SmsOutbox {
   @Column({ type: "varchar", default: "pending", name: "status" })
   status: SmsOutboxStatus;
 
-  @Column({ type: "int", default: 0, name: "delivery_attempts" })
-  delivery_attempts: number;
-
   @Column({ type: "int", default: 0, name: "verify_attempts" })
   verify_attempts: number;
 
-  @Column({ type: "varchar", default: "", name: "sender_phone" })
-  sender_phone: string;
+  @Column("text", { array: true, default: "{}", name: "sender_phones" })
+  sender_phones: string[];
 
   @Column({ type: "varchar", name: "device_id" })
   device_id: string;
