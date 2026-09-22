@@ -7,4 +7,5 @@ export type CurrentStrategyUser = {
   role: string;
   email: string;
   name: string;
+  phone: string;
 };

@@ -11,8 +11,7 @@ import { SMS_ERROR_STATUSES, SmsOutbox, SmsOutboxStatus } from "./entities/sms-o
 
 @Injectable()
 export class SmsService {
-  /** Сколько жива задача на отправку смс (5 мин). */
-  private readonly otp_ttl_ms: number = 5 * 60 * 1000;
+  private readonly otp_ttl_ms: number = 5 * 60 * 1000; // 5 min
 
   constructor(
     @InjectRepository(SmsOutbox)
@@ -48,6 +47,7 @@ export class SmsService {
       throw `Не удалось создать хэш кода, ${error}`;
     });
     const messageText = `Код подтверждения: ${code}. Действует 5 минут. ${dto.hash_code}`;
+    console.log(code);
 
     if (outbox) {
       await this.update(outbox.id, {
