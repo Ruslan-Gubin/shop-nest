@@ -14,6 +14,7 @@ import { UsersService } from "./users.service";
 import { Public } from "src/auth/decorators/public.decorator";
 import { Roles } from "src/auth/decorators/roles.decorator";
 import { RolesGuard } from "src/auth/guards/roles.guard";
+import { OptionalJwtAuthGuard } from "src/auth/guards/optional-jwt-auth.guard";
 import { ResponseData, responseData } from "src/helpers/response";
 import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 import { CurrentStrategyUser } from "src/auth/types/current-user";
@@ -80,6 +81,7 @@ export class UsersController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("me")
   async getMe(
     @CurrentUser() user?: CurrentStrategyUser,

@@ -1,13 +1,13 @@
-import { Injectable } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as argon from 'argon2';
-import type { User } from 'src/users/entities/user.entity';
-import { UsersService } from 'src/users/users.service';
-import type { SignInDto } from './dto/sign-in.dto';
-import type { Tokens } from './types/tokens.type';
-import { CreateUserDto } from 'src/users/dto/create-user.dto';
-import { SmsService } from 'src/sms/sms.service';
-import { VerifyOtpDto } from 'src/sms/dto/verify-otp.dto';
+import { Injectable } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as argon from "argon2";
+import type { User } from "src/users/entities/user.entity";
+import { UsersService } from "src/users/users.service";
+import type { SignInDto } from "./dto/sign-in.dto";
+import type { Tokens } from "./types/tokens.type";
+import { CreateUserDto } from "src/users/dto/create-user.dto";
+import { SmsService } from "src/sms/sms.service";
+import { VerifyOtpDto } from "src/sms/dto/verify-otp.dto";
 
 @Injectable()
 export class AuthService {
@@ -34,7 +34,7 @@ export class AuthService {
       if (passwordsMatch) {
         return await this.getAccessAndRefreshToken(user);
       } else {
-        throw 'Неверный адрес электронной почты или пароль';
+        throw "Неверный адрес электронной почты или пароль";
       }
     }
 
@@ -42,7 +42,7 @@ export class AuthService {
   }
 
   async logout(id: number) {
-    return this.usersService.updateRefresh(id, '');
+    return this.usersService.updateRefresh(id, "");
   }
 
   async refreshToken(id: number, refresh: string) {
@@ -52,7 +52,7 @@ export class AuthService {
       const refreshTokensMatch = await argon.verify(user.refresh, refresh);
 
       if (!refreshTokensMatch) {
-        throw 'Токены не совпали';
+        throw "Токены не совпали";
       }
 
       return await this.getAccessAndRefreshToken(user);
@@ -100,7 +100,7 @@ export class AuthService {
         .signAsync(payload, {
           secret: process.env.JWT_SECRET,
           expiresIn: 60 * 15, // 15 min
-          // expiresIn: 5, // 5 sec
+          // expiresIn: 10, // 10 sec
         })
         .then((token) => {
           this.jwt
@@ -112,18 +112,18 @@ export class AuthService {
               res({ token, refresh });
             })
             .catch(() => {
-              throw 'Не удалось создать токен';
+              throw "Не удалось создать токен";
             });
         })
         .catch(() => {
-          throw 'Не удалось создать токен';
+          throw "Не удалось создать токен";
         });
     });
   }
 
   private async getHashedRefreshToken(refresh: string) {
     return this.hash(refresh).catch(() => {
-      throw 'Не удалось обработать токен';
+      throw "Не удалось обработать токен";
     });
   }
 

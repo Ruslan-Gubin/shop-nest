@@ -8,88 +8,114 @@ import {
   Delete,
   Query,
   UseGuards,
-} from "@nestjs/common";
-import { ProductStockService } from "./product-stock.service";
-import { CreateProductStockDto } from "./dto/create-product-stock.dto";
-import { UpdateProductStockDto } from "./dto/update-product-stock.dto";
-import { CheckingBalancesItemDto } from "./dto/checking-balances.dto";
-import { RolesGuard } from "../auth/guards/roles.guard";
-import { Roles } from "../auth/decorators/roles.decorator";
-import { ResponseData, responseData } from "src/helpers/response";
-import { ProductStock } from "./entities/product-stock.entity";
-import { Public } from "src/auth/decorators/public.decorator";
+} from '@nestjs/common';
+import { ProductStockService } from './product-stock.service';
+import { CreateProductStockDto } from './dto/create-product-stock.dto';
+import { UpdateProductStockDto } from './dto/update-product-stock.dto';
+import { CheckingBalancesItemDto } from './dto/checking-balances.dto';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { ResponseData, responseData } from 'src/helpers/response';
+import { ProductStock } from './entities/product-stock.entity';
+import { Public } from 'src/auth/decorators/public.decorator';
 
-@Controller("product-stock")
+@Controller('product-stock')
 export class ProductStockController {
   constructor(private readonly productStockService: ProductStockService) {}
 
-  @Post("create")
-  @Roles("admin", "moderator")
+  @Post('create')
+  @Roles('admin', 'moderator')
   @UseGuards(RolesGuard)
   async create(
     @Body() createProductStockDto: CreateProductStockDto,
   ): Promise<ResponseData<ProductStock | null>> {
     try {
-      const productStock = await this.productStockService.create(createProductStockDto);
+      const productStock = await this.productStockService.create(
+        createProductStockDto,
+      );
 
-      return responseData(productStock, "success", [], "Остатки товара успешно добавлены");
+      return responseData(
+        productStock,
+        'success',
+        [],
+        'Остатки товара успешно добавлены',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
   @Public()
-  @Post("checking-balances")
+  @Post('checking-balances')
   async checkingBalances(
     @Body() items: CheckingBalancesItemDto[],
   ): Promise<ResponseData<{ product_id: number; available: number }[] | null>> {
     try {
-      const stocksAvailability = await this.productStockService.checkStockAvailability(items);
+      const stocksAvailability =
+        await this.productStockService.checkStockAvailability(items);
 
-      return responseData(stocksAvailability, "success", [], "Получена проверка остатков");
+      return responseData(
+        stocksAvailability,
+        'success',
+        [],
+        'Получена проверка остатков',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
   @Public()
-  @Get("product-available/:product_id")
+  @Get('product-available/:product_id')
   async getProductAvailable(
-    @Param("product_id") product_id: string,
+    @Param('product_id') product_id: string,
   ): Promise<ResponseData<{ available: number; accounting: boolean } | null>> {
     try {
-      const stockAvailable = await this.productStockService.getProductAvailable(Number(product_id));
+      const stockAvailable = await this.productStockService.getProductAvailable(
+        Number(product_id),
+      );
 
       return responseData(
         stockAvailable,
-        "success",
+        'success',
         [],
-        "Получено максимальное количество остатков для товара",
+        'Получено максимальное количество остатков для товара',
       );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Post("products-available")
+  @Post('products-available')
   async getManyProductsAvailable(
     @Body() products: number[],
-  ): Promise<ResponseData<Record<string, { available: number; accounting: boolean }> | null>> {
+  ): Promise<
+    ResponseData<Record<
+      string,
+      { available: number; accounting: boolean }
+    > | null>
+  > {
     try {
-      const stocks = await this.productStockService.getManyProductAvailable(products);
+      const stocks =
+        await this.productStockService.getManyProductAvailable(products);
 
-      return responseData(stocks, "success", [], "Получены остатки для списка товаров");
+      return responseData(
+        stocks,
+        'success',
+        [],
+        'Получены остатки для списка товаров',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
   @Get()
   async findAll(
-    @Query("page") page: string,
-    @Query("limit") limit: string,
-    @Query("product_id") product_id: string,
-    @Query("warehouse_id") warehouse_id: string,
+    @Query('page') page: string,
+    @Query('limit') limit: string,
+    @Query('product_id') product_id: string,
+    @Query('warehouse_id') warehouse_id: string,
   ): Promise<
     ResponseData<{
       stocks: ProductStock[];
@@ -111,94 +137,122 @@ export class ProductStockController {
 
       return responseData(
         { stocks, totalCount, paginationPage: page },
-        "success",
+        'success',
         [],
-        "Список остатков товаров получен",
+        'Список остатков товаров получен',
       );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Get("product/:productId")
+  @Get('product/:productId')
   async findByProductId(
-    @Param("productId") productId: string,
+    @Param('productId') productId: string,
   ): Promise<ResponseData<ProductStock[] | null>> {
     try {
-      const stocks = await this.productStockService.findByProductId(Number(productId));
+      const stocks = await this.productStockService.findByProductId(
+        Number(productId),
+      );
 
-      return responseData(stocks, "success", [], "Остатки товара получены");
+      return responseData(stocks, 'success', [], 'Остатки товара получены');
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Get("warehouse/:warehouseId")
+  @Get('warehouse/:warehouseId')
   async findByWarehouseId(
-    @Param("warehouseId") warehouseId: string,
+    @Param('warehouseId') warehouseId: string,
   ): Promise<ResponseData<ProductStock[] | null>> {
     try {
-      const stocks = await this.productStockService.findByWarehouseId(Number(warehouseId));
+      const stocks = await this.productStockService.findByWarehouseId(
+        Number(warehouseId),
+      );
 
-      return responseData(stocks, "success", [], "Остатки товара на складе получены");
+      return responseData(
+        stocks,
+        'success',
+        [],
+        'Остатки товара на складе получены',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Get("order/:orderId")
+  @Get('order/:orderId')
   async getStocksByOrderId(
-    @Param("orderId") orderId: string,
+    @Param('orderId') orderId: string,
   ): Promise<ResponseData<ProductStock[] | null>> {
     try {
-      const stocks = await this.productStockService.getStocksByOrderId(Number(orderId));
+      const stocks = await this.productStockService.getStocksByOrderId(
+        Number(orderId),
+      );
 
-      return responseData(stocks, "success", [], "Остатки товаров по заказу получены");
+      return responseData(
+        stocks,
+        'success',
+        [],
+        'Остатки товаров по заказу получены',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Get(":id")
-  async findOne(@Param("id") id: string): Promise<ResponseData<ProductStock | null>> {
+  @Get(':id')
+  async findOne(
+    @Param('id') id: string,
+  ): Promise<ResponseData<ProductStock | null>> {
     try {
       const stock = await this.productStockService.findOne(Number(id));
 
-      return responseData(stock, "success", [], "Остатки товара получены");
+      return responseData(stock, 'success', [], 'Остатки товара получены');
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Patch(":id")
-  @Roles("admin", "moderator")
+  @Patch(':id')
+  @Roles('admin', 'moderator')
   @UseGuards(RolesGuard)
   async update(
-    @Param("id") id: string,
+    @Param('id') id: string,
     @Body() updateProductStockDto: UpdateProductStockDto,
   ): Promise<ResponseData<null>> {
     try {
       await this.productStockService.update(Number(id), updateProductStockDto);
 
-      return responseData(null, "success", [], "Остатки товара успешно изменены");
+      return responseData(
+        null,
+        'success',
+        [],
+        'Остатки товара успешно изменены',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
-  @Patch(":id/quantity")
-  @Roles("admin", "moderator")
+  @Patch(':id/quantity')
+  @Roles('admin', 'moderator')
   @UseGuards(RolesGuard)
   async updateQuantity(
-    @Param("id") id: string,
-    @Body("quantity") quantity: number,
+    @Param('id') id: string,
+    @Body('quantity') quantity: number,
   ): Promise<ResponseData<null>> {
     try {
       await this.productStockService.updateQuantity(Number(id), quantity);
 
-      return responseData(null, "success", [], "Количество остатков товара успешно обновлено");
+      return responseData(
+        null,
+        'success',
+        [],
+        'Количество остатков товара успешно обновлено',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 
@@ -236,16 +290,21 @@ export class ProductStockController {
   //   }
   // }
 
-  @Delete(":id")
-  @Roles("admin", "moderator")
+  @Delete(':id')
+  @Roles('admin', 'moderator')
   @UseGuards(RolesGuard)
-  async remove(@Param("id") id: string): Promise<ResponseData<null>> {
+  async remove(@Param('id') id: string): Promise<ResponseData<null>> {
     try {
       await this.productStockService.remove(Number(id));
 
-      return responseData(null, "success", [], "Остатки товара успешно удалены");
+      return responseData(
+        null,
+        'success',
+        [],
+        'Остатки товара успешно удалены',
+      );
     } catch (error) {
-      return responseData(null, "error", [], error);
+      return responseData(null, 'error', [], error);
     }
   }
 }

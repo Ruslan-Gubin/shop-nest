@@ -14,6 +14,7 @@ import { ProductService, ProductCompletenessCheck } from "./product.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { RolesGuard } from "../auth/guards/roles.guard";
+import { OptionalJwtAuthGuard } from "../auth/guards/optional-jwt-auth.guard";
 import { Roles } from "../auth/decorators/roles.decorator";
 import { ResponseData, responseData } from "src/helpers/response";
 import { Product } from "./entities/product.entity";
@@ -27,6 +28,7 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("filters")
   async getFilters(
     @CurrentUser() user?: CurrentStrategyUser,
@@ -59,6 +61,7 @@ export class ProductController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("catalog")
   async getCatalog(
     @Query("page") page: string,
@@ -101,6 +104,7 @@ export class ProductController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("main-page")
   async findForMainPage(
     @Query("page") page: string,
@@ -132,6 +136,7 @@ export class ProductController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("by-ids")
   async findByIds(
     @Query("ids", new ParseArrayPipe({ items: Number, separator: "," }))
@@ -148,6 +153,7 @@ export class ProductController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("similar/:id")
   async findSimilar(
     @Param("id") id: string,
@@ -168,6 +174,7 @@ export class ProductController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("buy-together")
   async findBoughtTogether(
     @Query("ids", new ParseArrayPipe({ items: Number, separator: "," }))
@@ -189,6 +196,7 @@ export class ProductController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("recommended")
   async findRecommended(
     @Query("favorite_ids") favoriteIds: string,
@@ -310,6 +318,7 @@ export class ProductController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("can-review")
   async getProductsCanReview(
     @CurrentUser() user: CurrentStrategyUser,
@@ -344,6 +353,7 @@ export class ProductController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("can-review/:product_id")
   async canReview(
     @Param("product_id") product_id: string,

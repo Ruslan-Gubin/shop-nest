@@ -1,13 +1,17 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import * as argon from "argon2";
-import { randomUUID } from "crypto";
-import { DataSource, Repository } from "typeorm";
-import { CreateSmsOutboxDto } from "./dto/create-sms-outbox.dto";
-import { MarkFailedDto } from "./dto/mark-failed.dto";
-import { RequestOtpDto } from "./dto/request-otp.dto";
-import { VerifyOtpDto } from "./dto/verify-otp.dto";
-import { SMS_ERROR_STATUSES, SmsOutbox, SmsOutboxStatus } from "./entities/sms-outbox.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import * as argon from 'argon2';
+import { randomUUID } from 'crypto';
+import { DataSource, Repository } from 'typeorm';
+import { CreateSmsOutboxDto } from './dto/create-sms-outbox.dto';
+import { MarkFailedDto } from './dto/mark-failed.dto';
+import { RequestOtpDto } from './dto/request-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import {
+  SMS_ERROR_STATUSES,
+  SmsOutbox,
+  SmsOutboxStatus,
+} from './entities/sms-outbox.entity';
 
 @Injectable()
 export class SmsService {
@@ -19,7 +23,9 @@ export class SmsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async requestOtp(dto: RequestOtpDto): Promise<{ phone: string; device_id: string }> {
+  async requestOtp(
+    dto: RequestOtpDto,
+  ): Promise<{ phone: string; device_id: string }> {
     const phone = dto.phone;
 
     let outbox: SmsOutbox | null = null;
@@ -73,8 +79,8 @@ export class SmsService {
         phone: dto.phone,
         code_hash: dto.code_hash,
         message_text: dto.message_text,
-        status: "pending",
-        device_id: dto.device_id || "",
+        status: 'pending',
+        device_id: dto.device_id || '',
       })
       .catch((error) => {
         throw `Не удалось создать запись на отправку SMS, ${error}`;
@@ -87,7 +93,7 @@ export class SmsService {
         phone: dto.phone,
         code_hash: dto.code_hash,
         message_text: dto.message_text,
-        status: "pending",
+        status: 'pending',
         sender_phones: [],
         verify_attempts: 0,
       })
@@ -110,30 +116,30 @@ export class SmsService {
 
     const task = await this.dataSource.transaction(async (manager) => {
       const found = await manager
-        .createQueryBuilder(SmsOutbox, "sms")
+        .createQueryBuilder(SmsOutbox, 'sms')
         .where(
           `(sms.status = :pending
               OR (sms.status IN (:...errorStatuses) AND NOT (:sender = ANY(sms.sender_phones))))
            AND sms.updated_at > :cutoff`,
           {
-            pending: "pending",
+            pending: 'pending',
             errorStatuses: SMS_ERROR_STATUSES,
             sender,
             cutoff,
           },
         )
-        .orderBy("CASE WHEN sms.status = 'pending' THEN 0 ELSE 1 END", "ASC")
-        .addOrderBy("sms.created_at", "ASC")
+        .orderBy("CASE WHEN sms.status = 'pending' THEN 0 ELSE 1 END", 'ASC')
+        .addOrderBy('sms.created_at', 'ASC')
         .limit(1)
-        .setLock("pessimistic_write")
-        .setOnLocked("skip_locked")
+        .setLock('pessimistic_write')
+        .setOnLocked('skip_locked')
         .getOne()
         .catch((error) => {
           throw `Не удалось получить запись на отправку SMS, ${error}`;
         });
 
       if (found) {
-        found.status = "in_work";
+        found.status = 'in_work';
         found.sender_phones = [...(found.sender_phones ?? []), sender];
 
         await manager.save(found).catch((error) => {
@@ -152,7 +158,7 @@ export class SmsService {
 
     await this.smsRepository
       .update(id, {
-        status: "delivered",
+        status: 'delivered',
       })
       .catch((error) => {
         throw `Не удалось обновить статус для задачи ${id}, ${error}`;
@@ -172,12 +178,14 @@ export class SmsService {
   }
 
   async getOneTaskById(id: number) {
-    const record = await this.smsRepository.findOne({ where: { id } }).catch((error) => {
-      throw `Не удалось получить запись на отправку SMS, ${error}`;
-    });
+    const record = await this.smsRepository
+      .findOne({ where: { id } })
+      .catch((error) => {
+        throw `Не удалось получить запись на отправку SMS, ${error}`;
+      });
 
     if (!record) {
-      throw "Запись на отправку SMS не найдена";
+      throw 'Запись на отправку SMS не найдена';
     }
 
     return record;
@@ -193,21 +201,25 @@ export class SmsService {
       });
 
     if (!record) {
-      throw "Код не найден. Запросите новый код";
+      throw 'Код не найден. Запросите новый код';
     }
 
     if (record.verify_attempts >= 5) {
-      throw "Превышено число попыток. Запросите новый код";
+      throw 'Превышено число попыток. Запросите новый код';
     }
 
-    const updatedAt = new Date(record.updated_at || record.created_at).getTime();
+    const updatedAt = new Date(
+      record.updated_at || record.created_at,
+    ).getTime();
 
     if (Date.now() > updatedAt + this.otp_ttl_ms) {
       await this.delete(record.id);
-      throw "Срок действия кода истёк. Запросите новый код";
+      throw 'Срок действия кода истёк. Запросите новый код';
     }
 
-    const isValid = await argon.verify(record.code_hash, dto.code).catch(() => false);
+    const isValid = await argon
+      .verify(record.code_hash, dto.code)
+      .catch(() => false);
 
     if (!isValid) {
       await this.smsRepository
@@ -228,7 +240,7 @@ export class SmsService {
     await this.smsRepository
       .createQueryBuilder()
       .delete()
-      .where("updated_at < :cutoff", { cutoff })
+      .where('updated_at < :cutoff', { cutoff })
       .execute()
       .catch((error) => {
         throw `Не удалось очистить протухшие записи, ${error}`;
@@ -237,16 +249,16 @@ export class SmsService {
 
   private mapErrorCodeToStatus(errorCode?: string): SmsOutboxStatus {
     const errors: Record<string, SmsOutboxStatus> = {
-      no_balance: "failed_no_balance",
-      insufficient_balance: "failed_no_balance",
-      invalid_number: "failed_invalid_number",
-      invalid_recipient: "failed_invalid_number",
-      gateway: "failed_gateway",
-      network: "failed_gateway",
-      timeout: "failed_gateway",
+      no_balance: 'failed_no_balance',
+      insufficient_balance: 'failed_no_balance',
+      invalid_number: 'failed_invalid_number',
+      invalid_recipient: 'failed_invalid_number',
+      gateway: 'failed_gateway',
+      network: 'failed_gateway',
+      timeout: 'failed_gateway',
     };
 
-    return errorCode && errors[errorCode] ? errors[errorCode] : "failed";
+    return errorCode && errors[errorCode] ? errors[errorCode] : 'failed';
   }
 
   private generateCode(): string {

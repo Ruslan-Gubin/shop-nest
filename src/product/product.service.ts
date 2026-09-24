@@ -1,19 +1,19 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import type { Repository, FindOperator, SelectQueryBuilder } from "typeorm";
-import { ILike, In, Like } from "typeorm";
-import type { CreateProductDto } from "./dto/create-product.dto";
-import type { UpdateProductDto } from "./dto/update-product.dto";
-import { Product } from "./entities/product.entity";
-import { ProductStockService } from "src/product-stock/product-stock.service";
-import { ProductPriceService } from "src/product-price/product-price.service";
-import { CategoryService } from "src/category/category.service";
-import { SearchService } from "src/search/search.service";
-import { ProductReviewService } from "src/product-review/product-review.service";
-import { PhotoService } from "src/photo/photo.service";
-import { Photo } from "src/photo/entities/photo.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import type { Repository, FindOperator, SelectQueryBuilder } from 'typeorm';
+import { ILike, In, Like } from 'typeorm';
+import type { CreateProductDto } from './dto/create-product.dto';
+import type { UpdateProductDto } from './dto/update-product.dto';
+import { Product } from './entities/product.entity';
+import { ProductStockService } from 'src/product-stock/product-stock.service';
+import { ProductPriceService } from 'src/product-price/product-price.service';
+import { CategoryService } from 'src/category/category.service';
+import { SearchService } from 'src/search/search.service';
+import { ProductReviewService } from 'src/product-review/product-review.service';
+import { PhotoService } from 'src/photo/photo.service';
+import { Photo } from 'src/photo/entities/photo.entity';
 
-export type CheckStatus = "success" | "warn" | "error";
+export type CheckStatus = 'success' | 'warn' | 'error';
 
 export interface FieldCheck {
   status: CheckStatus;
@@ -55,7 +55,7 @@ export class ProductService {
 
     if (ids.length === 0) return;
 
-    const photos = await this.photoService.findForParents("product", ids);
+    const photos = await this.photoService.findForParents('product', ids);
 
     const byParent = new Map<number, Photo[]>();
 
@@ -76,7 +76,8 @@ export class ProductService {
   ) {
     const ids = productsQuantity.map((el) => el.product_id);
     const products = await this.findByIds(ids, role);
-    const productOptionsMap: Map<number, { quantity: number; price: number }> = new Map();
+    const productOptionsMap: Map<number, { quantity: number; price: number }> =
+      new Map();
 
     let discount_quantity = 0;
     let subtotal = 0;
@@ -88,8 +89,15 @@ export class ProductService {
       )?.quantity;
       const priceList = products[i].price_list;
 
-      if (Array.isArray(priceList) && typeof productCount === "number" && productCount > 0) {
-        const { price, subPrice } = this.getCurrentPrices(productCount, priceList);
+      if (
+        Array.isArray(priceList) &&
+        typeof productCount === 'number' &&
+        productCount > 0
+      ) {
+        const { price, subPrice } = this.getCurrentPrices(
+          productCount,
+          priceList,
+        );
 
         if (price > 0 && subPrice > 0) {
           total += productCount * price;
@@ -121,7 +129,8 @@ export class ProductService {
       const itemPrice = priceList[i].price;
       const minQuantity = priceList[i].minQuantity;
 
-      if (typeof itemPrice !== "number" || typeof minQuantity !== "number") continue;
+      if (typeof itemPrice !== 'number' || typeof minQuantity !== 'number')
+        continue;
 
       if (productCount >= minQuantity && (!price || itemPrice < price)) {
         price = itemPrice;
@@ -142,7 +151,7 @@ export class ProductService {
     AND (stock.quantity - stock.reserved > 0 OR stock.in_stock)
 )`;
 
-    if (role === "admin" || role === "moderator" || role === "wholesaler") {
+    if (role === 'admin' || role === 'moderator' || role === 'wholesaler') {
       where += ` AND EXISTS (
     SELECT 1 FROM product_price price
     WHERE price.product_id = product.id AND price.price > 0
@@ -160,17 +169,21 @@ export class ProductService {
     return where;
   }
 
-  async findForMainPage(page: string, limit: string, role: string): Promise<[Product[], number]> {
+  async findForMainPage(
+    page: string,
+    limit: string,
+    role: string,
+  ): Promise<[Product[], number]> {
     const skip = (Number(page) - 1) * Number(limit);
     const where = this.buildMainPageWhere(role);
 
     const data = await this.productRepository
-      .createQueryBuilder("product")
+      .createQueryBuilder('product')
       .where(where)
-      .leftJoinAndSelect("product.stocks", "stock")
-      .leftJoinAndSelect("product.prices", "price")
-      .leftJoinAndSelect("price.price_type", "priceType")
-      .orderBy("product.id", "DESC")
+      .leftJoinAndSelect('product.stocks', 'stock')
+      .leftJoinAndSelect('product.prices', 'price')
+      .leftJoinAndSelect('price.price_type', 'priceType')
+      .orderBy('product.id', 'DESC')
       .skip(skip)
       .take(Number(limit))
       .getManyAndCount()
@@ -181,7 +194,9 @@ export class ProductService {
     await this.productReviewService.attachReviewStats(data[0]);
 
     for (let i = 0; i < data[0].length; i++) {
-      const stock_params = this.productStockService.getStockParams(data[0][i].stocks);
+      const stock_params = this.productStockService.getStockParams(
+        data[0][i].stocks,
+      );
       data[0][i].available = stock_params.available;
       data[0][i].accounting = stock_params.accounting;
       data[0][i].stocks = [];
@@ -231,26 +246,30 @@ export class ProductService {
     const skip = (Number(page) - 1) * take;
 
     const query = this.productRepository
-      .createQueryBuilder("product")
-      .leftJoinAndSelect("product.stocks", "stock")
-      .leftJoinAndSelect("product.prices", "price")
-      .leftJoinAndSelect("price.price_type", "priceType");
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.stocks', 'stock')
+      .leftJoinAndSelect('product.prices', 'price')
+      .leftJoinAndSelect('price.price_type', 'priceType');
 
     if (category_id) {
-      const categoryIds = await this.categoryService.getCategoryAndAllChildrenIds(
-        Number(category_id),
-      );
+      const categoryIds =
+        await this.categoryService.getCategoryAndAllChildrenIds(
+          Number(category_id),
+        );
       if (categoryIds.length > 0) {
-        query.andWhere("product.category_id IN (:...categoryIds)", {
+        query.andWhere('product.category_id IN (:...categoryIds)', {
           categoryIds,
         });
       }
     }
 
     if (search) {
-      query.andWhere("(product.name ILIKE :search OR product.description ILIKE :search)", {
-        search: `%${search}%`,
-      });
+      query.andWhere(
+        '(product.name ILIKE :search OR product.description ILIKE :search)',
+        {
+          search: `%${search}%`,
+        },
+      );
     }
 
     const where = this.buildMainPageWhere(role);
@@ -260,7 +279,9 @@ export class ProductService {
     }
 
     const sortPriceType =
-      role === "admin" || role === "moderator" || role === "wholesaler" ? "MIN" : "MAX";
+      role === 'admin' || role === 'moderator' || role === 'wholesaler'
+        ? 'MIN'
+        : 'MAX';
 
     if (price_from) {
       const priceSubQuery = `(SELECT COALESCE(${sortPriceType}(pp.price), 0) FROM product_price pp WHERE pp.product_id = product.id AND pp.price > 0)`;
@@ -279,9 +300,9 @@ export class ProductService {
     if (specifications) {
       const specGroups = new Map<number, string[]>();
 
-      for (const pair of specifications.split(",")) {
+      for (const pair of specifications.split(',')) {
         if (!pair) continue;
-        const colonIdx = pair.indexOf(":");
+        const colonIdx = pair.indexOf(':');
         if (colonIdx === -1) continue;
         const specId = parseInt(pair.substring(0, colonIdx), 10);
         const value = pair.substring(colonIdx + 1);
@@ -305,11 +326,11 @@ export class ProductService {
 
     if (country) {
       const countryList = country
-        .split(",")
+        .split(',')
         .map((c) => c.trim())
         .filter(Boolean);
       if (countryList.length > 0) {
-        query.andWhere("product.country IN (:...countries)", {
+        query.andWhere('product.country IN (:...countries)', {
           countries: countryList,
         });
       }
@@ -317,11 +338,11 @@ export class ProductService {
 
     if (product_types) {
       const typeList = product_types
-        .split(",")
+        .split(',')
         .map((t) => t.trim())
         .filter(Boolean);
       if (typeList.length > 0) {
-        query.andWhere("product.product_type IN (:...productTypes)", {
+        query.andWhere('product.product_type IN (:...productTypes)', {
           productTypes: typeList,
         });
       }
@@ -331,19 +352,26 @@ export class ProductService {
 
     query.skip(skip).take(take);
 
-    const [products, totalCount] = await query.getManyAndCount().catch((error) => {
-      throw `Не удалось получить список товаров, ${error.message}`;
-    });
+    const [products, totalCount] = await query
+      .getManyAndCount()
+      .catch((error) => {
+        throw `Не удалось получить список товаров, ${error.message}`;
+      });
 
     await this.productReviewService.attachReviewStats(products);
 
     for (const product of products) {
-      const stockParams = this.productStockService.getStockParams(product.stocks);
+      const stockParams = this.productStockService.getStockParams(
+        product.stocks,
+      );
       product.available = stockParams.available;
       product.accounting = stockParams.accounting;
       product.stocks = [];
       product.purchase_price = 0;
-      product.price_list = this.productPriceService.getProductUserPrices(product.prices, role);
+      product.price_list = this.productPriceService.getProductUserPrices(
+        product.prices,
+        role,
+      );
       product.prices = [];
     }
 
@@ -366,39 +394,41 @@ export class ProductService {
     role: string,
   ) {
     const sortPriceType =
-      role === "admin" || role === "moderator" || role === "wholesaler" ? "MIN" : "MAX";
+      role === 'admin' || role === 'moderator' || role === 'wholesaler'
+        ? 'MIN'
+        : 'MAX';
 
-    if (sort === "price_up") {
+    if (sort === 'price_up') {
       query.addSelect(
         `COALESCE(
       (SELECT ${sortPriceType}(pp.price) FROM product_price pp WHERE pp.product_id = product.id AND pp.price > 0),
       999999999
     )`,
-        "min_price",
+        'min_price',
       );
-      query.orderBy("min_price", "ASC");
-    } else if (sort === "price_down") {
+      query.orderBy('min_price', 'ASC');
+    } else if (sort === 'price_down') {
       query.addSelect(
         `COALESCE(
       (SELECT ${sortPriceType}(pp.price) FROM product_price pp WHERE pp.product_id = product.id AND pp.price > 0),
       999999999
     )`,
-        "min_price",
+        'min_price',
       );
-      query.orderBy("min_price", "DESC");
-    } else if (sort === "new") {
-      query.orderBy("product.created_at", "DESC");
-    } else if (sort === "rating") {
+      query.orderBy('min_price', 'DESC');
+    } else if (sort === 'new') {
+      query.orderBy('product.created_at', 'DESC');
+    } else if (sort === 'rating') {
       query.addSelect(
         `(SELECT COALESCE(AVG(pr.rating), 0) FROM product_review pr WHERE pr.product_id = product.id AND pr.rating > 0)`,
-        "avg_rating",
+        'avg_rating',
       );
       query.addSelect(
         `(SELECT COUNT(pr.id) FROM product_review pr WHERE pr.product_id = product.id)`,
-        "review_count",
+        'review_count',
       );
-      query.orderBy("avg_rating", "DESC");
-      query.addOrderBy("review_count", "DESC");
+      query.orderBy('avg_rating', 'DESC');
+      query.addOrderBy('review_count', 'DESC');
     } else {
       query.addSelect(
         `(SELECT COALESCE(SUM(op.quantity), 0)
@@ -406,10 +436,10 @@ export class ProductService {
           JOIN "order" o ON o.id = op.order_id
           WHERE op.product_id = product.id
           AND o.status = 'completed')`,
-        "popularity_score",
+        'popularity_score',
       );
-      query.orderBy("popularity_score", "DESC");
-      query.addOrderBy("product.views", "DESC");
+      query.orderBy('popularity_score', 'DESC');
+      query.addOrderBy('product.views', 'DESC');
     }
   }
 
@@ -434,11 +464,11 @@ export class ProductService {
     const skip = (Number(page) - 1) * take;
 
     const query = this.productRepository
-      .createQueryBuilder("product")
-      .leftJoinAndSelect("product.stocks", "stock")
-      .leftJoinAndSelect("product.prices", "price")
-      .leftJoinAndSelect("price.price_type", "priceType")
-      .andWhere("product.brand_name ILIKE :brand_name", { brand_name });
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.stocks', 'stock')
+      .leftJoinAndSelect('product.prices', 'price')
+      .leftJoinAndSelect('price.price_type', 'priceType')
+      .andWhere('product.brand_name ILIKE :brand_name', { brand_name });
 
     const where = this.buildMainPageWhere(role);
 
@@ -450,19 +480,26 @@ export class ProductService {
 
     query.skip(skip).take(take);
 
-    const [products, totalCount] = await query.getManyAndCount().catch((error) => {
-      throw `Не удалось получить товары по бренду, ${error.message}`;
-    });
+    const [products, totalCount] = await query
+      .getManyAndCount()
+      .catch((error) => {
+        throw `Не удалось получить товары по бренду, ${error.message}`;
+      });
 
     await this.productReviewService.attachReviewStats(products);
 
     for (const product of products) {
-      const stockParams = this.productStockService.getStockParams(product.stocks);
+      const stockParams = this.productStockService.getStockParams(
+        product.stocks,
+      );
       product.available = stockParams.available;
       product.accounting = stockParams.accounting;
       product.stocks = [];
       product.purchase_price = 0;
-      product.price_list = this.productPriceService.getProductUserPrices(product.prices, role);
+      product.price_list = this.productPriceService.getProductUserPrices(
+        product.prices,
+        role,
+      );
       product.prices = [];
     }
 
@@ -491,17 +528,20 @@ export class ProductService {
     product_types: string[];
   }> {
     const sortPriceType =
-      role === "admin" || role === "moderator" || role === "wholesaler" ? "MIN" : "MAX";
+      role === 'admin' || role === 'moderator' || role === 'wholesaler'
+        ? 'MIN'
+        : 'MAX';
 
     const params: unknown[] = [];
     const conditions: string[] = [];
 
-    conditions.push(this.buildMainPageWhere(role).replace(/product\./g, "p."));
+    conditions.push(this.buildMainPageWhere(role).replace(/product\./g, 'p.'));
 
     if (category_id) {
-      const categoryIds = await this.categoryService.getCategoryAndAllChildrenIds(
-        Number(category_id),
-      );
+      const categoryIds =
+        await this.categoryService.getCategoryAndAllChildrenIds(
+          Number(category_id),
+        );
       if (categoryIds.length > 0) {
         params.push(categoryIds);
         conditions.push(`p.category_id = ANY($${params.length}::int[])`);
@@ -514,7 +554,8 @@ export class ProductService {
       conditions.push(`(p.name ILIKE $${idx} OR p.description ILIKE $${idx})`);
     }
 
-    const whereStr = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const whereStr =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const priceResult = await this.productRepository
       .query(
@@ -575,7 +616,9 @@ export class ProductService {
         throw `Не удалось получить список стран, ${error.message}`;
       });
 
-    const countries = countriesResult.map((row: { country: string }) => row.country);
+    const countries = countriesResult.map(
+      (row: { country: string }) => row.country,
+    );
 
     const productTypeCondition = "p.product_type != ''";
     const productTypeWhere = whereStr
@@ -600,7 +643,10 @@ export class ProductService {
       (row: { product_type: string }) => row.product_type,
     );
 
-    const specMap = new Map<number, { id: number; name: string; type: string; values: string[] }>();
+    const specMap = new Map<
+      number,
+      { id: number; name: string; type: string; values: string[] }
+    >();
 
     for (const row of specsResult) {
       const specId = Number(row.spec_id);
@@ -620,7 +666,9 @@ export class ProductService {
     }
 
     for (const spec of specMap.values()) {
-      spec.values.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      spec.values.sort((a, b) =>
+        a.localeCompare(b, undefined, { numeric: true }),
+      );
     }
 
     return {
@@ -638,7 +686,7 @@ export class ProductService {
     const products = await this.productRepository
       .find({
         where: { id: In(ids) },
-        relations: ["stocks", "prices", "prices.price_type"],
+        relations: ['stocks', 'prices', 'prices.price_type'],
       })
       .catch((error) => {
         throw `Не удалось получить список товаров, ${error.message}`;
@@ -647,7 +695,9 @@ export class ProductService {
     await this.productReviewService.attachReviewStats(products);
 
     for (let i = 0; i < products.length; i++) {
-      const stock_params = this.productStockService.getStockParams(products[i].stocks);
+      const stock_params = this.productStockService.getStockParams(
+        products[i].stocks,
+      );
       products[i].available = stock_params.available;
       products[i].accounting = stock_params.accounting;
       products[i].stocks = [];
@@ -691,14 +741,20 @@ export class ProductService {
    * При равенстве — сортировка по популярности (продажи в completed заказах + просмотры).
    * Текущий товар исключается из результатов.
    */
-  async findSimilar(productId: number, limit: number, role: string): Promise<Product[]> {
+  async findSimilar(
+    productId: number,
+    limit: number,
+    role: string,
+  ): Promise<Product[]> {
     const product = await this.productRepository.findOne({
       where: { id: productId },
-      select: ["id", "category_id"],
+      select: ['id', 'category_id'],
     });
 
     const categoryIds = product?.category_id
-      ? await this.categoryService.getCategoryAndAllChildrenIds(product.category_id)
+      ? await this.categoryService.getCategoryAndAllChildrenIds(
+          product.category_id,
+        )
       : [];
 
     if (!categoryIds.length) return [];
@@ -748,7 +804,11 @@ export class ProductService {
    * сортируется по убыванию частоты совместной покупки.
    * Переданные товары исключаются из результатов.
    */
-  async findBoughtTogether(productIds: number[], limit: number, role: string): Promise<Product[]> {
+  async findBoughtTogether(
+    productIds: number[],
+    limit: number,
+    role: string,
+  ): Promise<Product[]> {
     if (!productIds.length) return [];
 
     const idsResult = await this.productRepository
@@ -777,7 +837,9 @@ export class ProductService {
         throw `Не удалось получить товары для блока "покупают вместе", ${error.message}`;
       });
 
-    const ids = idsResult.map((r: { product_id: string }) => Number(r.product_id));
+    const ids = idsResult.map((r: { product_id: string }) =>
+      Number(r.product_id),
+    );
 
     return ids.length > 0 ? this.findByIds(ids, role) : [];
   }
@@ -980,7 +1042,10 @@ export class ProductService {
    * Fallback для findRecommended — pure popularity
    * Сортировка: продажи в completed заказах DESC, затем просмотры DESC.
    */
-  private async findRecommendedFallback(limit: number, role: string): Promise<Product[]> {
+  private async findRecommendedFallback(
+    limit: number,
+    role: string,
+  ): Promise<Product[]> {
     const idsResult = await this.productRepository
       .query(
         `
@@ -1035,7 +1100,7 @@ export class ProductService {
 
     const ids = idsResult.map((r: { id: string }) => Number(r.id));
 
-    return ids.length > 0 ? this.findByIds(ids, "admin") : [];
+    return ids.length > 0 ? this.findByIds(ids, 'admin') : [];
   }
 
   async getIncompleteProducts(
@@ -1140,48 +1205,48 @@ export class ProductService {
       products.push({
         id: row.id,
         name: row.name,
-        photos: { status: "success", message: "В порядке" },
+        photos: { status: 'success', message: 'В порядке' },
         price: {
-          status: row.has_price ? "success" : "error",
-          message: row.has_price ? "В порядке" : "Нет цены",
+          status: row.has_price ? 'success' : 'error',
+          message: row.has_price ? 'В порядке' : 'Нет цены',
         },
         specifications: {
-          status: row.has_specs ? "success" : "error",
-          message: row.has_specs ? "В порядке" : "Нет характеристик",
+          status: row.has_specs ? 'success' : 'error',
+          message: row.has_specs ? 'В порядке' : 'Нет характеристик',
         },
         stocks: {
-          status: row.has_stocks ? "success" : "error",
-          message: row.has_stocks ? "В порядке" : "Нет остатков",
+          status: row.has_stocks ? 'success' : 'error',
+          message: row.has_stocks ? 'В порядке' : 'Нет остатков',
         },
 
         category: {
-          status: row.has_valid_category ? "success" : "error",
+          status: row.has_valid_category ? 'success' : 'error',
           message: row.has_valid_category
-            ? "В порядке"
+            ? 'В порядке'
             : row.category_id
-              ? "Категория не конечная"
-              : "Нет категории",
+              ? 'Категория не конечная'
+              : 'Нет категории',
         },
         dimensions: {
-          status: Number(row.dims_filled) === 4 ? "success" : "warn",
+          status: Number(row.dims_filled) === 4 ? 'success' : 'warn',
           message:
             Number(row.dims_filled) === 4
-              ? "В порядке"
+              ? 'В порядке'
               : Number(row.dims_filled) > 0
-                ? "Указаны не все габариты"
-                : "Нет габаритов",
+                ? 'Указаны не все габариты'
+                : 'Нет габаритов',
         },
         country: {
-          status: row.has_country ? "success" : "warn",
-          message: row.has_country ? "В порядке" : "Нет",
+          status: row.has_country ? 'success' : 'warn',
+          message: row.has_country ? 'В порядке' : 'Нет',
         },
         product_type: {
-          status: row.has_product_type ? "success" : "warn",
-          message: row.has_product_type ? "В порядке" : "Нет",
+          status: row.has_product_type ? 'success' : 'warn',
+          message: row.has_product_type ? 'В порядке' : 'Нет',
         },
         equipment: {
-          status: row.has_equipment ? "success" : "warn",
-          message: row.has_equipment ? "В порядке" : "Нет",
+          status: row.has_equipment ? 'success' : 'warn',
+          message: row.has_equipment ? 'В порядке' : 'Нет',
         },
       });
     }
@@ -1217,7 +1282,7 @@ export class ProductService {
         skip,
         take: Number(limit),
         where: whereCondition,
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось получить список товаров, ${error.message}`;
@@ -1235,18 +1300,22 @@ export class ProductService {
       whereCondition.name = ILike(`%${name}%`);
     }
 
-    return this.productRepository.count({ where: whereCondition }).catch((error) => {
-      throw `Не удалось получить общее количество товаров, ${error.message}`;
-    });
+    return this.productRepository
+      .count({ where: whereCondition })
+      .catch((error) => {
+        throw `Не удалось получить общее количество товаров, ${error.message}`;
+      });
   }
 
-  async getReceiptProductInfo(ids: number[]): Promise<{ id: number; name: string }[]> {
+  async getReceiptProductInfo(
+    ids: number[],
+  ): Promise<{ id: number; name: string }[]> {
     if (!ids.length) return [];
 
     return this.productRepository
       .find({
         where: { id: In(ids) },
-        select: ["id", "name"],
+        select: ['id', 'name'],
       })
       .catch((error) => {
         throw `Не удалось получить информацию о товарах, ${error.message}`;
@@ -1267,7 +1336,7 @@ export class ProductService {
     const products = await this.productRepository
       .find({
         where: whereCondition,
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось найти товары по запросу, ${error.message}`;
@@ -1279,9 +1348,11 @@ export class ProductService {
   }
 
   async findOne(id: number) {
-    const product = await this.productRepository.findOneBy({ id }).catch((error) => {
-      throw `Не удалось получить товар, ${error.message}`;
-    });
+    const product = await this.productRepository
+      .findOneBy({ id })
+      .catch((error) => {
+        throw `Не удалось получить товар, ${error.message}`;
+      });
 
     if (product) {
       await this.productReviewService.attachReviewStats([product]);
@@ -1292,15 +1363,19 @@ export class ProductService {
   }
 
   async findByCode(code: string) {
-    return this.productRepository.findOne({ where: { code } }).catch((error) => {
-      throw `Не удалось найти товар по коду, ${error.message}`;
-    });
+    return this.productRepository
+      .findOne({ where: { code } })
+      .catch((error) => {
+        throw `Не удалось найти товар по коду, ${error.message}`;
+      });
   }
 
   async incrementView(id: number) {
-    return this.productRepository.increment({ id }, "views", 1).catch((error) => {
-      throw `Не удалось увеличить счетчик просмотра, ${error.message}`;
-    });
+    return this.productRepository
+      .increment({ id }, 'views', 1)
+      .catch((error) => {
+        throw `Не удалось увеличить счетчик просмотра, ${error.message}`;
+      });
   }
 
   async getTotalSold(productId: number): Promise<number> {
@@ -1341,7 +1416,7 @@ export class ProductService {
     const skip = (Number(page) - 1) * Number(limit);
 
     return this.productRepository
-      .createQueryBuilder("p")
+      .createQueryBuilder('p')
       .where(
         `EXISTS (
           SELECT 1 FROM order_product op
@@ -1376,7 +1451,7 @@ export class ProductService {
     const skip = (Number(page) - 1) * Number(limit);
 
     return this.productRepository
-      .createQueryBuilder("p")
+      .createQueryBuilder('p')
       .where(
         `EXISTS (
           SELECT 1 FROM product_review pr
@@ -1401,7 +1476,7 @@ export class ProductService {
     const skip = (Number(page) - 1) * Number(limit);
 
     return this.productRepository
-      .createQueryBuilder("p")
+      .createQueryBuilder('p')
       .where(
         `EXISTS (
           SELECT 1 FROM product_question pq
@@ -1418,10 +1493,13 @@ export class ProductService {
       });
   }
 
-  async canReview(product_id: number, create_user_id: number): Promise<boolean> {
+  async canReview(
+    product_id: number,
+    create_user_id: number,
+  ): Promise<boolean> {
     return this.productRepository
-      .createQueryBuilder("p")
-      .where("p.id = :product_id", { product_id })
+      .createQueryBuilder('p')
+      .where('p.id = :product_id', { product_id })
       .andWhere(
         `EXISTS (
           SELECT 1 FROM order_product op
