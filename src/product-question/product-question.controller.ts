@@ -8,25 +8,24 @@ import {
   Delete,
   Query,
   UseGuards,
-} from '@nestjs/common';
-import { ProductQuestionService } from './product-question.service';
-import { CreateProductQuestionDto } from './dto/create-product-question.dto';
-import { UpdateProductQuestionDto } from './dto/update-product-question.dto';
-import { GenerateAnswerDto } from './dto/generate-answer.dto';
-import { ResponseData, responseData } from 'src/helpers/response';
-import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { CurrentStrategyUser } from 'src/auth/types/current-user';
-import { ProductQuestion } from './entities/product-question.entity';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { Roles } from 'src/auth/decorators/roles.decorator';
+} from "@nestjs/common";
+import { ProductQuestionService } from "./product-question.service";
+import { CreateProductQuestionDto } from "./dto/create-product-question.dto";
+import { UpdateProductQuestionDto } from "./dto/update-product-question.dto";
+import { GenerateAnswerDto } from "./dto/generate-answer.dto";
+import { ResponseData, responseData } from "src/helpers/response";
+import { CurrentUser } from "src/auth/decorators/current-user.decorator";
+import { CurrentStrategyUser } from "src/auth/types/current-user";
+import { ProductQuestion } from "./entities/product-question.entity";
+import { RolesGuard } from "src/auth/guards/roles.guard";
+import { Roles } from "src/auth/decorators/roles.decorator";
+import { Public } from "src/auth/decorators/public.decorator";
 
-@Controller('product-question')
+@Controller("product-question")
 export class ProductQuestionController {
-  constructor(
-    private readonly productQuestionService: ProductQuestionService,
-  ) {}
+  constructor(private readonly productQuestionService: ProductQuestionService) {}
 
-  @Post('create')
+  @Post("create")
   async create(
     @Body() createDto: CreateProductQuestionDto,
     @CurrentUser() user?: CurrentStrategyUser,
@@ -36,17 +35,18 @@ export class ProductQuestionController {
         ...createDto,
         create_user_id: user ? user.sub : undefined,
       });
-      return responseData(question, 'success', [], 'Вопрос успешно добавлен');
+      return responseData(question, "success", [], "Вопрос успешно добавлен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('product/:product_id')
+  @Public()
+  @Get("product/:product_id")
   async getByProduct(
-    @Param('product_id') product_id: string,
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
+    @Param("product_id") product_id: string,
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
     @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<
     ResponseData<{
@@ -59,31 +59,30 @@ export class ProductQuestionController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [questions, totalCount] =
-        await this.productQuestionService.findByProductId(
-          Number(product_id),
-          pageNum,
-          limitNum,
-          user?.sub,
-        );
+      const [questions, totalCount] = await this.productQuestionService.findByProductId(
+        Number(product_id),
+        pageNum,
+        limitNum,
+        user?.sub,
+      );
 
       return responseData(
         { questions, totalCount, paginationPage: pageNum },
-        'success',
+        "success",
         [],
-        'Вопросы получены',
+        "Вопросы получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('all')
-  @Roles('admin', 'moderator')
+  @Get("all")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async getAll(
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
   ): Promise<
     ResponseData<{
       questions: ProductQuestion[];
@@ -95,78 +94,70 @@ export class ProductQuestionController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [questions, totalCount] = await this.productQuestionService.findAll(
+      const [questions, totalCount] = await this.productQuestionService.findAll(pageNum, limitNum);
+
+      return responseData(
+        { questions, totalCount, paginationPage: pageNum },
+        "success",
+        [],
+        "Все вопросы получены",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("unanswered")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async getUnanswered(
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
+  ): Promise<
+    ResponseData<{
+      questions: ProductQuestion[];
+      totalCount: number;
+      paginationPage: number;
+    } | null>
+  > {
+    try {
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+      const pageNum = page ? parseInt(page, 10) : 1;
+
+      const [questions, totalCount] = await this.productQuestionService.findAllUnanswered(
         pageNum,
         limitNum,
       );
 
       return responseData(
         { questions, totalCount, paginationPage: pageNum },
-        'success',
+        "success",
         [],
-        'Все вопросы получены',
+        "Неотвеченные вопросы получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('unanswered')
-  @Roles('admin', 'moderator')
+  @Post("generate-answer")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
-  async getUnanswered(
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
-  ): Promise<
-    ResponseData<{
-      questions: ProductQuestion[];
-      totalCount: number;
-      paginationPage: number;
-    } | null>
-  > {
-    try {
-      const limitNum = limit ? parseInt(limit, 10) : 10;
-      const pageNum = page ? parseInt(page, 10) : 1;
-
-      const [questions, totalCount] =
-        await this.productQuestionService.findAllUnanswered(pageNum, limitNum);
-
-      return responseData(
-        { questions, totalCount, paginationPage: pageNum },
-        'success',
-        [],
-        'Неотвеченные вопросы получены',
-      );
-    } catch (error) {
-      return responseData(null, 'error', [], error);
-    }
-  }
-
-  @Post('generate-answer')
-  @Roles('admin', 'moderator')
-  @UseGuards(RolesGuard)
-  async generateAnswer(
-    @Body() dto: GenerateAnswerDto,
-  ): Promise<ResponseData<any>> {
+  async generateAnswer(@Body() dto: GenerateAnswerDto): Promise<ResponseData<any>> {
     try {
       const result = await this.productQuestionService.generateAnswer(dto);
-      return responseData(
-        result,
-        'success',
-        [],
-        'Рекомендация ответа сгенерирована',
-      );
+      return responseData(result, "success", [], "Рекомендация ответа сгенерирована");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('my-questions-from-product/:product_id')
+  @Get("my-questions-from-product/:product_id")
   async findMyByProduct(
-    @Param('product_id') product_id: string,
+    @Param("product_id") product_id: string,
     @CurrentUser() user: CurrentStrategyUser,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
   ): Promise<
     ResponseData<{
       questions: ProductQuestion[];
@@ -178,30 +169,29 @@ export class ProductQuestionController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [questions, totalCount] =
-        await this.productQuestionService.findByProductAndUserId(
-          Number(product_id),
-          Number(user.sub),
-          pageNum,
-          limitNum,
-        );
+      const [questions, totalCount] = await this.productQuestionService.findByProductAndUserId(
+        Number(product_id),
+        Number(user.sub),
+        pageNum,
+        limitNum,
+      );
 
       return responseData(
         { questions, totalCount, paginationPage: pageNum },
-        'success',
+        "success",
         [],
-        'Вопросы по товару получены',
+        "Вопросы по товару получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('user/:user_id')
+  @Get("user/:user_id")
   async findByUser(
-    @Param('user_id') user_id: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Param("user_id") user_id: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
   ): Promise<
     ResponseData<{
       questions: ProductQuestion[];
@@ -213,54 +203,53 @@ export class ProductQuestionController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [questions, totalCount] =
-        await this.productQuestionService.findByUserId(
-          Number(user_id),
-          pageNum,
-          limitNum,
-        );
+      const [questions, totalCount] = await this.productQuestionService.findByUserId(
+        Number(user_id),
+        pageNum,
+        limitNum,
+      );
 
       return responseData(
         { questions, totalCount, paginationPage: pageNum },
-        'success',
+        "success",
         [],
-        'Вопросы пользователя получены',
+        "Вопросы пользователя получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get(':id')
-  async getOne(@Param('id') id: string): Promise<ResponseData<any>> {
+  @Get(":id")
+  async getOne(@Param("id") id: string): Promise<ResponseData<any>> {
     try {
       const question = await this.productQuestionService.findOne(Number(id));
-      return responseData(question, 'success', [], 'Вопрос получен');
+      return responseData(question, "success", [], "Вопрос получен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Patch(':id')
+  @Patch(":id")
   async update(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() updateDto: UpdateProductQuestionDto,
   ): Promise<ResponseData<null>> {
     try {
       await this.productQuestionService.update(Number(id), updateDto);
-      return responseData(null, 'success', [], 'Вопрос успешно обновлен');
+      return responseData(null, "success", [], "Вопрос успешно обновлен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Delete(':id')
-  async remove(@Param('id') id: string): Promise<ResponseData<null>> {
+  @Delete(":id")
+  async remove(@Param("id") id: string): Promise<ResponseData<null>> {
     try {
       await this.productQuestionService.remove(Number(id));
-      return responseData(null, 'success', [], 'Вопрос успешно удален');
+      return responseData(null, "success", [], "Вопрос успешно удален");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 }

@@ -9,27 +9,29 @@ import {
   Query,
   UseGuards,
   ParseArrayPipe,
-} from '@nestjs/common';
-import { ProductService, ProductCompletenessCheck } from './product.service';
-import { CreateProductDto } from './dto/create-product.dto';
-import { UpdateProductDto } from './dto/update-product.dto';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { ResponseData, responseData } from 'src/helpers/response';
-import { Product } from './entities/product.entity';
-import { Category } from 'src/category/entities/category.entity';
-import { CurrentStrategyUser } from 'src/auth/types/current-user';
-import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+} from "@nestjs/common";
+import { ProductService, ProductCompletenessCheck } from "./product.service";
+import { CreateProductDto } from "./dto/create-product.dto";
+import { UpdateProductDto } from "./dto/update-product.dto";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { Roles } from "../auth/decorators/roles.decorator";
+import { ResponseData, responseData } from "src/helpers/response";
+import { Product } from "./entities/product.entity";
+import { Category } from "src/category/entities/category.entity";
+import { CurrentStrategyUser } from "src/auth/types/current-user";
+import { CurrentUser } from "src/auth/decorators/current-user.decorator";
+import { Public } from "src/auth/decorators/public.decorator";
 
-@Controller('product')
+@Controller("product")
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  @Get('filters')
+  @Public()
+  @Get("filters")
   async getFilters(
     @CurrentUser() user?: CurrentStrategyUser,
-    @Query('category_id') category_id?: string,
-    @Query('search') search?: string,
+    @Query("category_id") category_id?: string,
+    @Query("search") search?: string,
   ): Promise<
     ResponseData<{
       price: { min: number; max: number };
@@ -45,30 +47,31 @@ export class ProductController {
   > {
     try {
       const filters = await this.productService.getFilters({
-        role: user?.role ?? 'user',
+        role: user?.role ?? "user",
         category_id,
         search,
       });
 
-      return responseData(filters, 'success', [], 'Фильтры получены');
+      return responseData(filters, "success", [], "Фильтры получены");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('catalog')
+  @Public()
+  @Get("catalog")
   async getCatalog(
-    @Query('page') page: string,
-    @Query('limit') limit: string,
+    @Query("page") page: string,
+    @Query("limit") limit: string,
     @CurrentUser() user?: CurrentStrategyUser,
-    @Query('category_id') category_id?: string,
-    @Query('search') search?: string,
-    @Query('sort') sort?: string,
-    @Query('price_from') price_from?: string,
-    @Query('price_to') price_to?: string,
-    @Query('specifications') specifications?: string,
-    @Query('country') country?: string,
-    @Query('product_types') product_types?: string,
+    @Query("category_id") category_id?: string,
+    @Query("search") search?: string,
+    @Query("sort") sort?: string,
+    @Query("price_from") price_from?: string,
+    @Query("price_to") price_to?: string,
+    @Query("specifications") specifications?: string,
+    @Query("country") country?: string,
+    @Query("product_types") product_types?: string,
   ): Promise<
     ResponseData<{
       products: Product[];
@@ -80,7 +83,7 @@ export class ProductController {
       const catalog = await this.productService.getCatalog({
         page,
         limit,
-        role: user?.role || 'user',
+        role: user?.role || "user",
         category_id,
         search,
         sort,
@@ -91,17 +94,18 @@ export class ProductController {
         product_types,
       });
 
-      return responseData(catalog, 'success', [], 'Товары получены');
+      return responseData(catalog, "success", [], "Товары получены");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('main-page')
+  @Public()
+  @Get("main-page")
   async findForMainPage(
-    @Query('page') page: string,
-    @Query('limit') limit: string,
-    @CurrentUser() user: CurrentStrategyUser,
+    @Query("page") page: string,
+    @Query("limit") limit: string,
+    @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<
     ResponseData<{
       products: Product[];
@@ -110,98 +114,94 @@ export class ProductController {
     } | null>
   > {
     try {
-      const products = await this.productService.findForMainPage(
+      const data = await this.productService.findForMainPage(
         page,
         limit,
-        user.role,
-      );
-      const totalCount = await this.productService.getTotalCountForMainPage(
-        user.role,
+        user && user.role ? user.role : "user",
       );
 
       return responseData(
-        { products, totalCount, paginationPage: page },
-        'success',
+        { products: data[0], totalCount: data[1], paginationPage: page },
+        "success",
         [],
-        'Товары для главной страницы получены',
+        "Товары для главной страницы получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('by-ids')
+  @Public()
+  @Get("by-ids")
   async findByIds(
-    @Query('ids', new ParseArrayPipe({ items: Number, separator: ',' }))
+    @Query("ids", new ParseArrayPipe({ items: Number, separator: "," }))
     ids: number[],
-    @CurrentUser() user: CurrentStrategyUser,
+    @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<ResponseData<Product[] | null>> {
     try {
-      const products = await this.productService.findByIds(ids, user.role);
+      const products = await this.productService.findByIds(ids, user?.role ? user.role : "user");
 
-      return responseData(products, 'success', [], 'Товары получены');
+      return responseData(products, "success", [], "Товары получены");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('similar/:id')
+  @Public()
+  @Get("similar/:id")
   async findSimilar(
-    @Param('id') id: string,
-    @Query('limit') limit: string,
+    @Param("id") id: string,
+    @Query("limit") limit: string,
     @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<ResponseData<Product[] | null>> {
     try {
       const products = await this.productService.findSimilar(
         Number(id),
         Number(limit) || 30,
-        user?.role ?? 'user',
+        user?.role ?? "user",
       );
 
-      return responseData(products, 'success', [], 'Похожие товары получены');
+      return responseData(products, "success", [], "Похожие товары получены");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('buy-together')
+  @Public()
+  @Get("buy-together")
   async findBoughtTogether(
-    @Query('ids', new ParseArrayPipe({ items: Number, separator: ',' }))
+    @Query("ids", new ParseArrayPipe({ items: Number, separator: "," }))
     ids: number[],
-    @Query('limit') limit: string,
+    @Query("limit") limit: string,
     @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<ResponseData<Product[] | null>> {
     try {
       const products = await this.productService.findBoughtTogether(
         ids,
         Number(limit) || 30,
-        user?.role ?? 'user',
+        user?.role ?? "user",
       );
 
-      return responseData(
-        products,
-        'success',
-        [],
-        'Товары для блока «покупают вместе» получены',
-      );
+      return responseData(products, "success", [], "Товары для блока «покупают вместе» получены");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('recommended')
+  @Public()
+  @Get("recommended")
   async findRecommended(
-    @Query('favorite_ids') favoriteIds: string,
-    @Query('cart_ids') cartIds: string,
-    @Query('viewed_ids') viewedIds: string,
-    @Query('limit') limit: string,
+    @Query("favorite_ids") favoriteIds: string,
+    @Query("cart_ids") cartIds: string,
+    @Query("viewed_ids") viewedIds: string,
+    @Query("limit") limit: string,
     @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<ResponseData<Product[] | null>> {
     try {
       const parseIds = (str?: string): number[] =>
         str
           ? str
-              .split(',')
+              .split(",")
               .map(Number)
               .filter((id) => !Number.isNaN(id))
           : [];
@@ -211,44 +211,34 @@ export class ProductController {
         parseIds(cartIds),
         parseIds(viewedIds),
         Number(limit) || 30,
-        user?.role ?? 'user',
+        user?.role ? user.role : "user",
       );
 
-      return responseData(
-        products,
-        'success',
-        [],
-        'Рекомендованные товары получены',
-      );
+      return responseData(products, "success", [], "Рекомендованные товары получены");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('running-low')
-  @Roles('admin', 'moderator')
+  @Get("running-low")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async findRunningLow(): Promise<ResponseData<Product[] | null>> {
     try {
       const products = await this.productService.findRunningLow();
 
-      return responseData(
-        products,
-        'success',
-        [],
-        'Товары с малым остатком получены',
-      );
+      return responseData(products, "success", [], "Товары с малым остатком получены");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('incomplete')
-  @Roles('admin', 'moderator')
+  @Get("incomplete")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async getIncomplete(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
   ): Promise<
     ResponseData<{
       products: ProductCompletenessCheck[];
@@ -260,42 +250,32 @@ export class ProductController {
       const pageNum = page ? parseInt(page, 10) : 1;
       const limitNum = limit ? parseInt(limit, 10) : 10;
 
-      const products = await this.productService.getIncompleteProducts(
-        pageNum,
-        limitNum,
-      );
+      const products = await this.productService.getIncompleteProducts(pageNum, limitNum);
 
-      return responseData(
-        products,
-        'success',
-        [],
-        'Список товаров с неполными данными получен',
-      );
+      return responseData(products, "success", [], "Список товаров с неполными данными получен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Post('create')
-  @Roles('admin')
+  @Post("create")
+  @Roles("admin")
   @UseGuards(RolesGuard)
-  async create(
-    @Body() createProductDto: CreateProductDto,
-  ): Promise<ResponseData<Product | null>> {
+  async create(@Body() createProductDto: CreateProductDto): Promise<ResponseData<Product | null>> {
     try {
       const product = await this.productService.create(createProductDto);
 
-      return responseData(product, 'success', [], 'Товар успешно добавлен');
+      return responseData(product, "success", [], "Товар успешно добавлен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('products')
+  @Get("products")
   async findAll(
-    @Query('page') page: string,
-    @Query('limit') limit: string,
-    @Query('name') name: string,
+    @Query("page") page: string,
+    @Query("limit") limit: string,
+    @Query("name") name: string,
   ): Promise<
     ResponseData<{
       products: Product[];
@@ -309,33 +289,32 @@ export class ProductController {
 
       return responseData(
         { products, totalCount, paginationPage: page },
-        'success',
+        "success",
         [],
-        'Список товаров получен',
+        "Список товаров получен",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('search-for-receipt')
-  async findBySearchQuery(
-    @Query('q') q: string,
-  ): Promise<ResponseData<Product[] | null>> {
+  @Get("search-for-receipt")
+  async findBySearchQuery(@Query("q") q: string): Promise<ResponseData<Product[] | null>> {
     try {
       const products = await this.productService.findBySearchQuery(q);
 
-      return responseData(products, 'success', [], 'Товары получены');
+      return responseData(products, "success", [], "Товары получены");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('can-review')
+  @Public()
+  @Get("can-review")
   async getProductsCanReview(
     @CurrentUser() user: CurrentStrategyUser,
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
   ): Promise<
     ResponseData<{
       products: Product[];
@@ -347,46 +326,47 @@ export class ProductController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [products, totalCount] =
-        await this.productService.findProductsCanReview(
-          user.sub,
-          pageNum,
-          limitNum,
-        );
+      const [products, totalCount] = await this.productService.findProductsCanReview(
+        user.sub,
+        pageNum,
+        limitNum,
+      );
 
       return responseData(
         { products, totalCount, paginationPage: pageNum },
-        'success',
+        "success",
         [],
-        'Товары для отзыва получены',
+        "Товары для отзыва получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('can-review/:product_id')
+  @Public()
+  @Get("can-review/:product_id")
   async canReview(
-    @Param('product_id') product_id: string,
-    @CurrentUser() user: CurrentStrategyUser,
+    @Param("product_id") product_id: string,
+    @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<ResponseData<boolean | null>> {
     try {
-      const canReview = await this.productService.canReview(
-        Number(product_id),
-        user.sub,
-      );
+      let canReview = false;
 
-      return responseData(canReview, 'success', [], '');
+      if (typeof user?.sub === "number") {
+        canReview = await this.productService.canReview(Number(product_id), user.sub);
+      }
+
+      return responseData(canReview, "success", [], "");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('reviewed')
+  @Get("reviewed")
   async getReviewedProducts(
     @CurrentUser() user: CurrentStrategyUser,
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
   ): Promise<
     ResponseData<{
       products: Product[];
@@ -398,29 +378,28 @@ export class ProductController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [products, totalCount] =
-        await this.productService.findProductsWithReviews(
-          user.sub,
-          pageNum,
-          limitNum,
-        );
+      const [products, totalCount] = await this.productService.findProductsWithReviews(
+        user.sub,
+        pageNum,
+        limitNum,
+      );
 
       return responseData(
         { products, totalCount, paginationPage: pageNum },
-        'success',
+        "success",
         [],
-        'Товары с отзывами получены',
+        "Товары с отзывами получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('questions')
+  @Get("questions")
   async getProductsWithQuestions(
     @CurrentUser() user: CurrentStrategyUser,
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
   ): Promise<
     ResponseData<{
       products: Product[];
@@ -432,48 +411,40 @@ export class ProductController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [products, totalCount] =
-        await this.productService.findProductsWithQuestions(
-          user.sub,
-          pageNum,
-          limitNum,
-        );
+      const [products, totalCount] = await this.productService.findProductsWithQuestions(
+        user.sub,
+        pageNum,
+        limitNum,
+      );
 
       return responseData(
         { products, totalCount, paginationPage: pageNum },
-        'success',
+        "success",
         [],
-        'Товары с вопросами получены',
+        "Товары с вопросами получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('category/:id')
-  async findByCategoryId(
-    @Param('id') id: string,
-  ): Promise<ResponseData<Product[] | null>> {
+  @Get("category/:id")
+  async findByCategoryId(@Param("id") id: string): Promise<ResponseData<Product[] | null>> {
     try {
       const products = await this.productService.findByCategoryId(Number(id));
 
-      return responseData(
-        products,
-        'success',
-        [],
-        'Товары для категории получены',
-      );
+      return responseData(products, "success", [], "Товары для категории получены");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('brand/:brand_name')
+  @Get("brand/:brand_name")
   async findByBrandName(
-    @Param('brand_name') brand_name: string,
-    @Query('page') page: string,
-    @Query('limit') limit: string,
-    @Query('sort') sort?: string,
+    @Param("brand_name") brand_name: string,
+    @Query("page") page: string,
+    @Query("limit") limit: string,
+    @Query("sort") sort?: string,
     @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<
     ResponseData<{
@@ -488,106 +459,88 @@ export class ProductController {
         page,
         limit,
         sort,
-        role: user?.role ?? 'user',
+        role: user?.role ?? "user",
       });
 
-      return responseData(catalog, 'success', [], 'Товары по бренду получены');
+      return responseData(catalog, "success", [], "Товары по бренду получены");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('full-path-categories/:id')
-  async getFullPathCategories(
-    @Param('id') id: string,
-  ): Promise<ResponseData<Category[] | null>> {
+  @Get("full-path-categories/:id")
+  async getFullPathCategories(@Param("id") id: string): Promise<ResponseData<Category[] | null>> {
     try {
-      const categories = await this.productService.getFullPathCategories(
-        Number(id),
-      );
+      const categories = await this.productService.getFullPathCategories(Number(id));
 
-      return responseData(
-        categories,
-        'success',
-        [],
-        'Полный путь категорий для товара получен',
-      );
+      return responseData(categories, "success", [], "Полный путь категорий для товара получен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('increment-view/:id')
-  async findOneAndIncrementView(
-    @Param('id') id: string,
-  ): Promise<ResponseData<Product | null>> {
+  @Public()
+  @Get("increment-view/:id")
+  async findOneAndIncrementView(@Param("id") id: string): Promise<ResponseData<Product | null>> {
     try {
       const product = await this.productService.findOne(Number(id));
       await this.productService.incrementView(Number(id));
 
-      return responseData(product, 'success', [], 'Товар получен');
+      return responseData(product, "success", [], "Товар получен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('total-sold/:id')
-  async getTotalSold(
-    @Param('id') id: string,
-  ): Promise<ResponseData<number | null>> {
+  @Get("total-sold/:id")
+  async getTotalSold(@Param("id") id: string): Promise<ResponseData<number | null>> {
     try {
       const totalSold = await this.productService.getTotalSold(Number(id));
 
-      return responseData(
-        totalSold,
-        'success',
-        [],
-        'Общее количество проданного товара получено',
-      );
+      return responseData(totalSold, "success", [], "Общее количество проданного товара получено");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-  ): Promise<ResponseData<Product | null>> {
+  @Public()
+  @Get(":id")
+  async findOne(@Param("id") id: string): Promise<ResponseData<Product | null>> {
     try {
       const product = await this.productService.findOne(Number(id));
 
-      return responseData(product, 'success', [], 'Товар получен');
+      return responseData(product, "success", [], "Товар получен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Patch(':id')
-  @Roles('admin')
+  @Patch(":id")
+  @Roles("admin")
   @UseGuards(RolesGuard)
   async update(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() updateProductDto: UpdateProductDto,
   ): Promise<ResponseData<null>> {
     try {
       await this.productService.update(Number(id), updateProductDto);
 
-      return responseData(null, 'success', [], 'Товар успешно изменен');
+      return responseData(null, "success", [], "Товар успешно изменен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Delete(':id')
-  @Roles('admin')
+  @Delete(":id")
+  @Roles("admin")
   @UseGuards(RolesGuard)
-  async remove(@Param('id') id: string): Promise<ResponseData<null>> {
+  async remove(@Param("id") id: string): Promise<ResponseData<null>> {
     try {
       await this.productService.remove(Number(id));
 
-      return responseData(null, 'success', [], 'Товар успешно удален');
+      return responseData(null, "success", [], "Товар успешно удален");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 }

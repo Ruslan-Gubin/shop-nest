@@ -186,7 +186,7 @@ export class SmsService {
   async verifyOtp(dto: VerifyOtpDto): Promise<void> {
     const record = await this.smsRepository
       .findOne({
-        where: { phone: dto.phone, status: "delivered" },
+        where: { phone: dto.phone },
       })
       .catch((error) => {
         throw `Не удалось найти запись кода подтверждения, ${error}`;

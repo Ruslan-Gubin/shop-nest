@@ -79,9 +79,10 @@ export class UsersController {
     }
   }
 
+  @Public()
   @Get("me")
   async getMe(
-    @CurrentUser() user: CurrentStrategyUser,
+    @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<ResponseData<Pick<User, "id" | "name" | "phone" | "email" | "role"> | null>> {
     try {
       if (!user) {

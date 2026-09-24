@@ -8,24 +8,25 @@ import {
   Delete,
   UseGuards,
   Query,
-} from '@nestjs/common';
-import { ProductReviewService } from './product-review.service';
-import { CreateProductReviewDto } from './dto/create-product-review.dto';
-import { UpdateProductReviewDto } from './dto/update-product-review.dto';
-import { AnswerProductReviewDto } from './dto/answer-product-review.dto';
-import { GenerateAnswerProductReviewDto } from './dto/generate-answer-product-review.dto';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from 'src/auth/decorators/roles.decorator';
-import { ResponseData, responseData } from 'src/helpers/response';
-import { ProductReview } from './entities/product-review.entity';
-import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { CurrentStrategyUser } from 'src/auth/types/current-user';
+} from "@nestjs/common";
+import { ProductReviewService } from "./product-review.service";
+import { CreateProductReviewDto } from "./dto/create-product-review.dto";
+import { UpdateProductReviewDto } from "./dto/update-product-review.dto";
+import { AnswerProductReviewDto } from "./dto/answer-product-review.dto";
+import { GenerateAnswerProductReviewDto } from "./dto/generate-answer-product-review.dto";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { Roles } from "src/auth/decorators/roles.decorator";
+import { ResponseData, responseData } from "src/helpers/response";
+import { ProductReview } from "./entities/product-review.entity";
+import { CurrentUser } from "src/auth/decorators/current-user.decorator";
+import { CurrentStrategyUser } from "src/auth/types/current-user";
+import { Public } from "src/auth/decorators/public.decorator";
 
-@Controller('product-review')
+@Controller("product-review")
 export class ProductReviewController {
   constructor(private readonly productReviewService: ProductReviewService) {}
 
-  @Post('create')
+  @Post("create")
   async create(
     @Body() createDto: CreateProductReviewDto,
     @CurrentUser() user?: CurrentStrategyUser,
@@ -37,17 +38,18 @@ export class ProductReviewController {
 
       const review = await this.productReviewService.create(createDto);
 
-      return responseData(review, 'success', [], 'Отзыв успешно добавлен');
+      return responseData(review, "success", [], "Отзыв успешно добавлен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('product/:product_id')
+  @Public()
+  @Get("product/:product_id")
   async findByProductId(
-    @Param('product_id') product_id: string,
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
+    @Param("product_id") product_id: string,
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
   ): Promise<
     ResponseData<{
       reviews: ProductReview[];
@@ -59,27 +61,27 @@ export class ProductReviewController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [reviews, totalCount] =
-        await this.productReviewService.findByProductId(
-          Number(product_id),
-          pageNum,
-          limitNum,
-        );
+      const [reviews, totalCount] = await this.productReviewService.findByProductId(
+        Number(product_id),
+        pageNum,
+        limitNum,
+      );
 
       return responseData(
         { reviews, totalCount, paginationPage: pageNum },
-        'success',
+        "success",
         [],
-        'Отзывы товара получены',
+        "Отзывы товара получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('my/:product_id')
+  @Public()
+  @Get("my/:product_id")
   async getMyReview(
-    @Param('product_id') product_id: string,
+    @Param("product_id") product_id: string,
     @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<ResponseData<ProductReview | null>> {
     try {
@@ -88,23 +90,18 @@ export class ProductReviewController {
         Number(user?.sub),
       );
 
-      return responseData(
-        review,
-        'success',
-        [],
-        review ? 'Отзыв получен' : 'Отзыв не найден',
-      );
+      return responseData(review, "success", [], review ? "Отзыв получен" : "Отзыв не найден");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('all')
-  @Roles('admin', 'moderator')
+  @Get("all")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async getAll(
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
   ): Promise<
     ResponseData<{
       reviews: ProductReview[];
@@ -116,71 +113,65 @@ export class ProductReviewController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [reviews, totalCount] = await this.productReviewService.findAll(
+      const [reviews, totalCount] = await this.productReviewService.findAll(pageNum, limitNum);
+
+      return responseData(
+        { reviews, totalCount, paginationPage: pageNum },
+        "success",
+        [],
+        "Все отзывы получены",
+      );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Get("user/:user_id")
+  async findByUser(
+    @Param("user_id") user_id: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ): Promise<
+    ResponseData<{
+      reviews: ProductReview[];
+      totalCount: number;
+      paginationPage: number;
+    } | null>
+  > {
+    try {
+      const limitNum = limit ? parseInt(limit, 10) : 10;
+      const pageNum = page ? parseInt(page, 10) : 1;
+
+      const [reviews, totalCount] = await this.productReviewService.findByUserId(
+        Number(user_id),
         pageNum,
         limitNum,
       );
 
       return responseData(
         { reviews, totalCount, paginationPage: pageNum },
-        'success',
+        "success",
         [],
-        'Все отзывы получены',
+        "Отзывы пользователя получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('user/:user_id')
-  async findByUser(
-    @Param('user_id') user_id: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ): Promise<
-    ResponseData<{
-      reviews: ProductReview[];
-      totalCount: number;
-      paginationPage: number;
-    } | null>
-  > {
-    try {
-      const limitNum = limit ? parseInt(limit, 10) : 10;
-      const pageNum = page ? parseInt(page, 10) : 1;
-
-      const [reviews, totalCount] =
-        await this.productReviewService.findByUserId(
-          Number(user_id),
-          pageNum,
-          limitNum,
-        );
-
-      return responseData(
-        { reviews, totalCount, paginationPage: pageNum },
-        'success',
-        [],
-        'Отзывы пользователя получены',
-      );
-    } catch (error) {
-      return responseData(null, 'error', [], error);
-    }
-  }
-
-  @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-  ): Promise<ResponseData<ProductReview | null>> {
+  @Get(":id")
+  async findOne(@Param("id") id: string): Promise<ResponseData<ProductReview | null>> {
     try {
       const review = await this.productReviewService.findOne(Number(id));
 
-      return responseData(review, 'success', [], 'Отзыв получен');
+      return responseData(review, "success", [], "Отзыв получен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Post('generate-answer')
-  @Roles('admin', 'moderator')
+  @Post("generate-answer")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async generateAnswer(
     @Body() dto: GenerateAnswerProductReviewDto,
@@ -188,73 +179,60 @@ export class ProductReviewController {
     try {
       const result = await this.productReviewService.generateAnswer(dto);
 
-      return responseData(
-        result,
-        'success',
-        [],
-        'Рекомендация ответа сгенерирована',
-      );
+      return responseData(result, "success", [], "Рекомендация ответа сгенерирована");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Patch('answer/:id')
-  @Roles('admin', 'moderator')
+  @Patch("answer/:id")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async answer(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() answerDto: AnswerProductReviewDto,
   ): Promise<ResponseData<null>> {
     try {
-      await this.productReviewService.answerReview(
-        Number(id),
-        answerDto.answer,
-      );
+      await this.productReviewService.answerReview(Number(id), answerDto.answer);
 
-      return responseData(
-        null,
-        'success',
-        [],
-        'Ответ на отзыв успешно добавлен',
-      );
+      return responseData(null, "success", [], "Ответ на отзыв успешно добавлен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Patch(':id')
+  @Patch(":id")
   async update(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() updateDto: UpdateProductReviewDto,
   ): Promise<ResponseData<null>> {
     try {
       await this.productReviewService.update(Number(id), updateDto);
 
-      return responseData(null, 'success', [], 'Отзыв успешно изменен');
+      return responseData(null, "success", [], "Отзыв успешно изменен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Delete(':id')
+  @Delete(":id")
   @UseGuards(RolesGuard)
-  async remove(@Param('id') id: string): Promise<ResponseData<null>> {
+  async remove(@Param("id") id: string): Promise<ResponseData<null>> {
     try {
       await this.productReviewService.remove(Number(id));
 
-      return responseData(null, 'success', [], 'Отзыв успешно удален');
+      return responseData(null, "success", [], "Отзыв успешно удален");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('unanswered/list')
-  @Roles('admin', 'moderator')
+  @Get("unanswered/list")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async getUnanswered(
-    @Query('limit') limit?: string,
-    @Query('page') page?: string,
+    @Query("limit") limit?: string,
+    @Query("page") page?: string,
   ): Promise<
     ResponseData<{
       reviews: ProductReview[];
@@ -266,17 +244,19 @@ export class ProductReviewController {
       const limitNum = limit ? parseInt(limit, 10) : 10;
       const pageNum = page ? parseInt(page, 10) : 1;
 
-      const [reviews, totalCount] =
-        await this.productReviewService.findAllUnanswered(pageNum, limitNum);
+      const [reviews, totalCount] = await this.productReviewService.findAllUnanswered(
+        pageNum,
+        limitNum,
+      );
 
       return responseData(
         { reviews, totalCount, paginationPage: pageNum },
-        'success',
+        "success",
         [],
-        'Неотвеченные отзывы получены',
+        "Неотвеченные отзывы получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 }

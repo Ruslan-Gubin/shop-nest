@@ -8,26 +8,27 @@ import {
   Query,
   Delete,
   UseGuards,
-} from '@nestjs/common';
-import { OrdersService, VIEW_STATUSES } from './orders.service';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
-import { ShipOrderDto } from './dto/ship-order.dto';
-import { SetShortageDto } from 'src/order-product/dto/set-shortage.dto';
-import { RejectOrderDto } from './dto/reject-order.dto';
-import { SalesByPaymentDto } from './dto/sales-by-payment.dto';
-import { ResponseData, responseData } from 'src/helpers/response';
-import { Order } from './entities/order.entity';
-import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { CurrentStrategyUser } from 'src/auth/types/current-user';
-import { Roles } from 'src/auth/decorators/roles.decorator';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
+} from "@nestjs/common";
+import { OrdersService, VIEW_STATUSES } from "./orders.service";
+import { CreateOrderDto } from "./dto/create-order.dto";
+import { UpdateOrderDto } from "./dto/update-order.dto";
+import { ShipOrderDto } from "./dto/ship-order.dto";
+import { SetShortageDto } from "src/order-product/dto/set-shortage.dto";
+import { RejectOrderDto } from "./dto/reject-order.dto";
+import { SalesByPaymentDto } from "./dto/sales-by-payment.dto";
+import { ResponseData, responseData } from "src/helpers/response";
+import { Order } from "./entities/order.entity";
+import { CurrentUser } from "src/auth/decorators/current-user.decorator";
+import { CurrentStrategyUser } from "src/auth/types/current-user";
+import { Roles } from "src/auth/decorators/roles.decorator";
+import { RolesGuard } from "src/auth/guards/roles.guard";
+import { Public } from "src/auth/decorators/public.decorator";
 
-@Controller('orders')
+@Controller("orders")
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-  @Post('create')
+  @Post("create")
   async create(
     @Body() createOrderDto: CreateOrderDto,
     @CurrentUser() user: CurrentStrategyUser,
@@ -39,20 +40,20 @@ export class OrdersController {
         user_role: user.role,
       });
 
-      return responseData(order, 'success', [], 'Заказ успешно создан');
+      return responseData(order, "success", [], "Заказ успешно создан");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
   @Get()
-  @Roles('admin', 'moderator')
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async findAll(
-    @Query('page') page: string,
-    @Query('limit') limit: string,
-    @Query('order_number') order_number?: string,
-    @Query('status') status?: string,
+    @Query("page") page: string,
+    @Query("limit") limit: string,
+    @Query("order_number") order_number?: string,
+    @Query("status") status?: string,
   ): Promise<
     ResponseData<{
       orders: Order[];
@@ -71,22 +72,22 @@ export class OrdersController {
 
       return responseData(
         { orders, totalCount, paginationPage: page },
-        'success',
+        "success",
         [],
-        'Список заказов получен',
+        "Список заказов получен",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('all-client')
+  @Get("all-client")
   async findAllClient(
-    @Query('page') page: string,
-    @Query('limit') limit: string,
+    @Query("page") page: string,
+    @Query("limit") limit: string,
     @CurrentUser() user: CurrentStrategyUser,
-    @Query('view') view?: string,
-    @Query('order_number') order_number?: string,
+    @Query("view") view?: string,
+    @Query("order_number") order_number?: string,
   ): Promise<
     ResponseData<{
       orders: Order[];
@@ -96,10 +97,10 @@ export class OrdersController {
   > {
     try {
       if (!user || !user.role) {
-        throw 'Не удалось распознать пользователя';
+        throw "Не удалось распознать пользователя";
       }
 
-      const statuses = VIEW_STATUSES[view ?? 'orders'] || VIEW_STATUSES[0];
+      const statuses = VIEW_STATUSES[view ?? "orders"] || VIEW_STATUSES[0];
 
       const [orders, totalCount] = await this.ordersService.findAll(
         page,
@@ -112,16 +113,16 @@ export class OrdersController {
 
       return responseData(
         { orders, totalCount, paginationPage: page },
-        'success',
+        "success",
         [],
-        'Список заказов получен',
+        "Список заказов получен",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('order-client-counts')
+  @Get("order-client-counts")
   async getClientCounts(@CurrentUser() user: CurrentStrategyUser): Promise<
     ResponseData<{
       orders: number;
@@ -131,7 +132,7 @@ export class OrdersController {
   > {
     try {
       if (!user || !user.role) {
-        throw 'Не удалось распознать пользователя';
+        throw "Не удалось распознать пользователя";
       }
 
       const counts = await this.ordersService.getClientCounts(user.sub);
@@ -142,16 +143,16 @@ export class OrdersController {
           purchases: counts?.purchases_count ?? 0,
           waiting: counts?.waiting_count ?? 0,
         },
-        'success',
+        "success",
         [],
-        'Количество заказов получено',
+        "Количество заказов получено",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('stats')
+  @Get("stats")
   async getStats(): Promise<
     ResponseData<{
       total: number;
@@ -165,40 +166,30 @@ export class OrdersController {
     try {
       const stats = await this.ordersService.getStats();
 
-      return responseData(stats, 'success', [], 'Статистика получена');
+      return responseData(stats, "success", [], "Статистика получена");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('sales-by-payment')
+  @Get("sales-by-payment")
   async getSalesByPayment(
     @Query() dto: SalesByPaymentDto,
-  ): Promise<
-    ResponseData<{ date: string; card: string; cash: string }[] | null>
-  > {
+  ): Promise<ResponseData<{ date: string; card: string; cash: string }[] | null>> {
     try {
-      const result = await this.ordersService.getSalesByPayment(
-        dto.from,
-        dto.to,
-      );
+      const result = await this.ordersService.getSalesByPayment(dto.from, dto.to);
 
-      return responseData(
-        result,
-        'success',
-        [],
-        'Продажи по способам оплаты получены',
-      );
+      return responseData(result, "success", [], "Продажи по способам оплаты получены");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get('user/:user_id')
+  @Get("user/:user_id")
   async findByUser(
-    @Param('user_id') user_id: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
+    @Param("user_id") user_id: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
   ): Promise<
     ResponseData<{
       orders: Order[];
@@ -218,93 +209,83 @@ export class OrdersController {
 
       return responseData(
         { orders, totalCount, paginationPage: pageNum },
-        'success',
+        "success",
         [],
-        'Заказы пользователя получены',
+        "Заказы пользователя получены",
       );
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: string): Promise<ResponseData<Order | null>> {
+  @Get(":id")
+  async findOne(@Param("id") id: string): Promise<ResponseData<Order | null>> {
     try {
       const order = await this.ordersService.findOne(Number(id));
 
-      return responseData(order, 'success', [], 'Заказ получен');
+      return responseData(order, "success", [], "Заказ получен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Post('ship')
+  @Post("ship")
   async ship(@Body() shipOrderDto: ShipOrderDto): Promise<ResponseData<null>> {
     try {
       await this.ordersService.ship(shipOrderDto);
 
-      return responseData(
-        null,
-        'success',
-        [],
-        'Перемещение для заказа успешно сформированы',
-      );
+      return responseData(null, "success", [], "Перемещение для заказа успешно сформированы");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Patch('shortage/:id')
-  @Roles('admin', 'moderator')
+  @Patch("shortage/:id")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async setShortageStocks(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() dto: SetShortageDto,
   ): Promise<ResponseData<null>> {
     try {
       await this.ordersService.setShortageStocks(Number(id), dto.items);
 
-      return responseData(
-        null,
-        'success',
-        [],
-        'Запрос на изменение остатков обновлен',
-      );
+      return responseData(null, "success", [], "Запрос на изменение остатков обновлен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Post('accept-shortage/:id')
+  @Post("accept-shortage/:id")
   async acceptShortage(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @CurrentUser() user: CurrentStrategyUser,
   ): Promise<ResponseData<null>> {
     try {
       await this.ordersService.acceptShortage(Number(id), user.sub, user.role);
 
-      return responseData(null, 'success', [], 'Изменения по остаткам приняты');
+      return responseData(null, "success", [], "Изменения по остаткам приняты");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Post('change-status/:id')
-  @Roles('admin', 'moderator')
+  @Post("change-status/:id")
+  @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
-  async changeStatus(@Param('id') id: string): Promise<ResponseData<null>> {
+  async changeStatus(@Param("id") id: string): Promise<ResponseData<null>> {
     try {
       await this.ordersService.changeStatus(Number(id));
 
-      return responseData(null, 'success', [], 'Статус заказа изменён');
+      return responseData(null, "success", [], "Статус заказа изменён");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Patch('reject/:id')
+  @Patch("reject/:id")
   async rejectOrder(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() payload: RejectOrderDto,
     @CurrentUser() user: CurrentStrategyUser,
   ): Promise<ResponseData<null>> {
@@ -316,34 +297,34 @@ export class OrdersController {
         user.role,
       );
 
-      return responseData(null, 'success', [], 'Заказ отменён');
+      return responseData(null, "success", [], "Заказ отменён");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Patch(':id')
+  @Patch(":id")
   async update(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() updateOrderDto: UpdateOrderDto,
   ): Promise<ResponseData<null>> {
     try {
       await this.ordersService.update(Number(id), updateOrderDto);
 
-      return responseData(null, 'success', [], 'Заказ успешно изменен');
+      return responseData(null, "success", [], "Заказ успешно изменен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Delete(':id')
-  async delete(@Param('id') id: string): Promise<ResponseData<null>> {
+  @Delete(":id")
+  async delete(@Param("id") id: string): Promise<ResponseData<null>> {
     try {
       await this.ordersService.delete(Number(id));
 
-      return responseData(null, 'success', [], 'Заказ успешно удален');
+      return responseData(null, "success", [], "Заказ успешно удален");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 }
