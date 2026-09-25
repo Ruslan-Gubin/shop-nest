@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { UsersService } from '../users.service';
 import { User } from '../entities/user.entity';
 import { CreateUserDto } from '../dto/create-user.dto';
@@ -14,7 +13,6 @@ jest.mock('argon2', () => ({
 
 describe('UsersService', () => {
   let service: UsersService;
-  let repository: jest.Mocked<Repository<User>>;
 
   const mockUser: User = {
     id: 1,
@@ -51,9 +49,6 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    repository = module.get<jest.Mocked<Repository<User>>>(
-      getRepositoryToken(User),
-    );
 
     jest.clearAllMocks();
   });
@@ -97,7 +92,7 @@ describe('UsersService', () => {
       expect(mockRepository.find).toHaveBeenCalledWith({
         skip: 0,
         take: 10,
-        where: { name: '' },
+        where: {},
         order: { id: 'DESC' },
       });
     });
@@ -117,7 +112,7 @@ describe('UsersService', () => {
 
       const result = await service.getAllUsers('1', '10', 'Иван');
 
-      expect(result).toEqual(mockUser);
+      expect(result).toEqual([mockUser]);
     });
   });
 
@@ -195,7 +190,7 @@ describe('UsersService', () => {
         phone: '',
         email: '',
         password: 'newPassword123',
-        role: '',
+        role: 'user',
       };
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
@@ -207,8 +202,49 @@ describe('UsersService', () => {
         phone: '',
         email: '',
         password: 'hashedPassword123',
-        role: '',
+        role: 'user',
       });
+    });
+  });
+
+  describe('updateProfile', () => {
+    it('должен обновлять имя текущего пользователя', async () => {
+      mockRepository.findOne.mockResolvedValue(mockUser);
+      mockRepository.update.mockResolvedValue({ affected: 1 } as any);
+
+      await service.updateProfile(1, { name: 'Петр Иванов' });
+
+      expect(mockRepository.update).toHaveBeenCalledWith(1, {
+        name: 'Петр Иванов',
+      });
+    });
+
+    it('должен разрешать сохранение текущего email пользователя', async () => {
+      mockRepository.findOne.mockResolvedValue(mockUser);
+      mockRepository.update.mockResolvedValue({ affected: 1 } as any);
+
+      await service.updateProfile(1, { email: 'ivan@example.com' });
+
+      expect(mockRepository.findOne).toHaveBeenCalledTimes(1);
+      expect(mockRepository.update).toHaveBeenCalledWith(1, {
+        email: 'ivan@example.com',
+      });
+    });
+
+    it('должен возвращать ошибку, если пользователь не найден', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.updateProfile(1, { name: 'Петр' })).rejects.toThrow(
+        'Пользователь не найден',
+      );
+      expect(mockRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('должен отклонять пустой объект', async () => {
+      await expect(service.updateProfile(1, {})).rejects.toThrow(
+        'Передайте имя или email',
+      );
+      expect(mockRepository.findOne).not.toHaveBeenCalled();
     });
   });
 
@@ -216,7 +252,7 @@ describe('UsersService', () => {
     it('должен удалить пользователя', async () => {
       mockRepository.delete.mockResolvedValue({ affected: 1 } as any);
 
-      const result = await service.delete(1);
+      await service.delete(1);
 
       expect(mockRepository.delete).toHaveBeenCalledWith(1);
     });

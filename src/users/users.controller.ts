@@ -20,6 +20,7 @@ import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 import { CurrentStrategyUser } from "src/auth/types/current-user";
 import { UpdateUserDto } from "./dto/update-user-dto";
 import { CreateUserDto } from "./dto/create-user.dto";
+import { UpdateProfileDto } from "./dto/update-profile.dto";
 
 @Controller("users")
 export class UsersController {
@@ -91,17 +92,21 @@ export class UsersController {
         throw "Пользователь не найден";
       }
 
+      const currentUser = await this.usersService.findById(user.sub);
+
       return responseData(
-        {
-          id: user.sub,
-          name: user.name,
-          phone: user.phone,
-          email: user.email,
-          role: user.role as User["role"],
-        },
-        "success",
+        currentUser
+          ? {
+              id: currentUser.id,
+              name: currentUser.name,
+              phone: currentUser.phone,
+              email: currentUser.email,
+              role: currentUser.role,
+            }
+          : null,
+        currentUser ? "success" : "error",
         [],
-        "Пользователь получен",
+        currentUser ? "Пользователь получен" : "Не удалось получить пользователя",
       );
     } catch (error) {
       return responseData(null, "error", [], error);
@@ -128,6 +133,35 @@ export class UsersController {
     }
   }
 
+  @Patch("update-profile")
+  async updateProfile(
+    @Body() payload: UpdateProfileDto,
+    @CurrentUser() user: CurrentStrategyUser,
+  ): Promise<ResponseData<null>> {
+    try {
+      if (payload.email) {
+        const findUserByEmail = await this.usersService.findByEmail(payload.email);
+
+        if (findUserByEmail && findUserByEmail.id !== user.sub) {
+          return responseData(
+            null,
+            "error",
+            [{ key: "email", message: "Эта почта уже зарегистрирована" }],
+            "",
+          );
+        }
+      }
+
+      await this.usersService.updateProfile(user.sub, payload);
+
+      return responseData(null, "success", [], "Пользователь успешно изменен");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
   @Patch(":id")
   async update(
     @Param("id") id: string,

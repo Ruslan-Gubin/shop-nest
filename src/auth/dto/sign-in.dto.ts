@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsEmail,
   IsNotEmpty,
@@ -6,10 +7,15 @@ import {
   MinLength,
 } from 'class-validator';
 
+type TransformValue = { value: unknown };
+
 export class SignInDto {
   @IsString()
   @IsEmail({}, { message: 'Некорректный формат почты' })
   @IsNotEmpty({ message: 'Введите почту' })
+  @Transform(({ value }: TransformValue): unknown =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   email: string;
 
   @IsString()

@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsString,
   MaxLength,
@@ -8,6 +9,8 @@ import {
   ValidateIf,
 } from 'class-validator';
 import { UserRole } from '../entities/user.entity';
+
+type TransformValue = { value: unknown };
 
 export class UpdateUserDto {
   @IsString()
@@ -30,10 +33,14 @@ export class UpdateUserDto {
 
   @IsString()
   @IsEmail({}, { message: 'Некорректный формат почты' })
+  @Transform(({ value }: TransformValue): unknown =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   email: string;
 
   @ValidateIf(
-    (o) => o.password !== undefined && o.password !== null && o.password !== '',
+    (o: UpdateUserDto) =>
+      o.password !== undefined && o.password !== null && o.password !== '',
   )
   @IsString()
   @IsOptional()
