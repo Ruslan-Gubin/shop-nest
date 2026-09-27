@@ -19,6 +19,7 @@ import { ProductPriceModule } from 'src/product-price/product-price.module';
 import { SpecificationsModule } from 'src/specifications/specifications.module';
 import { ProductSpecificationModule } from 'src/product-specification/product-specification.module';
 import { WarehouseModule } from 'src/warehouse/warehouse.module';
+import { SectorModule } from 'src/sector/sector.module';
 import { ProductStockModule } from 'src/product-stock/product-stock.module';
 import { OrdersModule } from 'src/orders/orders.module';
 import { OrderProductModule } from 'src/order-product/order-product.module';
@@ -52,6 +53,7 @@ const isDev = process.env.npm_lifecycle_event === 'start:dev';
     SpecificationsModule,
     ProductSpecificationModule,
     WarehouseModule,
+    SectorModule,
     ProductStockModule,
     OrdersModule,
     OrderProductModule,

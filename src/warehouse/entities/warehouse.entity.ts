@@ -4,10 +4,12 @@ import {
   CreateDateColumn,
   Entity,
   JoinColumn,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Sector } from 'src/sector/entities/sector.entity';
 
 @Entity()
 export class Warehouse {
@@ -40,6 +42,9 @@ export class Warehouse {
 
   @Column({ type: 'boolean', default: true, name: 'is_public' })
   is_public: boolean;
+
+  @OneToMany(() => Sector, (sector) => sector.warehouse)
+  sectors: Sector[];
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   created_at: Date;
