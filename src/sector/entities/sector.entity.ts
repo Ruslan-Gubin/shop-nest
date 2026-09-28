@@ -24,6 +24,9 @@ export class Sector {
   @Column({ type: 'int', default: 0, name: 'price' })
   price: number;
 
+  @Column({ type: 'int', default: 0, name: 'min_sum' })
+  min_sum: number;
+
   @Column({ type: 'jsonb', default: [], name: 'coordinates' })
   coordinates: number[][];
 

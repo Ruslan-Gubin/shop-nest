@@ -1,8 +1,8 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import type { UpdateSectorDto } from "./dto/update-sectors.dto";
-import { Sector } from "./entities/sector.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import type { UpdateSectorDto } from './dto/update-sectors.dto';
+import { Sector } from './entities/sector.entity';
 
 @Injectable()
 export class SectorService {
@@ -13,7 +13,21 @@ export class SectorService {
 
   async findByWarehouseId(warehouse_id: number) {
     return this.sectorRepository
-      .find({ where: { warehouse: { id: warehouse_id } }, order: { id: "ASC" } })
+      .find({
+        where: { warehouse: { id: warehouse_id } },
+        order: { id: 'ASC' },
+      })
+      .catch((error) => {
+        throw `Не удалось получить сектора склада, ${error.message}`;
+      });
+  }
+
+  async getAllDelivery() {
+    return this.sectorRepository
+      .find({
+        where: { warehouse: { is_active: true, is_public: true } },
+        order: { id: 'ASC' },
+      })
       .catch((error) => {
         throw `Не удалось получить сектора склада, ${error.message}`;
       });
@@ -26,18 +40,20 @@ export class SectorService {
     for (let i = 0; i < sectors.length; i++) {
       const sector = sectors[i];
 
-      if (typeof sector.id !== "number") {
+      if (typeof sector.id !== 'number') {
         await this.sectorRepository.save({
           color: sector.color,
           coordinates: sector.coordinates,
           price: sector.price,
+          min_sum: sector.min_sum,
           warehouse: { id: warehouse_id },
         });
-      } else if (typeof sector.id === "number") {
+      } else if (typeof sector.id === 'number') {
         await this.sectorRepository.update(sector.id, {
           color: sector.color,
           coordinates: sector.coordinates,
           price: sector.price,
+          min_sum: sector.min_sum,
         });
 
         if (prevSelectorsIds.includes(sector.id)) {

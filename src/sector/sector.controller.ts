@@ -32,12 +32,24 @@ export class SectorController {
     }
   }
 
+  @Get("delivery")
+  async getAllDelivery(): Promise<ResponseData<Sector[] | null>> {
+    try {
+      const sectors = await this.sectorService.getAllDelivery();
+
+      return responseData(sectors, "success", [], "Все сектора доставки получены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
   @Patch("warehouse/:warehouse_id")
   @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
   async updateSectors(
     @Param("warehouse_id", ParseIntPipe) warehouse_id: number,
-    @Body(new ParseArrayPipe({ items: UpdateSectorDto })) updateSectorsDto: UpdateSectorDto[],
+    @Body(new ParseArrayPipe({ items: UpdateSectorDto }))
+    updateSectorsDto: UpdateSectorDto[],
   ): Promise<ResponseData<Sector[] | null>> {
     try {
       await this.sectorService.updateSectors(warehouse_id, updateSectorsDto);
