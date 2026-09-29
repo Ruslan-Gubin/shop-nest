@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { IsNull, Repository, SelectQueryBuilder } from 'typeorm';
 import { CategoryService } from '../category.service';
 import { Category } from '../entities/category.entity';
 import { CreateCategoryDto } from '../dto/create-category.dto';
@@ -201,11 +201,9 @@ describe('CategoryService', () => {
 
   describe('changeChildrenParentId', () => {
     it('должен менять parent_id у дочерних категорий', async () => {
-      const queryBuilder = createMockQueryBuilder();
-      queryBuilder.getMany.mockResolvedValue([
-        { ...mockCategory, id: 2, parent_id: 1 },
-      ]);
-      mockRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      mockRepository.find
+        .mockResolvedValueOnce([{ ...mockCategory, id: 2, parent_id: 1 }])
+        .mockResolvedValueOnce([]);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       await service.changeChildrenParentId(1, 2);
@@ -214,9 +212,7 @@ describe('CategoryService', () => {
     });
 
     it('не должен делать ничего если нет дочерних категорий', async () => {
-      const queryBuilder = createMockQueryBuilder();
-      queryBuilder.getMany.mockResolvedValue([]);
-      mockRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      mockRepository.find.mockResolvedValue([]);
 
       await service.changeChildrenParentId(1, 2);
 
@@ -226,33 +222,29 @@ describe('CategoryService', () => {
 
   describe('getChildren', () => {
     it('должен вернуть дочерние категории', async () => {
-      const queryBuilder = createMockQueryBuilder();
-      queryBuilder.getMany.mockResolvedValue([
-        { ...mockCategory, parent_id: 1 },
-      ]);
-      mockRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      const children = [{ ...mockCategory, parent_id: 1 }];
+      mockRepository.find.mockResolvedValue(children);
 
       const result = await service.getChildren(1);
 
-      expect(queryBuilder.where).toHaveBeenCalledWith(
-        'category.parent_id = :parent_id',
-        { parent_id: 1 },
-      );
+      expect(result).toEqual(children);
+      expect(mockRepository.find).toHaveBeenCalledWith({
+        where: { parent_id: 1 },
+        order: { position: 'ASC' },
+      });
     });
 
     it('должен вернуть корневые категории при parent_id = null', async () => {
-      const queryBuilder = createMockQueryBuilder();
-      queryBuilder.getMany.mockResolvedValue([
-        { ...mockCategory, parent_id: null },
-      ]);
-      mockRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      const roots = [{ ...mockCategory, parent_id: null }];
+      mockRepository.find.mockResolvedValue(roots);
 
-      await service.getChildren(null);
+      const result = await service.getChildren(null);
 
-      expect(queryBuilder.where).toHaveBeenCalledWith(
-        'category.parent_id IS NULL',
-        { parent_id: null },
-      );
+      expect(result).toEqual(roots);
+      expect(mockRepository.find).toHaveBeenCalledWith({
+        where: { parent_id: IsNull() },
+        order: { position: 'ASC' },
+      });
     });
   });
 

@@ -39,14 +39,23 @@ describe('UpdateProfileDto', () => {
     );
   });
 
-  it('разрешает изменение только одного поля', async () => {
-    const nameDto = plainToInstance(UpdateProfileDto, { name: 'Петр Иванов' });
-    const emailDto = plainToInstance(UpdateProfileDto, {
+  it('требует оба поля: имя и email', async () => {
+    // users.service.updateProfile пишет оба поля безусловно,
+    // поэтому DTO требует их наличие.
+    const nameOnly = plainToInstance(UpdateProfileDto, { name: 'Петр Иванов' });
+    const emailOnly = plainToInstance(UpdateProfileDto, {
       email: 'petr@example.com',
     });
 
-    expect(await validate(nameDto)).toHaveLength(0);
-    expect(await validate(emailDto)).toHaveLength(0);
+    const nameErrors = await validate(nameOnly);
+    const emailErrors = await validate(emailOnly);
+
+    expect(nameErrors).toEqual(
+      expect.arrayContaining([expect.objectContaining({ property: 'email' })]),
+    );
+    expect(emailErrors).toEqual(
+      expect.arrayContaining([expect.objectContaining({ property: 'name' })]),
+    );
   });
 
   it('нормализует email при входе', async () => {

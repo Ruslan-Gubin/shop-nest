@@ -11,6 +11,7 @@ import { ProductStockService } from 'src/product-stock/product-stock.service';
 import { WarehouseService } from 'src/warehouse/warehouse.service';
 import { TransfersService } from 'src/transfers/transfers.service';
 import { PaymentsService } from 'src/payments/payments.service';
+import { SectorService } from 'src/sector/sector.service';
 
 // ─── Гейты: пока у заказа есть дефицит (hasShortage), flow блокируется ──
 // docs, раздел 7: change-status и ship не работают, пока клиент не принял
@@ -65,6 +66,7 @@ describe('OrdersService — shortage-гейты (ship, changeStatus)', () => {
           provide: PaymentsService,
           useValue: { createPayment: jest.fn(), findByOrder: jest.fn() },
         },
+        { provide: SectorService, useValue: { getMainDeliveryWarehouseFromOrder: jest.fn() } },
       ],
     }).compile();
 

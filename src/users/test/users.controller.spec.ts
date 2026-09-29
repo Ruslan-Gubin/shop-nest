@@ -22,6 +22,8 @@ describe('UsersController — updateProfile', () => {
 
   const mockUsersService = {
     updateProfile: jest.fn(),
+    // Контроллер проверяет, не занят ли email другим пользователем
+    findByEmail: jest.fn().mockResolvedValue(null),
   };
 
   beforeEach(async () => {
@@ -51,7 +53,7 @@ describe('UsersController — updateProfile', () => {
     const dto = { name: 'Новое имя', email: 'new@example.com' };
     mockUsersService.updateProfile.mockResolvedValue(undefined);
 
-    const result = await controller.updateProfile(currentUser, dto);
+    const result = await controller.updateProfile(dto, currentUser);
 
     expect(mockUsersService.updateProfile).toHaveBeenCalledWith(
       currentUser.sub,
@@ -68,7 +70,10 @@ describe('UsersController — updateProfile', () => {
   it('должен возвращать общую ошибку сервиса', async () => {
     mockUsersService.updateProfile.mockRejectedValue(new Error('DB failed'));
 
-    const result = await controller.updateProfile(currentUser, { name: 'Имя' });
+    const result = await controller.updateProfile(
+      { name: 'Имя', email: 'test@example.com' },
+      currentUser,
+    );
 
     expect(result.data).toBeNull();
     expect(result.status).toBe('error');

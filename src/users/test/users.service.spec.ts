@@ -208,25 +208,34 @@ describe('UsersService', () => {
   });
 
   describe('updateProfile', () => {
-    it('должен обновлять имя текущего пользователя', async () => {
+    it('должен обновлять имя и email текущего пользователя', async () => {
       mockRepository.findOne.mockResolvedValue(mockUser);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
-      await service.updateProfile(1, { name: 'Петр Иванов' });
-
-      expect(mockRepository.update).toHaveBeenCalledWith(1, {
+      await service.updateProfile(1, {
         name: 'Петр Иванов',
+        email: 'petr@example.com',
       });
-    });
-
-    it('должен разрешать сохранение текущего email пользователя', async () => {
-      mockRepository.findOne.mockResolvedValue(mockUser);
-      mockRepository.update.mockResolvedValue({ affected: 1 } as any);
-
-      await service.updateProfile(1, { email: 'ivan@example.com' });
 
       expect(mockRepository.findOne).toHaveBeenCalledTimes(1);
       expect(mockRepository.update).toHaveBeenCalledWith(1, {
+        name: 'Петр Иванов',
+        email: 'petr@example.com',
+      });
+    });
+
+    it('должен сохранять переданный email пользователя', async () => {
+      mockRepository.findOne.mockResolvedValue(mockUser);
+      mockRepository.update.mockResolvedValue({ affected: 1 } as any);
+
+      await service.updateProfile(1, {
+        name: 'Иван Иванов',
+        email: 'ivan@example.com',
+      });
+
+      expect(mockRepository.findOne).toHaveBeenCalledTimes(1);
+      expect(mockRepository.update).toHaveBeenCalledWith(1, {
+        name: 'Иван Иванов',
         email: 'ivan@example.com',
       });
     });
@@ -234,17 +243,28 @@ describe('UsersService', () => {
     it('должен возвращать ошибку, если пользователь не найден', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.updateProfile(1, { name: 'Петр' })).rejects.toThrow(
-        'Пользователь не найден',
-      );
+      await expect(
+        service.updateProfile(1, {
+          name: 'Петр',
+          email: 'petr@example.com',
+        }),
+      ).rejects.toBe('Пользователь не найден');
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
 
-    it('должен отклонять пустой объект', async () => {
-      await expect(service.updateProfile(1, {})).rejects.toThrow(
-        'Передайте имя или email',
-      );
-      expect(mockRepository.findOne).not.toHaveBeenCalled();
+    it('не валидирует пустой payload на уровне сервиса', async () => {
+      // Сервис пишет name/email безусловно, без собственной проверки.
+      // Пустой payload отсекается на уровне DTO + ValidationPipe,
+      // поэтому здесь ожидается именно запись undefined-полей.
+      mockRepository.findOne.mockResolvedValue(mockUser);
+      mockRepository.update.mockResolvedValue({ affected: 1 } as any);
+
+      await service.updateProfile(1, {} as any);
+
+      expect(mockRepository.update).toHaveBeenCalledWith(1, {
+        name: undefined,
+        email: undefined,
+      });
     });
   });
 

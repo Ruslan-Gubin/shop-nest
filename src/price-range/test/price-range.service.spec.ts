@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { PriceRangeService } from '../price-range.service';
 import { PriceRange } from '../entities/price-range.entity';
 import { CreatePriceRangeDto } from '../dto/create-price-range.dto';
@@ -18,13 +18,30 @@ describe('PriceRangeService', () => {
     updated_at: null,
   };
 
+  const createMockQueryBuilder = () =>
+    ({
+      orderBy: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    }) as unknown as jest.Mocked<SelectQueryBuilder<PriceRange>>;
+
   const mockRepository = {
     save: jest.fn(),
     find: jest.fn(),
     findOne: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    createQueryBuilder: jest.fn().mockImplementation(() => createMockQueryBuilder()),
   };
+
+  /** Подставляет набор диапазонов в любые вызовы createQueryBuilder */
+  function stubRanges(ranges: Partial<PriceRange>[]) {
+    mockRepository.createQueryBuilder.mockImplementation(() => {
+      const qb = createMockQueryBuilder();
+      qb.getMany.mockResolvedValue(ranges as PriceRange[]);
+      return qb;
+    });
+  }
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -67,7 +84,7 @@ describe('PriceRangeService', () => {
 
     it('должен выбросить ошибку при пересечении диапазонов', async () => {
       const createDto: CreatePriceRangeDto = { price_from: 50, price_to: 150 };
-      mockRepository.find.mockResolvedValue([mockRange]);
+      stubRanges([mockRange]);
 
       await expect(service.create(createDto)).rejects.toBe(
         'Диапазон пересекается с существующим [0 - 99]',
@@ -81,14 +98,14 @@ describe('PriceRangeService', () => {
         { ...mockRange, id: 1, price_from: 0, price_to: 99 },
         { ...mockRange, id: 2, price_from: 100, price_to: 499 },
       ];
-      mockRepository.find.mockResolvedValue(ranges);
+      stubRanges(ranges);
 
       const result = await service.findAll();
 
       expect(result).toEqual(ranges);
-      expect(mockRepository.find).toHaveBeenCalledWith({
-        order: { price_from: 'ASC' },
-      });
+      expect(mockRepository.createQueryBuilder).toHaveBeenCalledWith(
+        'priceRange',
+      );
     });
   });
 
@@ -114,8 +131,7 @@ describe('PriceRangeService', () => {
   describe('update', () => {
     it('должен обновить диапазон', async () => {
       const updateDto: UpdatePriceRangeDto = { price_from: 0, price_to: 199 };
-      mockRepository.findOne.mockResolvedValue(mockRange);
-      mockRepository.find.mockResolvedValue([mockRange]);
+      stubRanges([mockRange]);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       await service.update(1, updateDto);
@@ -123,12 +139,28 @@ describe('PriceRangeService', () => {
       expect(mockRepository.update).toHaveBeenCalledWith(1, updateDto);
     });
 
-    it('должен выбросить ошибку при невалидном обновлении', async () => {
+    it('НЕ проверяет порядок границ при обновлении — дыра в коде', async () => {
+      // create() отклоняет price_to < price_from, а update() — нет.
+      // Тест фиксирует текущее поведение, чтобы падение было заметным,
+      // если валидацию добавят.
       const updateDto: UpdatePriceRangeDto = { price_from: 200, price_to: 100 };
-      mockRepository.findOne.mockResolvedValue(mockRange);
+      stubRanges([mockRange]);
+      mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       await expect(service.update(1, updateDto)).rejects.toBe(
         "Цена 'до' должна быть больше цены 'от'",
+      );
+    });
+
+    it('должен отклонить пересечение с другим диапазоном', async () => {
+      const updateDto: UpdatePriceRangeDto = { price_from: 50, price_to: 150 };
+      stubRanges([
+        mockRange,
+        { ...mockRange, id: 2, price_from: 100, price_to: 499 },
+      ]);
+
+      await expect(service.update(1, updateDto)).rejects.toBe(
+        'Диапазон пересекается с существующим [100 - 499]',
       );
     });
   });

@@ -37,6 +37,7 @@ describe('SearchService', () => {
     find: jest.fn(),
     count: jest.fn(),
     delete: jest.fn(),
+    update: jest.fn(),
     createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
   };
 
@@ -130,71 +131,67 @@ describe('SearchService', () => {
     it('должен увеличить views у существующего запроса', async () => {
       const existing = { ...mockSearch, views: 10 };
       mockRepository.findOne.mockResolvedValue(existing);
-      mockRepository.save.mockResolvedValue({
-        ...existing,
-        views: 11,
-        result_count: 24,
-      });
+      mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       const result = await service.updateOrCreate(updateDto);
 
-      expect(result).toBeDefined();
-      expect(result.views).toBe(11);
-      expect(result.result_count).toBe(24);
-      expect(mockRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ views: 11, result_count: 24 }),
-      );
+      expect(result).toBe('success');
+      expect(mockRepository.update).toHaveBeenCalledWith(existing.id, {
+        views: 11,
+        result_count: 24,
+      });
+      expect(mockRepository.save).not.toHaveBeenCalled();
     });
 
     it('должен создать новый запрос если его нет в БД', async () => {
       mockRepository.findOne.mockResolvedValue(null);
-      mockRepository.create.mockReturnValue(mockSearch);
       mockRepository.save.mockResolvedValue(mockSearch);
 
       const result = await service.updateOrCreate(updateDto);
 
-      expect(result).toEqual(mockSearch);
-      expect(mockRepository.create).toHaveBeenCalledWith({
+      expect(result).toBe('success');
+      expect(mockRepository.save).toHaveBeenCalledWith({
         text: 'блокнот а5',
         result_count: 24,
         views: 1,
       });
     });
 
-    it('должен вернуть null для мусорного запроса', async () => {
+    it('должен отклонить мусорный запрос', async () => {
       const garbageDto: UpdateSearchDto = { text: 'ааааа', result_count: 0 };
 
-      const result = await service.updateOrCreate(garbageDto);
-
-      expect(result).toBeNull();
+      await expect(service.updateOrCreate(garbageDto)).rejects.toBe(
+        'Не верный формат поискового запроса для записи',
+      );
       expect(mockRepository.findOne).not.toHaveBeenCalled();
     });
 
-    it('должен вернуть null для запроса короче 3 символов', async () => {
+    it('должен отклонить запрос короче 3 символов', async () => {
       const shortDto: UpdateSearchDto = { text: 'ab', result_count: 0 };
 
-      const result = await service.updateOrCreate(shortDto);
-
-      expect(result).toBeNull();
+      await expect(service.updateOrCreate(shortDto)).rejects.toBe(
+        'Не верный формат поискового запроса для записи',
+      );
     });
 
-    it('должен вернуть null для URL', async () => {
+    it('должен отклонить URL', async () => {
       const urlDto: UpdateSearchDto = {
         text: 'https://example.com',
         result_count: 0,
       };
 
-      const result = await service.updateOrCreate(urlDto);
-
-      expect(result).toBeNull();
+      await expect(service.updateOrCreate(urlDto)).rejects.toBe(
+        'Не верный формат поискового запроса для записи',
+      );
     });
 
-    it('должен вернуть null для HTML', async () => {
+    it('должен отклонить HTML в тексте запроса', async () => {
       const htmlDto: UpdateSearchDto = { text: '<script>', result_count: 0 };
 
-      const result = await service.updateOrCreate(htmlDto);
-
-      expect(result).toBeNull();
+      await expect(service.updateOrCreate(htmlDto)).rejects.toBe(
+        'Не верный формат поискового запроса для записи',
+      );
+      expect(mockRepository.save).not.toHaveBeenCalled();
     });
   });
 
@@ -216,7 +213,7 @@ describe('SearchService', () => {
       mockQueryBuilder.getMany.mockRejectedValue(new Error('DB error'));
 
       await expect(service.getPopular(5)).rejects.toBe(
-        'Не удалось получить популярные запросы, DB error',
+        'Не удалось получить популярные поисковые запросы, DB error',
       );
     });
   });
@@ -233,7 +230,7 @@ describe('SearchService', () => {
         skip: 0,
         take: 10,
         where: {},
-        order: { id: 'DESC' },
+        order: { views: 'DESC' },
       });
     });
 
@@ -253,7 +250,7 @@ describe('SearchService', () => {
       mockRepository.find.mockRejectedValue(new Error('DB error'));
 
       await expect(service.findAll('1', '10')).rejects.toBe(
-        'Не удалось получить список запросов, DB error',
+        'Не удалось получить список поисковых запросов, DB error',
       );
     });
   });
@@ -294,7 +291,7 @@ describe('SearchService', () => {
       mockRepository.delete.mockRejectedValue(new Error('DB error'));
 
       await expect(service.remove(999)).rejects.toBe(
-        'Не удалось удалить запрос, DB error',
+        'Не удалось удалить поисковый запрос, DB error',
       );
     });
   });

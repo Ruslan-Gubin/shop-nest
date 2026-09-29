@@ -3,6 +3,7 @@ import { SpecificationsController } from '../specifications.controller';
 import { SpecificationsService } from '../specifications.service';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Specification } from '../entities/specification.entity';
+import type { CurrentStrategyUser } from 'src/auth/types/current-user';
 
 describe('SpecificationsController', () => {
   let controller: SpecificationsController;
@@ -18,10 +19,11 @@ describe('SpecificationsController', () => {
     updated_at: null,
   };
 
-  const mockUser = {
+  const mockUser: CurrentStrategyUser = {
     sub: 1,
     email: 'admin@test.com',
     role: 'admin',
+    phone: '+79001234567',
     password: '',
     name: 'Admin',
     iat: 1234567890,

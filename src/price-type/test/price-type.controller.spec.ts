@@ -3,6 +3,7 @@ import { PriceTypeController } from '../price-type.controller';
 import { PriceTypeService } from '../price-type.service';
 import { RolesGuard } from '../../auth/guards/roles.guard';
 import { PriceType } from '../entities/price-type.entity';
+import { CurrentStrategyUser } from '../../auth/types/current-user';
 
 describe('PriceTypeController', () => {
   let controller: PriceTypeController;
@@ -20,10 +21,11 @@ describe('PriceTypeController', () => {
     updated_at: null,
   };
 
-  const mockUser = {
+  const mockUser: CurrentStrategyUser = {
     sub: 1,
     email: 'admin@test.com',
-    role: 'admin',
+    role: 'admin' as CurrentStrategyUser['role'],
+    phone: '+79001234567',
     password: '',
     name: 'Admin',
     iat: 1234567890,

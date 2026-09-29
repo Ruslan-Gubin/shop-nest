@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { CartDiscountsService } from '../cart-discounts.service';
 import { CartDiscount } from '../entities/cart-discount.entity';
 import { CreateCartDiscountDto } from '../dto/create-cart-discount.dto';
@@ -180,14 +180,34 @@ describe('CartDiscountsService', () => {
   });
 
   describe('findActive', () => {
-    it('должен вернуть активные скидки', async () => {
+    it('должен вернуть активные скидки для роли user', async () => {
       mockRepository.find.mockResolvedValue([mockCartDiscount]);
 
-      const result = await service.findActive();
+      const result = await service.findActive('user');
 
       expect(result).toEqual([mockCartDiscount]);
       expect(mockRepository.find).toHaveBeenCalledWith({
-        where: { is_active: true },
+        where: { is_active: true, apply_to: In(['all', 'retail']) },
+      });
+    });
+
+    it('должен вернуть активные скидки для оптовой роли', async () => {
+      mockRepository.find.mockResolvedValue([mockCartDiscount]);
+
+      await service.findActive('wholesaler');
+
+      expect(mockRepository.find).toHaveBeenCalledWith({
+        where: { is_active: true, apply_to: In(['all', 'wholesale']) },
+      });
+    });
+
+    it('должен вернуть только общие скидки для неизвестной роли', async () => {
+      mockRepository.find.mockResolvedValue([mockCartDiscount]);
+
+      await service.findActive('guest');
+
+      expect(mockRepository.find).toHaveBeenCalledWith({
+        where: { is_active: true, apply_to: In(['all']) },
       });
     });
   });

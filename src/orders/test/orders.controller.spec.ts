@@ -21,6 +21,7 @@ describe('OrdersController — shortage endpoints', () => {
     email: 'user@test.com',
     role: 'user',
     name: 'Пользователь',
+    phone: '+79001234567',
     password: '',
     iat: 123,
     exp: 456,

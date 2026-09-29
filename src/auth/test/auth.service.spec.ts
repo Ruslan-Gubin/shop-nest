@@ -5,6 +5,7 @@ import { UsersService } from '../../users/users.service';
 import { User } from '../../users/entities/user.entity';
 import { SignInDto } from '../dto/sign-in.dto';
 import { CreateUserDto } from '../../users/dto/create-user.dto';
+import { SmsService } from '../../sms/sms.service';
 import * as argon from 'argon2';
 
 jest.mock('argon2', () => ({
@@ -42,6 +43,10 @@ describe('AuthService', () => {
     updateRefresh: jest.fn(),
   };
 
+  const mockSmsService = {
+    sendSms: jest.fn(),
+  };
+
   beforeEach(async () => {
     process.env.JWT_SECRET = 'jwt_secret';
     process.env.REFRESH_TOKEN_SECRET = 'refresh_secret';
@@ -56,6 +61,10 @@ describe('AuthService', () => {
         {
           provide: UsersService,
           useValue: mockUsersService,
+        },
+        {
+          provide: SmsService,
+          useValue: mockSmsService,
         },
       ],
     }).compile();

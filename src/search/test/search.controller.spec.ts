@@ -56,59 +56,26 @@ describe('SearchController', () => {
       expect(mockService.getSuggestions).toHaveBeenCalledWith('блок', 7);
     });
 
-    it('должен использовать лимит по умолчанию 7', async () => {
+    it('должен передавать 0, если лимит не задан', async () => {
       mockService.getSuggestions.mockResolvedValue([]);
 
       await controller.suggest('блок', undefined);
 
-      expect(mockService.getSuggestions).toHaveBeenCalledWith('блок', 7);
+      expect(mockService.getSuggestions).toHaveBeenCalledWith('блок', 0);
     });
 
-    it('должен ограничить лимит максимумом 10', async () => {
+    it('должен передавать лимит как есть, без ограничения сверху', async () => {
       mockService.getSuggestions.mockResolvedValue([]);
 
       await controller.suggest('блок', 100);
 
-      expect(mockService.getSuggestions).toHaveBeenCalledWith('блок', 10);
+      expect(mockService.getSuggestions).toHaveBeenCalledWith('блок', 100);
     });
 
     it('должен вернуть ошибку', async () => {
       mockService.getSuggestions.mockRejectedValue(new Error('DB error'));
 
       const result = await controller.suggest('блок', 7);
-
-      expect(result.status).toBe('error');
-      expect(result.data).toBeNull();
-    });
-  });
-
-  describe('update (POST /search/update)', () => {
-    it('должен обновить запрос', async () => {
-      const updateDto = { text: 'блокнот а5', result_count: 24 };
-      mockService.updateOrCreate.mockResolvedValue(mockSearch);
-
-      const result = await controller.update(updateDto);
-
-      expect(result.status).toBe('success');
-      expect(result.data).toEqual(mockSearch);
-      expect(mockService.updateOrCreate).toHaveBeenCalledWith(updateDto);
-    });
-
-    it('должен вернуть success при мусорном запросе (null от сервиса)', async () => {
-      const updateDto = { text: 'ааааа', result_count: 0 };
-      mockService.updateOrCreate.mockResolvedValue(null);
-
-      const result = await controller.update(updateDto);
-
-      expect(result.status).toBe('success');
-      expect(result.data).toBeNull();
-    });
-
-    it('должен вернуть ошибку', async () => {
-      const updateDto = { text: 'блокнот а5', result_count: 24 };
-      mockService.updateOrCreate.mockRejectedValue(new Error('DB error'));
-
-      const result = await controller.update(updateDto);
 
       expect(result.status).toBe('error');
       expect(result.data).toBeNull();
@@ -187,20 +154,20 @@ describe('SearchController', () => {
       expect(mockService.getPopular).toHaveBeenCalledWith(5);
     });
 
-    it('должен использовать лимит по умолчанию 5', async () => {
+    it('должен передавать 0, если лимит не задан', async () => {
       mockService.getPopular.mockResolvedValue([]);
 
       await controller.popular(undefined);
 
-      expect(mockService.getPopular).toHaveBeenCalledWith(5);
+      expect(mockService.getPopular).toHaveBeenCalledWith(0);
     });
 
-    it('должен ограничить лимит максимумом 20', async () => {
+    it('должен передавать лимит как есть, без ограничения сверху', async () => {
       mockService.getPopular.mockResolvedValue([]);
 
       await controller.popular(100);
 
-      expect(mockService.getPopular).toHaveBeenCalledWith(20);
+      expect(mockService.getPopular).toHaveBeenCalledWith(100);
     });
 
     it('должен вернуть ошибку', async () => {

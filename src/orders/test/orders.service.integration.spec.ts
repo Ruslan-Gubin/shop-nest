@@ -12,6 +12,7 @@ import { ProductStockService } from 'src/product-stock/product-stock.service';
 import { WarehouseService } from 'src/warehouse/warehouse.service';
 import { TransfersService } from 'src/transfers/transfers.service';
 import { PaymentsService } from 'src/payments/payments.service';
+import { SectorService } from 'src/sector/sector.service';
 
 describe('OrdersService — интеграционные тесты acceptShortage', () => {
   let service: OrdersService;
@@ -102,6 +103,10 @@ describe('OrdersService — интеграционные тесты acceptShorta
     remove: jest.fn(),
   };
 
+  const mockSectorService = {
+    getMainDeliveryWarehouseFromOrder: jest.fn(),
+  };
+
   // ─── setup helpers ────────────────────────────────────────
 
   /**
@@ -150,6 +155,19 @@ describe('OrdersService — интеграционные тесты acceptShorta
     });
 
     mockWarehouseService.findBaseWarehouseForOrder.mockResolvedValue({ id: 1 });
+
+    if (method_receipt === 'courier') {
+      mockSectorService.getMainDeliveryWarehouseFromOrder.mockResolvedValue({
+        id: 1,
+        price: deliveryPrice,
+        min_sum: 0,
+        warehouse: { id: 1 },
+      });
+    } else {
+      mockSectorService.getMainDeliveryWarehouseFromOrder.mockResolvedValue(
+        null,
+      );
+    }
 
     mockOrdersRepository.save.mockImplementation(async (data: any) => ({
       ...data,
@@ -253,6 +271,7 @@ describe('OrdersService — интеграционные тесты acceptShorta
           provide: PaymentsService,
           useValue: { createPayment: jest.fn(), findByOrder: jest.fn() },
         },
+        { provide: SectorService, useValue: mockSectorService },
       ],
     }).compile();
 
@@ -862,6 +881,158 @@ describe('OrdersService — интеграционные тесты acceptShorta
           total: 4600,
         }),
       );
+    });
+  });
+
+  // ─── секторы доставки ─────────────────────────────────────
+
+  describe('секторы доставки', () => {
+    const courierPayload = {
+      comment: '',
+      phone: '+79001234567',
+      phoneCode: '+7',
+      recipient_name: 'Иван Иванов',
+      payment_method: 'cash',
+      method_receipt: 'courier',
+      date_from: '2026-09-15T00:00:00.000Z',
+      date_to: '2026-09-20T23:59:59.999Z',
+      address: makeAddress('courier'),
+      products: [{ product_id: 100, quantity: 10 }],
+      create_user_id: 1,
+      user_role: 'user',
+    };
+
+    it('подставляет delivery_price из сектора, а не хардкод', async () => {
+      setupFullFlowMocks({ method_receipt: 'courier', price: 1000 });
+
+      mockSectorService.getMainDeliveryWarehouseFromOrder.mockResolvedValue({
+        id: 7,
+        price: 350,
+        min_sum: 0,
+        warehouse: { id: 3 },
+      });
+
+      await service.create(courierPayload as any);
+
+      expect(mockOrdersRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          delivery_price: 350,
+          subtotal: 10000,
+        }),
+      );
+    });
+
+    it('поддерживает бесплатную доставку (price = 0)', async () => {
+      setupFullFlowMocks({ method_receipt: 'courier', price: 1000 });
+
+      mockSectorService.getMainDeliveryWarehouseFromOrder.mockResolvedValue({
+        id: 7,
+        price: 0,
+        min_sum: 0,
+        warehouse: { id: 3 },
+      });
+
+      await service.create(courierPayload as any);
+
+      expect(mockOrdersRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          delivery_price: 0,
+          subtotal: 10000,
+        }),
+      );
+    });
+
+    it('сохраняет склад сектора в заказе', async () => {
+      setupFullFlowMocks({ method_receipt: 'courier' });
+
+      mockSectorService.getMainDeliveryWarehouseFromOrder.mockResolvedValue({
+        id: 7,
+        price: 100,
+        min_sum: 0,
+        warehouse: { id: 42 },
+      });
+
+      await service.create(courierPayload as any);
+
+      expect(mockOrdersRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ warehouse: { id: 42 } }),
+      );
+    });
+
+    it('выбрасывает ошибку, если адрес не попал ни в один сектор', async () => {
+      setupFullFlowMocks({ method_receipt: 'courier' });
+
+      mockSectorService.getMainDeliveryWarehouseFromOrder.mockResolvedValue(
+        null,
+      );
+
+      await expect(service.create(courierPayload as any)).rejects.toBe(
+        'Доставка по указанному адресу не осуществляется, выберите другой адрес или способ получения',
+      );
+
+      expect(mockOrdersRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('выбрасывает ошибку, если сумма заказа ниже min_sum сектора', async () => {
+      setupFullFlowMocks({
+        method_receipt: 'courier',
+        price: 500,
+        quantity: 10,
+      });
+
+      mockSectorService.getMainDeliveryWarehouseFromOrder.mockResolvedValue({
+        id: 7,
+        price: 100,
+        min_sum: 10000,
+        warehouse: { id: 3 },
+      });
+
+      await expect(service.create(courierPayload as any)).rejects.toBe(
+        'Минимальная сумма заказа для доставки в этот район составляет 10000 ₽',
+      );
+
+      expect(mockOrdersRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('пропускает заказ, когда сумма равна min_sum сектора', async () => {
+      setupFullFlowMocks({
+        method_receipt: 'courier',
+        price: 500,
+        quantity: 10,
+      });
+
+      mockSectorService.getMainDeliveryWarehouseFromOrder.mockResolvedValue({
+        id: 7,
+        price: 100,
+        min_sum: 5000,
+        warehouse: { id: 3 },
+      });
+
+      await service.create(courierPayload as any);
+
+      expect(mockOrdersRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ delivery_price: 100, subtotal: 5000 }),
+      );
+    });
+
+    it('при самовывозе не вызывает определение сектора и берёт delivery_price = 0', async () => {
+      setupFullFlowMocks({ method_receipt: 'pickup', price: 1000 });
+
+      await service.create({
+        ...courierPayload,
+        method_receipt: 'pickup',
+        address: makeAddress('pickup'),
+      } as any);
+
+      expect(
+        mockSectorService.getMainDeliveryWarehouseFromOrder,
+      ).not.toHaveBeenCalled();
+      expect(mockOrdersRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ delivery_price: 0, warehouse: { id: 1 } }),
+      );
+      expect(
+        mockWarehouseService.findBaseWarehouseForOrder,
+      ).toHaveBeenCalledWith(37.6173, 55.7558);
     });
   });
 });
