@@ -24,6 +24,7 @@ import { ProductStockModule } from 'src/product-stock/product-stock.module';
 import { OrdersModule } from 'src/orders/orders.module';
 import { OrderProductModule } from 'src/order-product/order-product.module';
 import { PaymentsModule } from 'src/payments/payments.module';
+import { PsbModule } from 'src/psb/psb.module';
 import { SearchModule } from 'src/search/search.module';
 import { AddressModule } from 'src/address/address.module';
 import { ProductReviewModule } from 'src/product-review/product-review.module';
@@ -58,6 +59,7 @@ const isDev = process.env.npm_lifecycle_event === 'start:dev';
     OrdersModule,
     OrderProductModule,
     PaymentsModule,
+    PsbModule,
     SearchModule,
     AddressModule,
     ProductReviewModule,

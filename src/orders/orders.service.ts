@@ -660,11 +660,15 @@ export class OrdersService {
     }
 
     if (order.status === "processing" && status === "ready") {
-      await this.handleReadyTransfers(order.id, order.warehouse?.id || 0);
+      // if (order.payment_method === "card") {
+      //   await this.paymentsService.createPaymentFromOrder(
+      //     order.id,
+      //     order.total,
+      //     order.order_number,
+      //   );
+      // }
 
-      if (order.payment_method === "card") {
-        await this.paymentsService.createPayment(order.id, order.total);
-      }
+      await this.handleReadyTransfers(order.id, order.warehouse?.id || 0);
     }
 
     if (order.status === "ready" && status === "in_delivery") {
