@@ -1,7 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { execSync, spawn, spawnSync } from "child_process";
 
-// opencode -s ses_ef54b847affe2GPGDx9bRu1mS0
 @Injectable()
 export class OpenCodeService {
   private readonly baseUrl = "http://localhost:8080/v1/chat/completions";
