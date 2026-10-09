@@ -1,6 +1,5 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
 import { ProductSourceRecordService } from "./product-source-record.service";
-import { PickImagesDto } from "./dto/pick-images.dto";
 import { SearchProductSourceRecordDto } from "./dto/product-source-record.dto";
 import { CheckImportItemDto } from "./dto/check-import-items.dto";
 import { CreateProductFromRecordDto } from "./dto/create-product-from-record.dto";
@@ -23,14 +22,14 @@ export class ProductSourceRecordController {
     }
   }
 
-  @Get("pick-images")
+  @Get("get-record/:barcode")
   @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
-  async pickImages(@Query() dto: PickImagesDto) {
+  async getRecord(@Param("barcode") barcode: string) {
     try {
-      const images = await this.productSourceRecordService.pickImages(dto.query);
+      const record = await this.productSourceRecordService.findRecord(barcode);
 
-      return responseData(images, "success", [], "Изображения подобраны");
+      return responseData(record, "success", [], "Запись сгенерированного товара получена");
     } catch (error) {
       return responseData(null, "error", [], error);
     }
