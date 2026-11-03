@@ -3,6 +3,7 @@ import { ProductSourceRecordService } from "./product-source-record.service";
 import { SearchProductSourceRecordDto } from "./dto/product-source-record.dto";
 import { CheckImportItemDto } from "./dto/check-import-items.dto";
 import { CreateProductFromRecordDto } from "./dto/create-product-from-record.dto";
+import { SaveGeneratedRecordDto } from "./dto/save-record.dto";
 import { responseData } from "src/helpers/response";
 import { RolesGuard } from "src/auth/guards/roles.guard";
 import { Roles } from "src/auth/decorators/roles.decorator";
@@ -43,6 +44,19 @@ export class ProductSourceRecordController {
       const id = await this.productSourceRecordService.applySuggestCategory(payload);
 
       return responseData(id, "success", [], "Категории успешно добавлены");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Post("save-record")
+  @Roles("admin", "moderator")
+  @UseGuards(RolesGuard)
+  async saveRecord(@Body() dto: SaveGeneratedRecordDto) {
+    try {
+      const result = await this.productSourceRecordService.saveGeneratedRecord(dto);
+
+      return responseData(result, "success", [], "Запись сгенерированного товара сохранена");
     } catch (error) {
       return responseData(null, "error", [], error);
     }

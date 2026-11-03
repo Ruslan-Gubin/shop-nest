@@ -15,6 +15,7 @@ import { CategoryService } from "src/category/category.service";
 import * as cheerio from "cheerio";
 import { CheckImportItemDto } from "./dto/check-import-items.dto";
 import { CreateProductFromRecordDto } from "./dto/create-product-from-record.dto";
+import { SaveGeneratedRecordDto } from "./dto/save-record.dto";
 
 @Injectable()
 export class ProductSourceRecordService {
@@ -918,6 +919,31 @@ ${categoriesForPrompt}
       clear_name,
       product,
       error_message,
+    });
+  }
+
+  // Сохранение данных, сгенерированных на фронтенде (upsert по штрих-коду).
+  async saveGeneratedRecord(payload: SaveGeneratedRecordDto) {
+    const value = payload.barcode.trim();
+
+    const existing = await this.findRecord(value);
+
+    if (existing) {
+      await this.productSourceRecordRepository.update(existing.id, {
+        clear_name: payload.clear_name,
+        product: payload.product,
+        error_message: "",
+      });
+
+      return this.findRecord(value);
+    }
+
+    return this.productSourceRecordRepository.save({
+      value,
+      source_names: [],
+      clear_name: payload.clear_name,
+      product: payload.product,
+      error_message: "",
     });
   }
 
