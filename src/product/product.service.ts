@@ -278,24 +278,9 @@ export class ProductService {
     }
 
     if (specifications) {
-      const specGroups = new Map<number, string[]>();
-
-      for (const pair of specifications.split(",")) {
-        if (!pair) continue;
-        const colonIdx = pair.indexOf(":");
-        if (colonIdx === -1) continue;
-        const specId = parseInt(pair.substring(0, colonIdx), 10);
-        const value = pair.substring(colonIdx + 1);
-
-        if (!Number.isNaN(specId) && value) {
-          if (!specGroups.has(specId)) specGroups.set(specId, []);
-          specGroups.get(specId)!.push(value);
-        }
-      }
-
       let idx = 0;
 
-      for (const [specId, values] of specGroups) {
+      for (const [specId, values] of this.parseSpecificationFilters(specifications)) {
         idx++;
         query.andWhere(
           `product.id IN (SELECT ps.product_id FROM product_specification ps WHERE ps.specification_id = :specId${idx} AND ps.value IN (:...specValues${idx}))`,
@@ -305,10 +290,7 @@ export class ProductService {
     }
 
     if (country) {
-      const countryList = country
-        .split(",")
-        .map((c) => c.trim())
-        .filter(Boolean);
+      const countryList = this.parseFilterList(country);
       if (countryList.length > 0) {
         query.andWhere("product.country IN (:...countries)", {
           countries: countryList,
@@ -317,10 +299,7 @@ export class ProductService {
     }
 
     if (product_types) {
-      const typeList = product_types
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
+      const typeList = this.parseFilterList(product_types);
       if (typeList.length > 0) {
         query.andWhere("product.product_type IN (:...productTypes)", {
           productTypes: typeList,
@@ -472,14 +451,150 @@ export class ProductService {
     return { products, totalCount, paginationPage: page };
   }
 
+  private parseFilterList(value?: string): string[] {
+    if (!value) return [];
+
+    return Array.from(
+      new Set(
+        value
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+      ),
+    );
+  }
+
+  private parseSpecificationFilters(value?: string): Map<number, string[]> {
+    const groups = new Map<number, string[]>();
+
+    if (!value) return groups;
+
+    for (const pair of value.split(",")) {
+      if (!pair) continue;
+
+      const colonIdx = pair.indexOf(":");
+      if (colonIdx === -1) continue;
+
+      const specId = Number.parseInt(pair.substring(0, colonIdx), 10);
+      const specValue = pair.substring(colonIdx + 1).trim();
+
+      if (Number.isNaN(specId) || !specValue) continue;
+
+      const existing = groups.get(specId);
+
+      if (existing) {
+        existing.push(specValue);
+      } else {
+        groups.set(specId, [specValue]);
+      }
+    }
+
+    return groups;
+  }
+
+  private buildFilterConditionGroup({
+    role,
+    categoryIds,
+    search,
+    selectedProductTypes,
+    selectedCountries,
+    priceFrom,
+    priceTo,
+    specificationGroups,
+    sortPriceType,
+    exclude,
+  }: {
+    role: string;
+    categoryIds: number[];
+    search?: string;
+    selectedProductTypes: string[];
+    selectedCountries: string[];
+    priceFrom?: number;
+    priceTo?: number;
+    specificationGroups: Map<number, string[]>;
+    sortPriceType: "MIN" | "MAX";
+    exclude?: "price" | "countries" | "product_types" | "specifications";
+  }): { params: unknown[]; where: string } {
+    const params: unknown[] = [];
+    const conditions: string[] = [];
+
+    const mainWhere = this.buildMainPageWhere(role).replace(/product\./g, "p.");
+
+    if (mainWhere) {
+      conditions.push(mainWhere);
+    }
+
+    if (categoryIds.length > 0) {
+      params.push(categoryIds);
+      conditions.push(`p.category_id = ANY($${params.length}::int[])`);
+    }
+
+    if (search) {
+      params.push(`%${search}%`);
+      conditions.push(`(p.name ILIKE $${params.length} OR p.description ILIKE $${params.length})`);
+    }
+
+    if (exclude !== "product_types" && selectedProductTypes.length > 0) {
+      params.push(selectedProductTypes);
+      conditions.push(`p.product_type = ANY($${params.length}::text[])`);
+    }
+
+    if (exclude !== "countries" && selectedCountries.length > 0) {
+      params.push(selectedCountries);
+      conditions.push(`p.country = ANY($${params.length}::text[])`);
+    }
+
+    if (exclude !== "price") {
+      const priceSubQuery = `(SELECT COALESCE(${sortPriceType}(pp.price), 0) FROM product_price pp WHERE pp.product_id = p.id AND pp.price > 0)`;
+
+      if (priceFrom !== undefined) {
+        params.push(priceFrom);
+        conditions.push(`${priceSubQuery} >= $${params.length}`);
+      }
+
+      if (priceTo !== undefined) {
+        params.push(priceTo);
+        conditions.push(`${priceSubQuery} <= $${params.length}`);
+      }
+    }
+
+    if (exclude !== "specifications") {
+      for (const [specId, values] of specificationGroups) {
+        params.push(specId);
+        const specIdIdx = params.length;
+        params.push(values);
+        const valuesIdx = params.length;
+
+        conditions.push(
+          `p.id IN (SELECT ps.product_id FROM product_specification ps WHERE ps.specification_id = $${specIdIdx} AND ps.value = ANY($${valuesIdx}::text[]))`,
+        );
+      }
+    }
+
+    return {
+      params,
+      where: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
+    };
+  }
+
   async getFilters({
     role,
     category_id,
     search,
+    product_types,
+    specifications,
+    country,
+    price_from,
+    price_to,
   }: {
     role: string;
     category_id?: string;
     search?: string;
+    product_types?: string;
+    specifications?: string;
+    country?: string;
+    price_from?: string;
+    price_to?: string;
   }): Promise<{
     price: { min: number; max: number };
     specifications: {
@@ -491,31 +606,39 @@ export class ProductService {
     countries: string[];
     product_types: string[];
   }> {
-    const sortPriceType =
+    const sortPriceType: "MIN" | "MAX" =
       role === "admin" || role === "moderator" || role === "wholesaler" ? "MIN" : "MAX";
 
-    const params: unknown[] = [];
-    const conditions: string[] = [];
+    const categoryIds = category_id
+      ? await this.categoryService.getCategoryAndAllChildrenIds(Number(category_id))
+      : [];
 
-    conditions.push(this.buildMainPageWhere(role).replace(/product\./g, "p."));
+    const selectedProductTypes = this.parseFilterList(product_types);
+    const selectedCountries = this.parseFilterList(country);
+    const specificationGroups = this.parseSpecificationFilters(specifications);
+    const selectedSpecificationIds = Array.from(specificationGroups.keys());
+    const priceFrom =
+      price_from !== undefined && price_from !== "" && !Number.isNaN(Number(price_from))
+        ? Number(price_from)
+        : undefined;
+    const priceTo =
+      price_to !== undefined && price_to !== "" && !Number.isNaN(Number(price_to))
+        ? Number(price_to)
+        : undefined;
 
-    if (category_id) {
-      const categoryIds = await this.categoryService.getCategoryAndAllChildrenIds(
-        Number(category_id),
-      );
-      if (categoryIds.length > 0) {
-        params.push(categoryIds);
-        conditions.push(`p.category_id = ANY($${params.length}::int[])`);
-      }
-    }
+    const baseOptions = {
+      role,
+      categoryIds,
+      search,
+      selectedProductTypes,
+      selectedCountries,
+      priceFrom,
+      priceTo,
+      specificationGroups,
+      sortPriceType,
+    };
 
-    if (search) {
-      params.push(`%${search}%`);
-      const idx = params.length;
-      conditions.push(`(p.name ILIKE $${idx} OR p.description ILIKE $${idx})`);
-    }
-
-    const whereStr = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+    const priceFilter = this.buildFilterConditionGroup({ ...baseOptions, exclude: "price" });
 
     const priceResult = await this.productRepository
       .query(
@@ -526,51 +649,32 @@ export class ProductService {
           FROM (
             SELECT (SELECT COALESCE(${sortPriceType}(pp.price), 0) FROM product_price pp WHERE pp.product_id = p.id AND pp.price > 0) AS price
             FROM product p
-            ${whereStr}
+            ${priceFilter.where}
           ) sub
         `,
-        params,
+        priceFilter.params,
       )
       .catch((error) => {
         throw `Не удалось получить диапазон цен, ${error.message}`;
       });
 
-    const specsResult = await this.productRepository
-      .query(
-        `
-          WITH filtered AS (
-            SELECT p.id FROM product p ${whereStr}
-          )
-          SELECT DISTINCT
-            s.id AS spec_id,
-            s.name AS spec_name,
-            s.type AS spec_type,
-            ps.value
-          FROM product_specification ps
-          INNER JOIN specification s ON s.id = ps.specification_id
-          WHERE ps.product_id IN (TABLE filtered)
-          ORDER BY s.name, ps.value
-        `,
-        params,
-      )
-      .catch((error) => {
-        throw `Не удалось получить фильтры характеристик, ${error.message}`;
-      });
-
-    const countryCondition = "p.country != ''";
-    const countryWhere = whereStr
-      ? `${whereStr} AND ${countryCondition}`
-      : `WHERE ${countryCondition}`;
+    const countriesFilter = this.buildFilterConditionGroup({
+      ...baseOptions,
+      exclude: "countries",
+    });
+    const countriesWhere = countriesFilter.where
+      ? `${countriesFilter.where} AND p.country != ''`
+      : `WHERE p.country != ''`;
 
     const countriesResult = await this.productRepository
       .query(
         `
           SELECT DISTINCT p.country
           FROM product p
-          ${countryWhere}
+          ${countriesWhere}
           ORDER BY p.country
         `,
-        params,
+        countriesFilter.params,
       )
       .catch((error) => {
         throw `Не удалось получить список стран, ${error.message}`;
@@ -578,28 +682,108 @@ export class ProductService {
 
     const countries = countriesResult.map((row: { country: string }) => row.country);
 
-    const productTypeCondition = "p.product_type != ''";
-    const productTypeWhere = whereStr
-      ? `${whereStr} AND ${productTypeCondition}`
-      : `WHERE ${productTypeCondition}`;
+    const productTypesFilter = this.buildFilterConditionGroup({
+      ...baseOptions,
+      exclude: "product_types",
+    });
+    const productTypesWhere = productTypesFilter.where
+      ? `${productTypesFilter.where} AND p.product_type != ''`
+      : `WHERE p.product_type != ''`;
 
     const productTypesResult = await this.productRepository
       .query(
         `
           SELECT DISTINCT p.product_type
           FROM product p
-          ${productTypeWhere}
+          ${productTypesWhere}
           ORDER BY p.product_type
         `,
-        params,
+        productTypesFilter.params,
       )
       .catch((error) => {
         throw `Не удалось получить список типов товаров, ${error.message}`;
       });
 
-    const product_types = productTypesResult.map(
+    const productTypes = productTypesResult.map(
       (row: { product_type: string }) => row.product_type,
     );
+
+    const hideSpecifications =
+      selectedProductTypes.length > 1 ||
+      (selectedProductTypes.length === 0 && productTypes.length > 1);
+
+    let specsResult: {
+      spec_id: number | string;
+      spec_name: string;
+      spec_type: string;
+      value: string;
+    }[] = [];
+
+    if (!hideSpecifications) {
+      // Характеристики считаем с учётом ВСЕХ активных фильтров, включая сами характеристики.
+      const specsFilter = this.buildFilterConditionGroup(baseOptions);
+      const specsParams: unknown[] = [...specsFilter.params];
+
+      let selectedSpecIdsCondition = "";
+
+      if (selectedSpecificationIds.length > 0) {
+        specsParams.push(selectedSpecificationIds);
+        selectedSpecIdsCondition = `s.id = ANY($${specsParams.length}::int[])`;
+      }
+
+      // Активные характеристики оставляем видимыми, даже если у них осталось одно значение.
+      const keepSelectedSpecsCondition = selectedSpecIdsCondition
+        ? `COUNT(DISTINCT ps.value) > 1 OR ${selectedSpecIdsCondition}`
+        : `COUNT(DISTINCT ps.value) > 1`;
+      const selectedSpecsOrder = selectedSpecIdsCondition
+        ? `(${selectedSpecIdsCondition}) DESC, `
+        : "";
+
+      specsResult = await this.productRepository
+        .query(
+          `
+            WITH filtered AS (
+              SELECT p.id FROM product p ${specsFilter.where}
+            ),
+            spec_stats AS (
+              SELECT
+                s.id,
+                s.name,
+                s.type,
+                COUNT(DISTINCT ps.value)::int AS value_count,
+                COUNT(DISTINCT ps.product_id)::int AS product_count
+              FROM product_specification ps
+              INNER JOIN specification s ON s.id = ps.specification_id
+              WHERE ps.product_id IN (SELECT id FROM filtered)
+                AND s.name NOT IN ('Артикул', 'Штрих-код', 'Код товара')
+              GROUP BY s.id, s.name, s.type
+              HAVING ${keepSelectedSpecsCondition}
+              ORDER BY ${selectedSpecsOrder}value_count DESC, product_count DESC, s.name
+              LIMIT 5
+            )
+            SELECT
+              ss.id AS spec_id,
+              ss.name AS spec_name,
+              ss.type AS spec_type,
+              ps.value
+            FROM spec_stats ss
+            INNER JOIN product_specification ps ON ps.specification_id = ss.id
+            INNER JOIN filtered f ON f.id = ps.product_id
+            GROUP BY
+              ss.id,
+              ss.name,
+              ss.type,
+              ps.value,
+              ss.value_count,
+              ss.product_count
+            ORDER BY ss.value_count DESC, ss.product_count DESC, ss.name, ps.value
+          `,
+          specsParams,
+        )
+        .catch((error) => {
+          throw `Не удалось получить фильтры характеристик, ${error.message}`;
+        });
+    }
 
     const specMap = new Map<number, { id: number; name: string; type: string; values: string[] }>();
 
@@ -624,14 +808,18 @@ export class ProductService {
       spec.values.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
     }
 
+    const selectedSpecIdsSet = new Set(selectedSpecificationIds);
+
     return {
       price: {
         min: Number(priceResult[0]?.min_price ?? 0),
         max: Number(priceResult[0]?.max_price ?? 0),
       },
-      specifications: Array.from(specMap.values()),
+      specifications: Array.from(specMap.values()).filter(
+        (spec) => spec.values.length > 1 || selectedSpecIdsSet.has(spec.id),
+      ),
       countries,
-      product_types,
+      product_types: productTypes,
     };
   }
 

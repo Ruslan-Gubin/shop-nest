@@ -34,6 +34,11 @@ export class ProductController {
     @CurrentUser() user?: CurrentStrategyUser,
     @Query("category_id") category_id?: string,
     @Query("search") search?: string,
+    @Query("product_types") product_types?: string,
+    @Query("specifications") specifications?: string,
+    @Query("country") country?: string,
+    @Query("price_from") price_from?: string,
+    @Query("price_to") price_to?: string,
   ): Promise<
     ResponseData<{
       price: { min: number; max: number };
@@ -52,6 +57,11 @@ export class ProductController {
         role: user?.role ?? "user",
         category_id,
         search,
+        product_types,
+        specifications,
+        country,
+        price_from,
+        price_to,
       });
 
       return responseData(filters, "success", [], "Фильтры получены");
