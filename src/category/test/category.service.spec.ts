@@ -40,6 +40,7 @@ describe('CategoryService', () => {
     find: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    query: jest.fn(),
     createQueryBuilder: jest.fn(),
   };
 
@@ -92,6 +93,60 @@ describe('CategoryService', () => {
       expect(mockRepository.find).toHaveBeenCalledWith({
         order: { position: 'ASC', created_at: 'ASC' },
       });
+    });
+  });
+
+  describe('findCategoriesWithProducts', () => {
+    it('должен оставить только категории, в которых есть товары', async () => {
+      const parentCategory: Category = {
+        ...mockCategory,
+        id: 1,
+        parent_id: null,
+        position: 1,
+      };
+      const childWithProducts: Category = {
+        ...mockCategory,
+        id: 2,
+        parent_id: 1,
+        position: 1,
+      };
+      const emptyCategory: Category = {
+        ...mockCategory,
+        id: 3,
+        parent_id: null,
+        position: 2,
+      };
+
+      mockRepository.query.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+      mockRepository.find.mockResolvedValue([
+        parentCategory,
+        childWithProducts,
+        emptyCategory,
+      ]);
+      mockRepository.update.mockResolvedValue({ affected: 1 } as any);
+
+      const result = await service.findCategoriesWithProducts();
+
+      expect(result).toHaveLength(2);
+      expect(result.map((category) => category.id)).toEqual([1, 2]);
+      expect(mockRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('должен вернуть пустой список, если товаров нет ни в одной категории', async () => {
+      mockRepository.query.mockResolvedValue([]);
+
+      const result = await service.findCategoriesWithProducts();
+
+      expect(result).toEqual([]);
+      expect(mockRepository.find).not.toHaveBeenCalled();
+    });
+
+    it('должен выбросить ошибку при неудачном запросе категорий с товарами', async () => {
+      mockRepository.query.mockRejectedValue(new Error('db error'));
+
+      await expect(service.findCategoriesWithProducts()).rejects.toContain(
+        'Не удалось получить список категорий с товарами',
+      );
     });
   });
 

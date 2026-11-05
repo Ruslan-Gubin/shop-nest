@@ -9,6 +9,7 @@ import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 import type { CurrentStrategyUser } from "src/auth/types/current-user";
 import { UpdatePositionCategoryDto } from "./dto/update-position-category-dto";
 import { Public } from "src/auth/decorators/public.decorator";
+import { OptionalJwtAuthGuard } from "src/auth/guards/optional-jwt-auth.guard";
 
 @Controller("category")
 export class CategoryController {
@@ -66,13 +67,17 @@ export class CategoryController {
   }
 
   @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("categories")
-  async findAll(): Promise<ResponseData<Category[] | null>> {
+  async findAll(
+    @CurrentUser() user?: CurrentStrategyUser,
+  ): Promise<ResponseData<Category[] | null>> {
     try {
-      const categories = await this.categoryService.findAll();
-      const updateCategories = await this.categoryService.sortedCategories(categories);
+      const categories = await this.categoryService.findCategoriesWithProducts(
+        user?.role || "user",
+      );
 
-      return responseData(updateCategories, "success", [], "Список категорий получен");
+      return responseData(categories, "success", [], "Список категорий получен");
     } catch (error) {
       return responseData(null, "error", [], error);
     }
@@ -91,7 +96,11 @@ export class CategoryController {
   }
 
   @Get("fullPathCategories/:id")
-  async getFullPathFromCategory(@Param("id") id: string): Promise<
+  @UseGuards(OptionalJwtAuthGuard)
+  async getFullPathFromCategory(
+    @Param("id") id: string,
+    @CurrentUser() user?: CurrentStrategyUser,
+  ): Promise<
     ResponseData<{
       categories: Category[];
       childrenCategories: Category[];
@@ -102,10 +111,12 @@ export class CategoryController {
         !isNaN(Number(id)) ? Number(id) : null,
       );
       const childrenCategories = !isNaN(Number(id))
-        ? await this.categoryService.getChildren(Number(id))
+        ? await this.categoryService.getChildren(Number(id), user?.role || "user")
         : [];
 
-      const allCategory = await this.categoryService.findAll();
+      const allCategory = await this.categoryService.findAllAvailableCategories(
+        user?.role || "user",
+      );
       const transitionCategories = await this.categoryService.sortedCategories(allCategory);
 
       return responseData(

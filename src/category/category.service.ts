@@ -1,10 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { FindOptionsWhere, IsNull, type Repository } from "typeorm";
+import { type Repository } from "typeorm";
 import { CreateCategoryDto } from "./dto/create-category.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
 import { UpdatePositionCategoryDto } from "./dto/update-position-category-dto";
 import { Category } from "./entities/category.entity";
+import { UserRole } from "src/users/entities/user.entity";
 
 type CategoryWithChildren = Omit<Category, "children"> & {
   children: Category[];
@@ -16,6 +17,57 @@ export class CategoryService {
     @InjectRepository(Category)
     private categoryRepository: Repository<Category>,
   ) {}
+
+  async findAllAvailableCategories(role: UserRole): Promise<Category[]> {
+    const priceCondition =
+      role === "admin" || role === "moderator" || role === "wholesaler"
+        ? `SELECT 1 FROM product_price price
+         WHERE price.product_id = p.id AND price.price > 0`
+        : `SELECT 1 FROM product_price price
+         INNER JOIN price_type type ON type.id = price.price_type_id
+         WHERE price.product_id = p.id
+           AND price.price > 0
+           AND type."isPublic" = true`;
+
+    return await this.categoryRepository
+      .query(`
+        WITH RECURSIVE subtree AS (
+            SELECT id, id AS root_id
+            FROM category
+
+            UNION ALL
+
+            SELECT c.id, s.root_id
+            FROM category c
+            JOIN subtree s ON s.id = c.parent_id
+          )
+          SELECT c.*
+          FROM category c
+          WHERE c.id IN (
+            SELECT s.root_id
+            FROM subtree s
+            JOIN product p ON p.category_id = s.id
+            WHERE EXISTS (
+              SELECT 1 FROM product_stock stock
+              WHERE stock.product_id = p.id
+                AND (stock.quantity - stock.reserved > 0 OR stock.in_stock)
+            )
+            AND EXISTS (
+              ${priceCondition}
+            )
+          )
+          ORDER BY c.name
+    `)
+      .catch((error) => {
+        throw `Не удалось получить все доступные категории, ${error}`;
+      });
+  }
+
+  async findCategoriesWithProducts(role: UserRole): Promise<Category[]> {
+    const categories = await this.findAllAvailableCategories(role);
+
+    return await this.sortedCategories(categories);
+  }
 
   async getFullPathFromCategory(id: number | null) {
     const categories: Category[] = [];
@@ -62,16 +114,6 @@ export class CategoryService {
     return this.categoryRepository.save(createCategoryDto).catch((error) => {
       throw `Не удалось добавить категорию, ${error.message}`;
     });
-  }
-
-  async findAll() {
-    return this.categoryRepository
-      .find({
-        order: { position: "ASC", created_at: "ASC" },
-      })
-      .catch((error) => {
-        throw `Не удалось получить список категорий, ${error.message}`;
-      });
   }
 
   async getCategory(id: number) {
@@ -194,10 +236,10 @@ export class CategoryService {
   }
 
   async changeChildrenParentId(parent_id: number | null, new_parent_id: number | null) {
-    const categoriesNeedUpdate = await this.getChildren(parent_id);
+    const categoriesNeedUpdate = await this.getChildren(parent_id, "user");
     if (categoriesNeedUpdate.length === 0) return;
 
-    const newParentCategories = await this.getChildren(new_parent_id);
+    const newParentCategories = await this.getChildren(new_parent_id, "user");
     const parentLength = newParentCategories.length;
 
     for (let i = 0; i < categoriesNeedUpdate.length; i++) {
@@ -209,18 +251,56 @@ export class CategoryService {
     }
   }
 
-  async getChildren(parent_id: number | null) {
-    const whereCondition: FindOptionsWhere<Category> =
-      parent_id === null ? { parent_id: IsNull() } : { parent_id };
+  async getChildren(parent_id: number | null, role: UserRole) {
+    const priceCondition =
+      role === "admin" || role === "moderator" || role === "wholesaler"
+        ? `SELECT 1 FROM product_price price
+         WHERE price.product_id = p.id AND price.price > 0`
+        : `SELECT 1 FROM product_price price
+         INNER JOIN price_type type ON type.id = price.price_type_id
+         WHERE price.product_id = p.id
+           AND price.price > 0
+           AND type."isPublic" = true`;
 
-    return await this.categoryRepository
-      .find({
-        where: whereCondition,
-        order: { position: "ASC" },
-      })
+    const parentFilter = parent_id === null ? "c.parent_id IS NULL" : "c.parent_id = $1";
+    const params = parent_id === null ? [] : [parent_id];
+
+    const categories: Category[] = await this.categoryRepository
+      .query(
+        `
+          WITH RECURSIVE subtree AS (
+            SELECT id, id AS root_id
+            FROM category
+            UNION ALL
+            SELECT ch.id, s.root_id
+            FROM category ch
+            JOIN subtree s ON s.id = ch.parent_id
+          )
+          SELECT c.*
+          FROM category c
+          WHERE ${parentFilter}
+            AND c.id IN (
+              SELECT s.root_id
+              FROM subtree s
+              JOIN product p ON p.category_id = s.id
+              WHERE EXISTS (
+                SELECT 1 FROM product_stock stock
+                WHERE stock.product_id = p.id
+                  AND (stock.quantity - stock.reserved > 0 OR stock.in_stock)
+              )
+              AND EXISTS (
+                ${priceCondition}
+              )
+            )
+          ORDER BY c.position
+    `,
+        params,
+      )
       .catch((error) => {
         throw `Не удалось получить список подкатегорий, ${error.message}`;
       });
+
+    return categories;
   }
 
   async changeParent(id: number, parent_id: number | null) {

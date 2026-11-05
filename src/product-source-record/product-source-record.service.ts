@@ -160,7 +160,7 @@ export class ProductSourceRecordService {
   }
 
   async resolveCategory(productName: string, recommendedPath: string): Promise<number | null> {
-    const categories = await this.categoryService.findAll();
+    const categories = await this.categoryService.findAllAvailableCategories("user");
     const categoriesTree = await this.categoryService.sortedCategories(categories);
     const categoriesForPrompt = this.formatCategoriesForPrompt(categoriesTree);
 
@@ -274,7 +274,7 @@ ${categoriesForPrompt}
                     : null
                   : lastCreatedId;
 
-              const parentChildren = await this.categoryService.getChildren(parentId);
+              const parentChildren = await this.categoryService.getChildren(parentId, "user");
 
               const newCategory = await this.categoryService.create({
                 name: category.name.trim(),
@@ -1097,7 +1097,7 @@ ${categoriesForPrompt}
             : null
           : lastCreatedId;
 
-      const parentChildren = await this.categoryService.getChildren(parentId);
+      const parentChildren = await this.categoryService.getChildren(parentId, "user");
 
       const newCategory = await this.categoryService.create({
         name: category.name.trim(),
