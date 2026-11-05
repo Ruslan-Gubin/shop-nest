@@ -1,12 +1,12 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { FindOptionsWhere, IsNull, type Repository } from 'typeorm';
-import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
-import { UpdatePositionCategoryDto } from './dto/update-position-category-dto';
-import { Category } from './entities/category.entity';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { FindOptionsWhere, IsNull, type Repository } from "typeorm";
+import { CreateCategoryDto } from "./dto/create-category.dto";
+import { UpdateCategoryDto } from "./dto/update-category.dto";
+import { UpdatePositionCategoryDto } from "./dto/update-position-category-dto";
+import { Category } from "./entities/category.entity";
 
-type CategoryWithChildren = Omit<Category, 'children'> & {
+type CategoryWithChildren = Omit<Category, "children"> & {
   children: Category[];
 };
 
@@ -67,11 +67,17 @@ export class CategoryService {
   async findAll() {
     return this.categoryRepository
       .find({
-        order: { position: 'ASC', created_at: 'ASC' },
+        order: { position: "ASC", created_at: "ASC" },
       })
       .catch((error) => {
         throw `Не удалось получить список категорий, ${error.message}`;
       });
+  }
+
+  async getCategory(id: number) {
+    return this.categoryRepository.findOneBy({ id }).catch((error) => {
+      throw `Не удалось получить категорию, ${error.message}`;
+    });
   }
 
   public async sortedCategories(categories: Category[]): Promise<Category[]> {
@@ -120,9 +126,7 @@ export class CategoryService {
         if (aUpdate || bUpdate) {
           return bUpdate - aUpdate;
         } else {
-          return (
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         }
       }
     });
@@ -173,10 +177,7 @@ export class CategoryService {
       });
   }
 
-  async updatePosition(
-    id: number,
-    updatePositionCategoryDto: UpdatePositionCategoryDto,
-  ) {
+  async updatePosition(id: number, updatePositionCategoryDto: UpdatePositionCategoryDto) {
     return this.categoryRepository
       .update(id, {
         ...updatePositionCategoryDto,
@@ -192,10 +193,7 @@ export class CategoryService {
     });
   }
 
-  async changeChildrenParentId(
-    parent_id: number | null,
-    new_parent_id: number | null,
-  ) {
+  async changeChildrenParentId(parent_id: number | null, new_parent_id: number | null) {
     const categoriesNeedUpdate = await this.getChildren(parent_id);
     if (categoriesNeedUpdate.length === 0) return;
 
@@ -218,7 +216,7 @@ export class CategoryService {
     return await this.categoryRepository
       .find({
         where: whereCondition,
-        order: { position: 'ASC' },
+        order: { position: "ASC" },
       })
       .catch((error) => {
         throw `Не удалось получить список подкатегорий, ${error.message}`;
@@ -244,11 +242,11 @@ export class CategoryService {
       for (let i = 0; i < categories.length; i++) {
         const category = categories[i];
         const name =
-          Object.hasOwn(category, 'name') &&
-          typeof category?.name === 'string' &&
+          Object.hasOwn(category, "name") &&
+          typeof category?.name === "string" &&
           category.name.trim().length >= 2
             ? category?.name?.trim()
-            : '';
+            : "";
 
         if (!name) {
           isValid = false;
@@ -256,8 +254,8 @@ export class CategoryService {
         }
 
         const parent_id =
-          Object.hasOwn(category, 'parent_id') &&
-          typeof category?.parent_id === 'number' &&
+          Object.hasOwn(category, "parent_id") &&
+          typeof category?.parent_id === "number" &&
           !Number.isNaN(Number(category?.parent_id)) &&
           category?.parent_id > 0
             ? Number(category?.parent_id)
