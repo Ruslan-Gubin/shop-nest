@@ -16,6 +16,8 @@ import {
 @Injectable()
 export class SmsService {
   private readonly otp_ttl_ms: number = 5 * 60 * 1000; // 5 min
+  private readonly smsOnlineTtlMs: number = 30 * 1000; // 30 сек — устройство считается онлайн
+  private lastCheckTaskTime = new Date(); // время последнего запроса задачи любым устройством
 
   constructor(
     @InjectRepository(SmsOutbox)
@@ -109,6 +111,8 @@ export class SmsService {
   }
 
   async claimNext(sender_phone: string): Promise<SmsOutbox | null> {
+    this.lastCheckTaskTime = new Date();
+
     const sender = sender_phone.trim();
     const cutoff = new Date(Date.now() - this.otp_ttl_ms);
 
@@ -151,6 +155,11 @@ export class SmsService {
     });
 
     return task;
+  }
+
+  isDeviceReadyForSms(): boolean {
+    const diffMs = Date.now() - this.lastCheckTaskTime.getTime();
+    return diffMs < this.smsOnlineTtlMs;
   }
 
   async markDelivered(id: number) {
