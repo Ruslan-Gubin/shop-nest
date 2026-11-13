@@ -22,6 +22,8 @@ import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 import { CurrentStrategyUser } from "src/auth/types/current-user";
 import { Roles } from "src/auth/decorators/roles.decorator";
 import { RolesGuard } from "src/auth/guards/roles.guard";
+import { Public } from "src/auth/decorators/public.decorator";
+import { OptionalJwtAuthGuard } from "src/auth/guards/optional-jwt-auth.guard";
 
 @Controller("orders")
 export class OrdersController {
@@ -80,6 +82,8 @@ export class OrdersController {
     }
   }
 
+  @Public()
+  @UseGuards(OptionalJwtAuthGuard)
   @Get("all-client")
   async findAllClient(
     @Query("page") page: string,
@@ -121,7 +125,9 @@ export class OrdersController {
     }
   }
 
+  @Public()
   @Get("order-client-counts")
+  @UseGuards(OptionalJwtAuthGuard)
   async getClientCounts(@CurrentUser() user: CurrentStrategyUser): Promise<
     ResponseData<{
       orders: number;

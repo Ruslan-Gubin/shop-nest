@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { type Repository } from 'typeorm';
-import type { CreateProductReviewDto } from './dto/create-product-review.dto';
-import type { UpdateProductReviewDto } from './dto/update-product-review.dto';
-import { ProductReview } from './entities/product-review.entity';
-import type { Product } from 'src/product/entities/product.entity';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { type Repository } from "typeorm";
+import type { CreateProductReviewDto } from "./dto/create-product-review.dto";
+import type { UpdateProductReviewDto } from "./dto/update-product-review.dto";
+import { ProductReview } from "./entities/product-review.entity";
+import type { Product } from "src/product/entities/product.entity";
 
 @Injectable()
 export class ProductReviewService {
@@ -19,9 +19,9 @@ export class ProductReviewService {
         product: { id: createProductReviewDto.product_id },
         create_user_id: createProductReviewDto.create_user_id,
         rating: createProductReviewDto.rating,
-        dignities: createProductReviewDto.dignities ?? '',
-        disadvantages: createProductReviewDto.disadvantages ?? '',
-        comment: createProductReviewDto.comment ?? '',
+        dignities: createProductReviewDto.dignities ?? "",
+        disadvantages: createProductReviewDto.disadvantages ?? "",
+        comment: createProductReviewDto.comment ?? "",
       })
       .catch((error) => {
         throw `Не удалось добавить отзыв, ${error.message}`;
@@ -36,7 +36,7 @@ export class ProductReviewService {
         skip,
         take: Number(limit),
         where: { product: { id } },
-        order: { id: 'DESC' },
+        order: { id: "DESC" },
       })
       .catch((error) => {
         throw `Не удалось получить отзывы товара, ${error.message}`;
@@ -53,8 +53,8 @@ export class ProductReviewService {
     return this.productReviewRepository
       .findAndCount({
         where: { create_user_id },
-        relations: ['product'],
-        order: { id: 'DESC' },
+        relations: ["product"],
+        order: { id: "DESC" },
         skip,
         take: limit,
       })
@@ -67,13 +67,10 @@ export class ProductReviewService {
     const skip = (Number(page) - 1) * Number(limit);
 
     return this.productReviewRepository
-      .createQueryBuilder('pr')
-      .addSelect(
-        "CASE WHEN COALESCE(pr.answer, '') = '' THEN 0 ELSE 1 END",
-        'answer_order',
-      )
-      .orderBy('answer_order', 'ASC')
-      .addOrderBy('pr.id', 'DESC')
+      .createQueryBuilder("pr")
+      .addSelect("CASE WHEN COALESCE(pr.answer, '') = '' THEN 0 ELSE 1 END", "answer_order")
+      .orderBy("answer_order", "ASC")
+      .addOrderBy("pr.id", "DESC")
       .skip(skip)
       .take(Number(limit))
       .getManyAndCount()
@@ -86,7 +83,7 @@ export class ProductReviewService {
     return this.productReviewRepository
       .findOne({
         where: { id },
-        relations: ['product'],
+        relations: ["product"],
       })
       .catch((error) => {
         throw `Не удалось получить отзыв, ${error.message}`;
@@ -94,19 +91,15 @@ export class ProductReviewService {
   }
 
   async update(id: number, updateProductReviewDto: UpdateProductReviewDto) {
-    return this.productReviewRepository
-      .update(id, updateProductReviewDto)
-      .catch((error) => {
-        throw `Не удалось изменить отзыв, ${error.message}`;
-      });
+    return this.productReviewRepository.update(id, updateProductReviewDto).catch((error) => {
+      throw `Не удалось изменить отзыв, ${error.message}`;
+    });
   }
 
   async answerReview(id: number, answer: string) {
-    return this.productReviewRepository
-      .update(id, { answer })
-      .catch((error) => {
-        throw `Не удалось добавить ответ на отзыв, ${error.message}`;
-      });
+    return this.productReviewRepository.update(id, { answer }).catch((error) => {
+      throw `Не удалось добавить ответ на отзыв, ${error.message}`;
+    });
   }
 
   async remove(id: number) {
@@ -115,13 +108,10 @@ export class ProductReviewService {
     });
   }
 
-  async findMyReview(
-    productId: number,
-    userId: number,
-  ): Promise<ProductReview | null> {
+  async findMyReview(product_id: number, user_id: number): Promise<ProductReview | null> {
     return this.productReviewRepository
       .findOne({
-        where: { product: { id: productId }, create_user_id: userId },
+        where: { product: { id: product_id }, create_user_id: user_id },
       })
       .catch((error) => {
         throw `Не удалось получить отзыв, ${error.message}`;
@@ -133,12 +123,12 @@ export class ProductReviewService {
     if (!ids.length) return;
 
     const stats = await this.productReviewRepository
-      .createQueryBuilder('pr')
-      .select('pr.product_id', 'product_id')
-      .addSelect('COALESCE(AVG(pr.rating), 0)', 'rating')
-      .addSelect('COUNT(pr.id)', 'review_count')
-      .where('pr.product_id IN (:...ids)', { ids })
-      .groupBy('pr.product_id')
+      .createQueryBuilder("pr")
+      .select("pr.product_id", "product_id")
+      .addSelect("COALESCE(AVG(pr.rating), 0)", "rating")
+      .addSelect("COUNT(pr.id)", "review_count")
+      .where("pr.product_id IN (:...ids)", { ids })
+      .groupBy("pr.product_id")
       .getRawMany<{
         product_id: number;
         rating: string;
@@ -177,8 +167,8 @@ export class ProductReviewService {
       .findAndCount({
         skip,
         take: Number(limit),
-        where: { answer: '' },
-        order: { id: 'DESC' },
+        where: { answer: "" },
+        order: { id: "DESC" },
       })
       .catch((error) => {
         throw `Не удалось получить неотвеченные отзывы, ${error.message}`;

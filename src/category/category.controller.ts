@@ -95,6 +95,7 @@ export class CategoryController {
     }
   }
 
+  @Public()
   @Get("fullPathCategories/:id")
   @UseGuards(OptionalJwtAuthGuard)
   async getFullPathFromCategory(
@@ -107,16 +108,16 @@ export class CategoryController {
     } | null>
   > {
     try {
+      const user_role = user?.role || "user";
+
       const categories = await this.categoryService.getFullPathFromCategory(
         !isNaN(Number(id)) ? Number(id) : null,
       );
       const childrenCategories = !isNaN(Number(id))
-        ? await this.categoryService.getChildren(Number(id), user?.role || "user")
+        ? await this.categoryService.getChildren(Number(id), user_role)
         : [];
 
-      const allCategory = await this.categoryService.findAllAvailableCategories(
-        user?.role || "user",
-      );
+      const allCategory = await this.categoryService.findAllAvailableCategories(user_role);
       const transitionCategories = await this.categoryService.sortedCategories(allCategory);
 
       return responseData(

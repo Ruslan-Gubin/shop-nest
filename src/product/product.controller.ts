@@ -146,15 +146,16 @@ export class ProductController {
   }
 
   @Public()
-  @UseGuards(OptionalJwtAuthGuard)
   @Get("by-ids")
+  @UseGuards(OptionalJwtAuthGuard)
   async findByIds(
     @Query("ids", new ParseArrayPipe({ items: Number, separator: "," }))
     ids: number[],
     @CurrentUser() user?: CurrentStrategyUser,
   ): Promise<ResponseData<Product[] | null>> {
     try {
-      const products = await this.productService.findByIds(ids, user?.role ? user.role : "user");
+      const user_role = user?.role || "user";
+      const products = await this.productService.findByIds(ids, user_role);
 
       return responseData(products, "success", [], "Товары получены");
     } catch (error) {
@@ -376,7 +377,12 @@ export class ProductController {
         canReview = await this.productService.canReview(Number(product_id), user.sub);
       }
 
-      return responseData(canReview, "success", [], "");
+      return responseData(
+        canReview,
+        "success",
+        [],
+        "Получено значение - может пользователь оставлять отзыв для товара",
+      );
     } catch (error) {
       return responseData(null, "error", [], error);
     }
@@ -459,6 +465,7 @@ export class ProductController {
     }
   }
 
+  @Public()
   @Get("brand/:brand_name")
   async findByBrandName(
     @Param("brand_name") brand_name: string,
@@ -488,6 +495,7 @@ export class ProductController {
     }
   }
 
+  @Public()
   @Get("full-path-categories/:id")
   async getFullPathCategories(@Param("id") id: string): Promise<ResponseData<Category[] | null>> {
     try {
