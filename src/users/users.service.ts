@@ -6,6 +6,7 @@ import { User } from "./entities/user.entity";
 import type { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user-dto";
 import type { UpdateProfileDto } from "./dto/update-profile.dto";
+import type { UpdatePasswordDto } from "./dto/update-password.dto";
 import * as argon from "argon2";
 
 @Injectable()
@@ -119,10 +120,28 @@ export class UsersService {
     await this.userRepository
       .update(id, {
         name: payload.name,
-        email: payload.email,
+        email: payload.email === "" ? null : payload.email,
       })
       .catch((error) => {
         throw `Не удалось изменить пользователя, ${error}`;
+      });
+  }
+
+  async updatePassword(id: number, payload: UpdatePasswordDto): Promise<void> {
+    const currentUser = await this.findById(id);
+
+    if (!currentUser) {
+      throw "Пользователь не найден";
+    }
+
+    const hashedPassword = await this.hash(payload.password);
+
+    await this.userRepository
+      .update(id, {
+        password: hashedPassword,
+      })
+      .catch((error) => {
+        throw `Не удалось изменить пароль, ${error}`;
       });
   }
 

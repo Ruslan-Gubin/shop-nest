@@ -240,6 +240,21 @@ describe('UsersService', () => {
       });
     });
 
+    it('должен сохранять пустые строки имени и null для пустого email', async () => {
+      mockRepository.findOne.mockResolvedValue(mockUser);
+      mockRepository.update.mockResolvedValue({ affected: 1 } as any);
+
+      await service.updateProfile(1, {
+        name: '',
+        email: '',
+      });
+
+      expect(mockRepository.update).toHaveBeenCalledWith(1, {
+        name: '',
+        email: null,
+      });
+    });
+
     it('должен возвращать ошибку, если пользователь не найден', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 

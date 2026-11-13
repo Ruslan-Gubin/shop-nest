@@ -20,7 +20,10 @@ describe('UpdateProfileDto', () => {
   });
 
   it('отклоняет слишком короткое имя', async () => {
-    const dto = plainToInstance(UpdateProfileDto, { name: 'Ив' });
+    const dto = plainToInstance(UpdateProfileDto, {
+      name: 'Ив',
+      email: 'user@example.com',
+    });
 
     const errors = await validate(dto);
 
@@ -30,13 +33,42 @@ describe('UpdateProfileDto', () => {
   });
 
   it('отклоняет некорректный email', async () => {
-    const dto = plainToInstance(UpdateProfileDto, { email: 'not-an-email' });
+    const dto = plainToInstance(UpdateProfileDto, {
+      name: 'Иван Петров',
+      email: 'not-an-email',
+    });
 
     const errors = await validate(dto);
 
     expect(errors).toEqual(
       expect.arrayContaining([expect.objectContaining({ property: 'email' })]),
     );
+  });
+
+  it('разрешает пустые строки для имени и email', async () => {
+    const dto = plainToInstance(UpdateProfileDto, {
+      name: '',
+      email: '',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.name).toBe('');
+    expect(dto.email).toBe('');
+  });
+
+  it('нормализует пробелы в пустые строки и разрешает их', async () => {
+    const dto = plainToInstance(UpdateProfileDto, {
+      name: '   ',
+      email: '   ',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors).toHaveLength(0);
+    expect(dto.name).toBe('');
+    expect(dto.email).toBe('');
   });
 
   it('требует оба поля: имя и email', async () => {
