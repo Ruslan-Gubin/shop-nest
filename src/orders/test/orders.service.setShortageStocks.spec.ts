@@ -55,7 +55,10 @@ describe('OrdersService — setShortageStocks', () => {
           provide: PaymentsService,
           useValue: { createPayment: jest.fn(), findByOrder: jest.fn() },
         },
-        { provide: SectorService, useValue: { getMainDeliveryWarehouseFromOrder: jest.fn() } },
+        {
+          provide: SectorService,
+          useValue: { getMainDeliveryWarehouseFromOrder: jest.fn() },
+        },
       ],
     }).compile();
 

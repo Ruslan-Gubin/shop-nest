@@ -8,7 +8,10 @@ import {
   Patch,
   Body,
   Post,
+  UploadedFile,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { User } from "src/users/entities/user.entity";
 import { UsersService } from "./users.service";
 import { Public } from "src/auth/decorators/public.decorator";
@@ -22,6 +25,7 @@ import { UpdateUserDto } from "./dto/update-user-dto";
 import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { UpdatePasswordDto } from "./dto/update-password.dto";
+import { Photo } from "src/photo/entities/photo.entity";
 
 @Controller("users")
 export class UsersController {
@@ -85,9 +89,15 @@ export class UsersController {
   @Public()
   @UseGuards(OptionalJwtAuthGuard)
   @Get("me")
-  async getMe(
-    @CurrentUser() user?: CurrentStrategyUser,
-  ): Promise<ResponseData<Pick<User, "id" | "name" | "phone" | "email" | "role"> | null>> {
+  async getMe(@CurrentUser() user?: CurrentStrategyUser): Promise<
+    ResponseData<
+      | (Pick<User, "id" | "name" | "phone" | "email" | "role"> & {
+          photo: Photo | null;
+          has_password: boolean;
+        })
+      | null
+    >
+  > {
     try {
       if (!user) {
         throw "Пользователь не найден";
@@ -103,6 +113,7 @@ export class UsersController {
               phone: currentUser.phone,
               email: currentUser.email,
               role: currentUser.role,
+              photo: currentUser.photo ?? null,
               has_password: currentUser.password.length > 0,
             }
           : null,
@@ -110,6 +121,38 @@ export class UsersController {
         [],
         currentUser ? "Пользователь получен" : "Не удалось получить пользователя",
       );
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Patch("avatar")
+  @UseInterceptors(FileInterceptor("file"))
+  async upsertAvatar(
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: CurrentStrategyUser,
+  ): Promise<ResponseData<Photo | null>> {
+    try {
+      if (!file) {
+        throw "Файл изображения не найден";
+      }
+
+      if (!file.mimetype?.startsWith("image/")) {
+        throw "Доступно к загрузке  только изображение";
+      }
+
+      const photo = await this.usersService.upsertAvatar(user.sub, file);
+      return responseData(photo, "success", [], "Аватар успешно сохранён");
+    } catch (error) {
+      return responseData(null, "error", [], error);
+    }
+  }
+
+  @Delete("avatar")
+  async removeAvatar(@CurrentUser() user: CurrentStrategyUser): Promise<ResponseData<null>> {
+    try {
+      await this.usersService.removeAvatar(user.sub);
+      return responseData(null, "success", [], "Аватар успешно удалён");
     } catch (error) {
       return responseData(null, "error", [], error);
     }

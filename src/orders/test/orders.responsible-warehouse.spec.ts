@@ -222,10 +222,10 @@ describe('Ответственный склад по сектору — расп
   }
 
   async function validateShipPayload(payload: unknown) {
-    return validationPipe.transform(
-      payload,
-      { type: 'body', metatype: ShipOrderDto },
-    ) as Promise<ShipOrderDto>;
+    return validationPipe.transform(payload, {
+      type: 'body',
+      metatype: ShipOrderDto,
+    }) as Promise<ShipOrderDto>;
   }
 
   /** Заказ в указанном статусе для findOne в changeStatus */
@@ -344,7 +344,9 @@ describe('Ответственный склад по сектору — расп
     }));
     mockTransfersService.remove.mockResolvedValue({} as any);
     mockTransfersService.findByOrderId.mockResolvedValue([] as any);
-    mockTransfersService.updateStatusByOrderAndType.mockResolvedValue({} as any);
+    mockTransfersService.updateStatusByOrderAndType.mockResolvedValue(
+      {} as any,
+    );
 
     const stockRepository = createStockRepository(stockRows);
 
@@ -355,7 +357,10 @@ describe('Ответственный склад по сектору — расп
         ProductStockService,
         { provide: getRepositoryToken(Order), useValue: mockOrdersRepository },
         { provide: getRepositoryToken(Sector), useValue: mockSectorRepository },
-        { provide: getRepositoryToken(ProductStock), useValue: stockRepository },
+        {
+          provide: getRepositoryToken(ProductStock),
+          useValue: stockRepository,
+        },
         { provide: AddressService, useValue: {} },
         { provide: OrderProductService, useValue: mockOrderProductService },
         { provide: ProductService, useValue: mockProductService },

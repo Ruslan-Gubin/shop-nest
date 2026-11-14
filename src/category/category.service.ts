@@ -1,13 +1,13 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository } from "typeorm";
-import { CreateCategoryDto } from "./dto/create-category.dto";
-import { UpdateCategoryDto } from "./dto/update-category.dto";
-import { UpdatePositionCategoryDto } from "./dto/update-position-category-dto";
-import { Category } from "./entities/category.entity";
-import { UserRole } from "src/users/entities/user.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { type Repository } from 'typeorm';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
+import { UpdatePositionCategoryDto } from './dto/update-position-category-dto';
+import { Category } from './entities/category.entity';
+import { UserRole } from 'src/users/entities/user.entity';
 
-type CategoryWithChildren = Omit<Category, "children"> & {
+type CategoryWithChildren = Omit<Category, 'children'> & {
   children: Category[];
 };
 
@@ -20,7 +20,7 @@ export class CategoryService {
 
   async findAllAvailableCategories(role: UserRole): Promise<Category[]> {
     const priceCondition =
-      role === "admin" || role === "moderator" || role === "wholesaler"
+      role === 'admin' || role === 'moderator' || role === 'wholesaler'
         ? `SELECT 1 FROM product_price price
          WHERE price.product_id = p.id AND price.price > 0`
         : `SELECT 1 FROM product_price price
@@ -30,7 +30,8 @@ export class CategoryService {
            AND type."isPublic" = true`;
 
     return await this.categoryRepository
-      .query(`
+      .query(
+        `
         WITH RECURSIVE subtree AS (
             SELECT id, id AS root_id
             FROM category
@@ -57,7 +58,8 @@ export class CategoryService {
             )
           )
           ORDER BY c.name
-    `)
+    `,
+      )
       .catch((error) => {
         throw `Не удалось получить все доступные категории, ${error}`;
       });
@@ -168,7 +170,9 @@ export class CategoryService {
         if (aUpdate || bUpdate) {
           return bUpdate - aUpdate;
         } else {
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          return (
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
         }
       }
     });
@@ -219,7 +223,10 @@ export class CategoryService {
       });
   }
 
-  async updatePosition(id: number, updatePositionCategoryDto: UpdatePositionCategoryDto) {
+  async updatePosition(
+    id: number,
+    updatePositionCategoryDto: UpdatePositionCategoryDto,
+  ) {
     return this.categoryRepository
       .update(id, {
         ...updatePositionCategoryDto,
@@ -235,11 +242,14 @@ export class CategoryService {
     });
   }
 
-  async changeChildrenParentId(parent_id: number | null, new_parent_id: number | null) {
-    const categoriesNeedUpdate = await this.getChildren(parent_id, "user");
+  async changeChildrenParentId(
+    parent_id: number | null,
+    new_parent_id: number | null,
+  ) {
+    const categoriesNeedUpdate = await this.getChildren(parent_id, 'user');
     if (categoriesNeedUpdate.length === 0) return;
 
-    const newParentCategories = await this.getChildren(new_parent_id, "user");
+    const newParentCategories = await this.getChildren(new_parent_id, 'user');
     const parentLength = newParentCategories.length;
 
     for (let i = 0; i < categoriesNeedUpdate.length; i++) {
@@ -253,7 +263,7 @@ export class CategoryService {
 
   async getChildren(parent_id: number | null, role: UserRole) {
     const priceCondition =
-      role === "admin" || role === "moderator" || role === "wholesaler"
+      role === 'admin' || role === 'moderator' || role === 'wholesaler'
         ? `SELECT 1 FROM product_price price
          WHERE price.product_id = p.id AND price.price > 0`
         : `SELECT 1 FROM product_price price
@@ -262,7 +272,8 @@ export class CategoryService {
            AND price.price > 0
            AND type."isPublic" = true`;
 
-    const parentFilter = parent_id === null ? "c.parent_id IS NULL" : "c.parent_id = $1";
+    const parentFilter =
+      parent_id === null ? 'c.parent_id IS NULL' : 'c.parent_id = $1';
     const params = parent_id === null ? [] : [parent_id];
 
     const categories: Category[] = await this.categoryRepository
@@ -322,11 +333,11 @@ export class CategoryService {
       for (let i = 0; i < categories.length; i++) {
         const category = categories[i];
         const name =
-          Object.hasOwn(category, "name") &&
-          typeof category?.name === "string" &&
+          Object.hasOwn(category, 'name') &&
+          typeof category?.name === 'string' &&
           category.name.trim().length >= 2
             ? category?.name?.trim()
-            : "";
+            : '';
 
         if (!name) {
           isValid = false;
@@ -334,8 +345,8 @@ export class CategoryService {
         }
 
         const parent_id =
-          Object.hasOwn(category, "parent_id") &&
-          typeof category?.parent_id === "number" &&
+          Object.hasOwn(category, 'parent_id') &&
+          typeof category?.parent_id === 'number' &&
           !Number.isNaN(Number(category?.parent_id)) &&
           category?.parent_id > 0
             ? Number(category?.parent_id)

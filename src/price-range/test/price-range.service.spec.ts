@@ -31,7 +31,9 @@ describe('PriceRangeService', () => {
     findOne: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
-    createQueryBuilder: jest.fn().mockImplementation(() => createMockQueryBuilder()),
+    createQueryBuilder: jest
+      .fn()
+      .mockImplementation(() => createMockQueryBuilder()),
   };
 
   /** Подставляет набор диапазонов в любые вызовы createQueryBuilder */

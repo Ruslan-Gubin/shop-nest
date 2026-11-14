@@ -1,4 +1,4 @@
-import { UserRole } from "src/users/entities/user.entity";
+import { UserRole } from 'src/users/entities/user.entity';
 
 export type CurrentStrategyUser = {
   sub: number;

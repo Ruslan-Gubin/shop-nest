@@ -1,6 +1,6 @@
-import { createHmac } from "node:crypto";
-import { Injectable, Logger } from "@nestjs/common";
-import { Agent } from "undici";
+import { createHmac } from 'node:crypto';
+import { Injectable, Logger } from '@nestjs/common';
+import { Agent } from 'undici';
 
 const insecureDispatcher = new Agent({
   connect: { rejectUnauthorized: false },
@@ -67,7 +67,7 @@ export interface PsbCreatePaymentResult {
 }
 
 export interface PsbPaymentStatusResult {
-  status: "pending" | "paid" | "rejected" | "processing";
+  status: 'pending' | 'paid' | 'rejected' | 'processing';
   sbp_tran_id: string | null; // ID операции в НСПК — для возврата
 }
 
@@ -77,19 +77,26 @@ export interface PsbPaymentStatusResult {
  * Поля подписи для запросов на шлюз (get_terminal_parms, reg_qr).
  * Те же, что при отправке запроса на шлюз для оплаты.
  */
-const SIGN_FIELDS_GATEWAY = ["AMOUNT", "CURRENCY", "TERMINAL", "TRTYPE", "BACKREF", "ORDER"];
+const SIGN_FIELDS_GATEWAY = [
+  'AMOUNT',
+  'CURRENCY',
+  'TERMINAL',
+  'TRTYPE',
+  'BACKREF',
+  'ORDER',
+];
 
 /**
  * Поля подписи для get_qr_status.
  * Порядок: RND_NUMBER, TERMINAL
  */
-const SIGN_FIELDS_QR_STATUS = ["RND_NUMBER", "TERMINAL"];
+const SIGN_FIELDS_QR_STATUS = ['RND_NUMBER', 'TERMINAL'];
 
 /**
  * Поля подписи для refund.
  * Порядок: SBP_TRAN_ID, RND_NUMBER
  */
-const SIGN_FIELDS_REFUND = ["SBP_TRAN_ID", "RND_NUMBER"];
+const SIGN_FIELDS_REFUND = ['SBP_TRAN_ID', 'RND_NUMBER'];
 
 /**
  * Поля подписи для проверки ответа банка.
@@ -97,17 +104,21 @@ const SIGN_FIELDS_REFUND = ["SBP_TRAN_ID", "RND_NUMBER"];
  * reg_qr:             QR_ID, QR_DATA
  * get_qr_status:      RND_NUMBER, TERMINAL
  */
-const VERIFY_FIELDS_TERMINAL_PARAMS = ["SBP_ID", "SBP_ACCOUNT_NUMBER", "SBP_MERCHANT"];
-const VERIFY_FIELDS_REG_QR = ["QR_ID", "QR_DATA"];
-const VERIFY_FIELDS_QR_STATUS = ["RND_NUMBER", "TERMINAL"];
+const VERIFY_FIELDS_TERMINAL_PARAMS = [
+  'SBP_ID',
+  'SBP_ACCOUNT_NUMBER',
+  'SBP_MERCHANT',
+];
+const VERIFY_FIELDS_REG_QR = ['QR_ID', 'QR_DATA'];
+const VERIFY_FIELDS_QR_STATUS = ['RND_NUMBER', 'TERMINAL'];
 
 // ─── Маппинг статусов НСПК ──────────────────────────────────────────
 
-const NSPK_STATUS_MAP: Record<string, PsbPaymentStatusResult["status"]> = {
-  NTST: "pending",
-  ACWP: "paid",
-  RJCT: "rejected",
-  RCVD: "processing",
+const NSPK_STATUS_MAP: Record<string, PsbPaymentStatusResult['status']> = {
+  NTST: 'pending',
+  ACWP: 'paid',
+  RJCT: 'rejected',
+  RCVD: 'processing',
 };
 
 // ─── Сервис ─────────────────────────────────────────────────────────
@@ -116,19 +127,19 @@ const NSPK_STATUS_MAP: Record<string, PsbPaymentStatusResult["status"]> = {
 export class PsbSbpService {
   private readonly logger = new Logger(PsbSbpService.name);
 
-  private readonly BASE_URL = "https://test.3ds.payment.ru"; //https://3ds.payment.ru
-  private readonly TERMINAL = "79036768";
-  private readonly MERCHANT = "790367686219999";
-  private readonly MERCH_NAME = "TEST_MERCH";
-  private readonly KEY_COMP1 = "C50E41160302E0F5D6D59F1AA3925C45";
-  private readonly KEY_COMP2 = "00000000000000000000000000000000";
-  private readonly BACKREF_URL = "http://localhost:4010";
-  private readonly NOTIFY_URL = "http://localhost:4010/payments/psb/callback";
+  private readonly BASE_URL = 'https://test.3ds.payment.ru'; //https://3ds.payment.ru
+  private readonly TERMINAL = '79036768';
+  private readonly MERCHANT = '790367686219999';
+  private readonly MERCH_NAME = 'TEST_MERCH';
+  private readonly KEY_COMP1 = 'C50E41160302E0F5D6D59F1AA3925C45';
+  private readonly KEY_COMP2 = '00000000000000000000000000000000';
+  private readonly BACKREF_URL = 'http://localhost:4010';
+  private readonly NOTIFY_URL = 'http://localhost:4010/payments/psb/callback';
 
   // Идентификаторы НСПК — получаются один раз через get_terminal_parms
-  private sbpId = "";
-  private sbpAccountNumber = "";
-  private sbpMerchant = "";
+  private sbpId = '';
+  private sbpAccountNumber = '';
+  private sbpMerchant = '';
 
   // ─── 1. Получение параметров НСПК (один раз) ──────────────────────
 
@@ -139,25 +150,25 @@ export class PsbSbpService {
     if (this.sbpId && this.sbpAccountNumber && this.sbpMerchant) return;
 
     const params: PsbParams = {
-      AMOUNT: "500.00",
-      CURRENCY: "RUB",
+      AMOUNT: '500.00',
+      CURRENCY: 'RUB',
       TERMINAL: this.TERMINAL,
-      TRTYPE: "1",
+      TRTYPE: '1',
       BACKREF: this.BACKREF_URL,
-      ORDER: "124443534",
+      ORDER: '124443534',
       MERCH_NAME: this.MERCH_NAME,
       MERCHANT: this.MERCHANT,
     };
 
     const res = await this.postPSB<PsbTerminalParamsResponse>(
-      "/cgi-bin/SBP/get_terminal_parms",
+      '/cgi-bin/SBP/get_terminal_parms',
       params,
       SIGN_FIELDS_GATEWAY,
     );
 
     if (res.ERROR) throw `ПСБ get_terminal_parms: ${res.ERROR}`;
     if (!res.SBP_ID || !res.SBP_ACCOUNT_NUMBER || !res.SBP_MERCHANT)
-      throw "ПСБ не вернул идентификаторы НСПК";
+      throw 'ПСБ не вернул идентификаторы НСПК';
 
     // Проверка подписи банка
     this.verifyBankSign(res, VERIFY_FIELDS_TERMINAL_PARAMS, res.P_SIGN);
@@ -166,7 +177,7 @@ export class PsbSbpService {
     this.sbpAccountNumber = res.SBP_ACCOUNT_NUMBER;
     this.sbpMerchant = res.SBP_MERCHANT;
 
-    this.logger.log("Параметры НСПК получены");
+    this.logger.log('Параметры НСПК получены');
   }
 
   // ─── 2. Создание платежа (reg_qr) ────────────────────────────────
@@ -190,12 +201,12 @@ export class PsbSbpService {
 
     const params: PsbParams = {
       AMOUNT: (amount / 100).toFixed(2),
-      CURRENCY: "RUB",
+      CURRENCY: 'RUB',
       ORDER: orderNumber,
-      EMAIL: email || "",
+      EMAIL: email || '',
       DESC: description || `Оплата заказа ${orderNumber}`,
       TERMINAL: this.TERMINAL,
-      TRTYPE: "1",
+      TRTYPE: '1',
       MERCH_NAME: this.MERCH_NAME,
       MERCHANT: this.MERCHANT,
       BACKREF: this.BACKREF_URL,
@@ -203,13 +214,13 @@ export class PsbSbpService {
       SBP_ID: this.sbpId,
       SBP_ACCOUNT_NUMBER: this.sbpAccountNumber,
       SBP_MERCHANT: this.sbpMerchant,
-      REGIME: "desktop", // desktop — вернёт QR_IMG_DATA (картинку)
-      QR_TTL: "4320", // срок жизни QR в минутах (3 суток)
-      SBP_QR_IMG_TYPE: "image/png",
+      REGIME: 'desktop', // desktop — вернёт QR_IMG_DATA (картинку)
+      QR_TTL: '4320', // срок жизни QR в минутах (3 суток)
+      SBP_QR_IMG_TYPE: 'image/png',
     };
 
     const res = await this.postPSB<PsbRegQrResponse>(
-      "/cgi-bin/SBP/reg_qr",
+      '/cgi-bin/SBP/reg_qr',
       params,
       SIGN_FIELDS_GATEWAY,
     );
@@ -225,7 +236,7 @@ export class PsbSbpService {
       qr_id: res.QR_ID,
       qr_data: res.QR_DATA,
       // qr_img_data: res.QR_IMG_DATA,
-      qr_psb_id: res.QR_PSB_ID || "",
+      qr_psb_id: res.QR_PSB_ID || '',
     };
   }
 
@@ -248,7 +259,7 @@ export class PsbSbpService {
     };
 
     const res = await this.postPSB<PsbQrStatusResponse>(
-      "/cgi-bin/SBP/get_qr_status",
+      '/cgi-bin/SBP/get_qr_status',
       params,
       SIGN_FIELDS_QR_STATUS,
     );
@@ -263,7 +274,7 @@ export class PsbSbpService {
     const item = res.NSPK_JSON_RESP_DATA.data[0];
 
     return {
-      status: NSPK_STATUS_MAP[item.status] ?? "pending",
+      status: NSPK_STATUS_MAP[item.status] ?? 'pending',
       sbp_tran_id: item.trxId,
     };
   }
@@ -289,13 +300,13 @@ export class PsbSbpService {
     const expectedSign = this.signPsb(body, SIGN_FIELDS_GATEWAY);
 
     if (body.P_SIGN !== expectedSign) {
-      this.logger.error("Неверная подпись callback от ПСБ");
-      throw "Неверная подпись callback";
+      this.logger.error('Неверная подпись callback от ПСБ');
+      throw 'Неверная подпись callback';
     }
 
     // 2. Проверка обязательных полей
     if (!body.ORDER || !body.AMOUNT || !body.QR_ID || !body.SBP_TRAN_ID)
-      throw "Неполный callback от ПСБ";
+      throw 'Неполный callback от ПСБ';
 
     return {
       orderNumber: body.ORDER,
@@ -320,13 +331,13 @@ export class PsbSbpService {
       SBP_TRAN_ID: sbpTranId,
       AMOUNT: (amount / 100).toFixed(2),
       TERMINAL: this.TERMINAL,
-      RECEIVER_PHONE: "",
-      RECEIVER_BANK_ID: "",
+      RECEIVER_PHONE: '',
+      RECEIVER_BANK_ID: '',
       RND_NUMBER: rnd,
     };
 
     const res = await this.postPSB<PsbRefundResponse>(
-      "/cgi-bin/SBP/refund",
+      '/cgi-bin/SBP/refund',
       params,
       SIGN_FIELDS_REFUND,
     );
@@ -335,15 +346,16 @@ export class PsbSbpService {
 
     // SUCCESS — возврат прошёл, NOT COMPLETED — нужно проверить статус позже,
     // FATAL ERROR — не повторять, писать в поддержку, ERROR — можно повторить
-    if (res.REFUND_PROC_RESULT === "FATAL ERROR")
+    if (res.REFUND_PROC_RESULT === 'FATAL ERROR')
       throw `ПСБ refund: критическая ошибка — ${res.REFUND_PROC_MESS}`;
-    if (res.REFUND_PROC_RESULT === "ERROR") throw `ПСБ refund: ошибка — ${res.REFUND_PROC_MESS}`;
+    if (res.REFUND_PROC_RESULT === 'ERROR')
+      throw `ПСБ refund: ошибка — ${res.REFUND_PROC_MESS}`;
 
     const result =
-      res && res?.REFUND_PROC_RESULT && res.REFUND_PROC_RESULT === "SUCCESS"
-        ? "SUCCESS"
-        : "NOT COMPLETED";
-    const message = res?.REFUND_PROC_MESS || "";
+      res && res?.REFUND_PROC_RESULT && res.REFUND_PROC_RESULT === 'SUCCESS'
+        ? 'SUCCESS'
+        : 'NOT COMPLETED';
+    const message = res?.REFUND_PROC_MESS || '';
 
     return { result, message };
   }
@@ -356,42 +368,50 @@ export class PsbSbpService {
    * Пустые значения заменяются на "-".
    */
   private signPsb(params: PsbParams, fields: string[]): string {
-    const keyComp1 = Buffer.from(this.KEY_COMP1, "hex");
-    const keyComp2 = Buffer.from(this.KEY_COMP2, "hex");
+    const keyComp1 = Buffer.from(this.KEY_COMP1, 'hex');
+    const keyComp2 = Buffer.from(this.KEY_COMP2, 'hex');
     const key = keyComp1.map((byte, i) => byte ^ keyComp2[i]);
 
     const mac = fields
       .map((field) => {
-        const value = params[field] ?? "";
-        return value.length > 0 ? `${value.length}${value}` : "-";
+        const value = params[field] ?? '';
+        return value.length > 0 ? `${value.length}${value}` : '-';
       })
-      .join("");
+      .join('');
 
-    return createHmac("sha256", key).update(mac).digest("hex").toUpperCase();
+    return createHmac('sha256', key).update(mac).digest('hex').toUpperCase();
   }
 
   /**
    * Проверка подписи банка в ответе.
    * Банк возвращает P_SIGN, построенный по указанным полям.
    */
-  private verifyBankSign(response: Record<string, any>, fields: string[], bankSign?: string): void {
+  private verifyBankSign(
+    response: Record<string, any>,
+    fields: string[],
+    bankSign?: string,
+  ): void {
     if (!bankSign) {
-      this.logger.warn("Ответ ПСБ не содержит P_SIGN — пропускаю проверку");
+      this.logger.warn('Ответ ПСБ не содержит P_SIGN — пропускаю проверку');
       return;
     }
 
     const expected = this.signPsb(response as PsbParams, fields);
     if (expected !== bankSign) {
-      this.logger.warn("Подпись банка не совпадает — возможна подмена");
+      this.logger.warn('Подпись банка не совпадает — возможна подмена');
     }
   }
 
-  private async postPSB<T>(path: string, params: PsbParams, sign_fields: string[]): Promise<T> {
+  private async postPSB<T>(
+    path: string,
+    params: PsbParams,
+    sign_fields: string[],
+  ): Promise<T> {
     const url = `${this.BASE_URL}${path}`;
 
     return fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         ...params,
         P_SIGN: this.signPsb(params, sign_fields),

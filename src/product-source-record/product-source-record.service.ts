@@ -1,21 +1,21 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { OpenCodeService } from "src/opencode/opencode.service";
-import { BrowserManagerService } from "src/browser-manager/browser-manager.service";
-import { ProductSourceRecord } from "./entities/product-source-record.entity";
-import { ProductService } from "src/product/product.service";
-import { CreateProductDto } from "src/product/dto/create-product.dto";
-import { ProductPriceService } from "src/product-price/product-price.service";
-import { PriceTypeService } from "src/price-type/price-type.service";
-import { ProductSpecificationService } from "src/product-specification/product-specification.service";
-import { SpecificationsService } from "src/specifications/specifications.service";
-import { PhotoService } from "src/photo/photo.service";
-import { CategoryService } from "src/category/category.service";
-import * as cheerio from "cheerio";
-import { CheckImportItemDto } from "./dto/check-import-items.dto";
-import { CreateProductFromRecordDto } from "./dto/create-product-from-record.dto";
-import { SaveGeneratedRecordDto } from "./dto/save-record.dto";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { OpenCodeService } from 'src/opencode/opencode.service';
+import { BrowserManagerService } from 'src/browser-manager/browser-manager.service';
+import { ProductSourceRecord } from './entities/product-source-record.entity';
+import { ProductService } from 'src/product/product.service';
+import { CreateProductDto } from 'src/product/dto/create-product.dto';
+import { ProductPriceService } from 'src/product-price/product-price.service';
+import { PriceTypeService } from 'src/price-type/price-type.service';
+import { ProductSpecificationService } from 'src/product-specification/product-specification.service';
+import { SpecificationsService } from 'src/specifications/specifications.service';
+import { PhotoService } from 'src/photo/photo.service';
+import { CategoryService } from 'src/category/category.service';
+import * as cheerio from 'cheerio';
+import { CheckImportItemDto } from './dto/check-import-items.dto';
+import { CreateProductFromRecordDto } from './dto/create-product-from-record.dto';
+import { SaveGeneratedRecordDto } from './dto/save-record.dto';
 
 @Injectable()
 export class ProductSourceRecordService {
@@ -44,7 +44,9 @@ export class ProductSourceRecordService {
       throw `Для штрих-кода ${payload.barcode} нет сгенерированных данных о товаре`;
     }
 
-    const existingProduct = await this.productService.findByCode(payload.barcode);
+    const existingProduct = await this.productService.findByCode(
+      payload.barcode,
+    );
 
     if (existingProduct) {
       throw `Товар с штрих-кодом ${payload.barcode} уже существует (ID: ${existingProduct.id})`;
@@ -53,42 +55,49 @@ export class ProductSourceRecordService {
     const data = record.product as Record<string, unknown>;
 
     const asValidString = (data: object, key: string): string =>
-      Object.hasOwn(data, key) && typeof data[key] === "string" ? data[key].trim() : "";
+      Object.hasOwn(data, key) && typeof data[key] === 'string'
+        ? data[key].trim()
+        : '';
 
     const asValidNumber = (data: object, key: string): number =>
       Object.hasOwn(data, key) &&
-      typeof data[key] === "number" &&
+      typeof data[key] === 'number' &&
       data[key] > 0 &&
       !Number.isNaN(data[key])
         ? Math.ceil(data[key])
         : 0;
 
     const seo =
-      Object.hasOwn(data, "seo") && typeof data.seo === "object" && data.seo !== null
+      Object.hasOwn(data, 'seo') &&
+      typeof data.seo === 'object' &&
+      data.seo !== null
         ? (data.seo as Record<string, unknown>)
         : {};
 
     const createProductDto: CreateProductDto = {
       category_id: 0,
       purchase_price: 0,
-      name: record.clear_name.trim() || asValidString(data, "name") || `Товар ${payload.barcode}`,
+      name:
+        record.clear_name.trim() ||
+        asValidString(data, 'name') ||
+        `Товар ${payload.barcode}`,
       code: payload.barcode,
-      description: asValidString(data, "description"),
-      product_type: asValidString(data, "product_type"),
-      equipment: asValidString(data, "equipment"),
-      country: asValidString(data, "country"),
-      brand_name: asValidString(data, "brand_name"),
-      weight: asValidNumber(data, "weight"),
-      height: asValidNumber(data, "height"),
-      length: asValidNumber(data, "length"),
-      width: asValidNumber(data, "width"),
-      seo_title: asValidString(seo, "seo_title"),
-      seo_description: asValidString(seo, "seo_description"),
-      slug: asValidString(seo, "slug"),
-      og_title: asValidString(seo, "og_title"),
-      og_description: asValidString(seo, "og_description"),
-      og_type: asValidString(seo, "og_type"),
-      keywords: asValidString(seo, "keywords"),
+      description: asValidString(data, 'description'),
+      product_type: asValidString(data, 'product_type'),
+      equipment: asValidString(data, 'equipment'),
+      country: asValidString(data, 'country'),
+      brand_name: asValidString(data, 'brand_name'),
+      weight: asValidNumber(data, 'weight'),
+      height: asValidNumber(data, 'height'),
+      length: asValidNumber(data, 'length'),
+      width: asValidNumber(data, 'width'),
+      seo_title: asValidString(seo, 'seo_title'),
+      seo_description: asValidString(seo, 'seo_description'),
+      slug: asValidString(seo, 'slug'),
+      og_title: asValidString(seo, 'og_title'),
+      og_description: asValidString(seo, 'og_description'),
+      og_type: asValidString(seo, 'og_type'),
+      keywords: asValidString(seo, 'keywords'),
     };
 
     const product = await this.productService.create(createProductDto);
@@ -97,11 +106,15 @@ export class ProductSourceRecordService {
       throw `Не удалось добавить новый товар`;
     }
 
-    const category_path = asValidString(data, "category_name");
+    const category_path = asValidString(data, 'category_name');
 
     if (category_path) {
-      const category_id = await this.resolveCategory(product.name, category_path);
-      if (category_id) await this.productService.update(product.id, { category_id });
+      const category_id = await this.resolveCategory(
+        product.name,
+        category_path,
+      );
+      if (category_id)
+        await this.productService.update(product.id, { category_id });
     }
 
     const priceTypes = await this.priceTypeService.getAll();
@@ -114,22 +127,27 @@ export class ProductSourceRecordService {
       });
     }
 
-    const specifications = Array.isArray(data.specifications) ? data.specifications : [];
+    const specifications = Array.isArray(data.specifications)
+      ? data.specifications
+      : [];
 
     for (let i = 0; i < specifications.length; i++) {
       const specification = specifications[i];
 
-      if (!Object.hasOwn(specification, "name") || !Object.hasOwn(specification, "value")) continue;
+      if (
+        !Object.hasOwn(specification, 'name') ||
+        !Object.hasOwn(specification, 'value')
+      )
+        continue;
 
       if (specification.name.length > 0 && specification.value.length > 0) {
-        let findCreateSpecification = await this.specificationsService.findByName(
-          specification.name,
-        );
+        let findCreateSpecification =
+          await this.specificationsService.findByName(specification.name);
 
         if (!findCreateSpecification) {
           findCreateSpecification = await this.specificationsService.create({
             name: specification.name,
-            type: "text",
+            type: 'text',
           });
         }
 
@@ -147,10 +165,10 @@ export class ProductSourceRecordService {
       for (let i = 0; i < data.photos.length; i++) {
         const url = data.photos[i];
 
-        if (typeof url === "string" && url.length > 0 && url.match("http"))
+        if (typeof url === 'string' && url.length > 0 && url.match('http'))
           await this.photoService.create({
             parent_id: product.id,
-            parent_type: "product",
+            parent_type: 'product',
             url,
           });
       }
@@ -159,9 +177,14 @@ export class ProductSourceRecordService {
     return product;
   }
 
-  async resolveCategory(productName: string, recommendedPath: string): Promise<number | null> {
-    const categories = await this.categoryService.findAllAvailableCategories("user");
-    const categoriesTree = await this.categoryService.sortedCategories(categories);
+  async resolveCategory(
+    productName: string,
+    recommendedPath: string,
+  ): Promise<number | null> {
+    const categories =
+      await this.categoryService.findAllAvailableCategories('user');
+    const categoriesTree =
+      await this.categoryService.sortedCategories(categories);
     const categoriesForPrompt = this.formatCategoriesForPrompt(categoriesTree);
 
     const prompt = `
@@ -239,19 +262,20 @@ ${categoriesForPrompt}
 
         let result: number | null = null;
 
-        if (!json || typeof json !== "object") {
+        if (!json || typeof json !== 'object') {
           return result;
         }
 
         const category_id =
-          Object.hasOwn(json, "category_id") &&
-          typeof json?.category_id === "number" &&
+          Object.hasOwn(json, 'category_id') &&
+          typeof json?.category_id === 'number' &&
           json?.category_id > 0
             ? json?.category_id
             : null;
 
         const create_categories =
-          Object.hasOwn(json, "create_categories") && Array.isArray(json?.create_categories)
+          Object.hasOwn(json, 'create_categories') &&
+          Array.isArray(json?.create_categories)
             ? json?.create_categories
             : [];
 
@@ -269,12 +293,16 @@ ${categoriesForPrompt}
 
               const parentId =
                 i === 0
-                  ? typeof category.parent_id === "number" && category.parent_id > 0
+                  ? typeof category.parent_id === 'number' &&
+                    category.parent_id > 0
                     ? category.parent_id
                     : null
                   : lastCreatedId;
 
-              const parentChildren = await this.categoryService.getChildren(parentId, "user");
+              const parentChildren = await this.categoryService.getChildren(
+                parentId,
+                'user',
+              );
 
               const newCategory = await this.categoryService.create({
                 name: category.name.trim(),
@@ -295,10 +323,10 @@ ${categoriesForPrompt}
   }
 
   private formatCategoriesForPrompt(categories: any[], level = 0): string {
-    let result = "";
+    let result = '';
 
     for (const category of categories) {
-      const indent = "  ".repeat(level);
+      const indent = '  '.repeat(level);
       result += `${indent}- id: ${category.id}, name: "${category.name}"\n`;
 
       if (category.children && category.children.length > 0) {
@@ -313,7 +341,7 @@ ${categoriesForPrompt}
     Record<
       number,
       {
-        status: "empty" | "error" | "record" | "completed";
+        status: 'empty' | 'error' | 'record' | 'completed';
         error_message: string;
         product_id: number | null;
       }
@@ -322,7 +350,7 @@ ${categoriesForPrompt}
     const result: Record<
       number,
       {
-        status: "empty" | "error" | "record" | "completed";
+        status: 'empty' | 'error' | 'record' | 'completed';
         error_message: string;
         product_id: number | null;
       }
@@ -332,30 +360,36 @@ ${categoriesForPrompt}
       const item = items[i];
       const value = item?.barcode?.trim() || item?.name?.trim();
 
-      let status: "empty" | "error" | "record" | "completed" = "error";
-      let error_message = "";
+      let status: 'empty' | 'error' | 'record' | 'completed' = 'error';
+      let error_message = '';
       let product_id: number | null = null;
 
       if (!value) {
-        error_message = "Нет названия и штрих-кода";
-        status = "empty";
+        error_message = 'Нет названия и штрих-кода';
+        status = 'empty';
       } else {
         const record = await this.productSourceRecordRepository.findOne({
           where: { value },
         });
 
         if (!record) {
-          status = "empty";
+          status = 'empty';
         } else {
-          if (Object.hasOwn(record, "product") && !record.product) {
-            error_message = record.error_message ? record.error_message : "Нет полного описания";
-            status = "error";
+          if (Object.hasOwn(record, 'product') && !record.product) {
+            error_message = record.error_message
+              ? record.error_message
+              : 'Нет полного описания';
+            status = 'error';
           } else {
             const product = await this.productService.findByCode(item.barcode);
 
-            error_message = product ? "" : record.error_message ? record.error_message : "";
+            error_message = product
+              ? ''
+              : record.error_message
+                ? record.error_message
+                : '';
             product_id = product ? product.id : null;
-            status = product ? "completed" : "record";
+            status = product ? 'completed' : 'record';
           }
         }
 
@@ -371,22 +405,25 @@ ${categoriesForPrompt}
     const trimmedCode = code.trim();
 
     if (!trimmedCode) {
-      throw "Укажите штрих-код";
+      throw 'Укажите штрих-код';
     }
 
     if (!/^\d{8,14}$/.test(trimmedCode)) {
-      throw "Некорректный штрих-код. Для товаров без кода заполните данные вручную";
+      throw 'Некорректный штрих-код. Для товаров без кода заполните данные вручную';
     }
 
     const existing = await this.findRecord(trimmedCode);
 
     const source_names = existing?.source_names || [];
-    let clear_name = existing?.clear_name || "";
+    let clear_name = existing?.clear_name || '';
     let product = existing?.product || null;
-    let error_message = existing?.error_message || "";
+    let error_message = existing?.error_message || '';
 
     if (!existing) {
-      const result = await this.findAndFormattedProductName(trimmedName, trimmedCode);
+      const result = await this.findAndFormattedProductName(
+        trimmedName,
+        trimmedCode,
+      );
 
       if (result.source_names.length > 0) {
         source_names.push(...result.source_names);
@@ -402,30 +439,34 @@ ${categoriesForPrompt}
     }
 
     if (!clear_name) {
-      error_message = "Не удалось сформировать название для товара";
+      error_message = 'Не удалось сформировать название для товара';
     }
 
     const validProductOptions =
       product !== null &&
-      (Object.hasOwn(product, "name") ||
-        Object.hasOwn(product, "code") ||
-        Object.hasOwn(product, "description"));
+      (Object.hasOwn(product, 'name') ||
+        Object.hasOwn(product, 'code') ||
+        Object.hasOwn(product, 'description'));
 
     if (!validProductOptions) {
       const productInfo = await this.getProductInfo(clear_name, trimmedCode);
-      const productOptions = await this.getProductOptions(clear_name, productInfo, trimmedCode);
+      const productOptions = await this.getProductOptions(
+        clear_name,
+        productInfo,
+        trimmedCode,
+      );
 
       const validOptions =
         productOptions &&
-        !Object.hasOwn(productOptions, "error") &&
-        (Object.hasOwn(productOptions, "name") ||
-          Object.hasOwn(productOptions, "code") ||
-          Object.hasOwn(productOptions, "description"));
+        !Object.hasOwn(productOptions, 'error') &&
+        (Object.hasOwn(productOptions, 'name') ||
+          Object.hasOwn(productOptions, 'code') ||
+          Object.hasOwn(productOptions, 'description'));
 
       const hasError =
         productOptions &&
-        Object.hasOwn(productOptions, "error") &&
-        typeof productOptions.error === "string";
+        Object.hasOwn(productOptions, 'error') &&
+        typeof productOptions.error === 'string';
 
       if (validOptions) {
         product = productOptions;
@@ -433,11 +474,17 @@ ${categoriesForPrompt}
     }
 
     if (clear_name && product) {
-      error_message = "";
+      error_message = '';
     }
 
     if (!existing) {
-      await this.saveRecord(trimmedCode, source_names, clear_name, error_message, product);
+      await this.saveRecord(
+        trimmedCode,
+        source_names,
+        clear_name,
+        error_message,
+        product,
+      );
     }
 
     if (existing && existing.error_message !== error_message) {
@@ -449,7 +496,7 @@ ${categoriesForPrompt}
     if (existing && !existing.product && product) {
       await this.productSourceRecordRepository.update(existing.id, {
         product,
-        error_message: "",
+        error_message: '',
       });
     }
 
@@ -464,15 +511,15 @@ ${categoriesForPrompt}
 
     const photos: string[] = [];
 
-    page.on("response", (res) => {
+    page.on('response', (res) => {
       const url = res.url();
       if (!url.match(/\.(jpg|jpeg|png|webp|avif)/i)) return;
-      const contentType = res.headers()["content-type"] || "";
-      if (contentType.includes("image")) photos.push(url);
+      const contentType = res.headers()['content-type'] || '';
+      if (contentType.includes('image')) photos.push(url);
     });
 
     try {
-      await page.goto(url, { waitUntil: "load" });
+      await page.goto(url, { waitUntil: 'load' });
 
       await page.evaluate(() => {
         const total = document.body.scrollHeight;
@@ -492,28 +539,28 @@ ${categoriesForPrompt}
       await sleep(2000 + Math.random() * 3000);
 
       const text = await page
-        .evaluate(() => document.body?.innerText || "")
+        .evaluate(() => document.body?.innerText || '')
         .then((response) => {
           return response
-            .replace(/Подтвердите, что вы не робот/gi, "")
-            .replace(/Инцидент: fab_chlg_.*/gi, "")
-            .replace(/©\s*\d{4}-?\d{0,4}.*/gi, "")
-            .replace(/Все права защищены/gi, "")
-            .replace(/Политика конфиденциальности/gi, "")
-            .replace(/Условия использования/gi, "")
-            .replace(/Правила сайта/gi, "")
-            .replace(/Главная\s*›\s*[^\n]*/gi, "")
-            .replace(/Каталог\s*:\s*[^\n]*/gi, "")
-            .replace(/Меню\s*:[^\n]*/gi, "")
-            .replace(/Похожие товары[:\n]?[\s\S]*?(?=\n\n|$)/gi, "")
-            .replace(/Рекомендуем[:\n]?[\s\S]*?(?=\n\n|$)/gi, "")
-            .replace(/С этим покупают[:\n]?[\s\S]*?(?=\n\n|$)/gi, "")
-            .replace(/Цена:\s*\d+\s*(?:руб\.?|₽)?/gi, "")
-            .replace(/В корзину/gi, "")
-            .replace(/Купить в 1 клик/gi, "")
-            .replace(/Добавить в избранное/gi, "")
-            .replace(/\n\s*\n/g, "\n")
-            .replace(/\s+/g, " ")
+            .replace(/Подтвердите, что вы не робот/gi, '')
+            .replace(/Инцидент: fab_chlg_.*/gi, '')
+            .replace(/©\s*\d{4}-?\d{0,4}.*/gi, '')
+            .replace(/Все права защищены/gi, '')
+            .replace(/Политика конфиденциальности/gi, '')
+            .replace(/Условия использования/gi, '')
+            .replace(/Правила сайта/gi, '')
+            .replace(/Главная\s*›\s*[^\n]*/gi, '')
+            .replace(/Каталог\s*:\s*[^\n]*/gi, '')
+            .replace(/Меню\s*:[^\n]*/gi, '')
+            .replace(/Похожие товары[:\n]?[\s\S]*?(?=\n\n|$)/gi, '')
+            .replace(/Рекомендуем[:\n]?[\s\S]*?(?=\n\n|$)/gi, '')
+            .replace(/С этим покупают[:\n]?[\s\S]*?(?=\n\n|$)/gi, '')
+            .replace(/Цена:\s*\d+\s*(?:руб\.?|₽)?/gi, '')
+            .replace(/В корзину/gi, '')
+            .replace(/Купить в 1 клик/gi, '')
+            .replace(/Добавить в избранное/gi, '')
+            .replace(/\n\s*\n/g, '\n')
+            .replace(/\s+/g, ' ')
             .trim();
         });
 
@@ -540,7 +587,7 @@ ${categoriesForPrompt}
   }
 
   async getProductInfo(name: string, barcode?: string) {
-    const query = `купить - ${name ? "Название товара " + name + "," : ""} ${barcode ? "Штрих-код:" + barcode : ""}`;
+    const query = `купить - ${name ? 'Название товара ' + name + ',' : ''} ${barcode ? 'Штрих-код:' + barcode : ''}`;
     const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}&s=10`;
 
     const urls: string[] = [];
@@ -551,11 +598,11 @@ ${categoriesForPrompt}
 
       const $ = cheerio.load(html);
 
-      $("a.result__a").each((i, element) => {
+      $('a.result__a').each((i, element) => {
         if (i >= 10) return false;
-        const link = $(element).attr("href");
+        const link = $(element).attr('href');
         const urlObj = new URL(`https:${link}`);
-        const encoded = urlObj.searchParams.get("uddg");
+        const encoded = urlObj.searchParams.get('uddg');
 
         if (encoded) {
           const decodedUrl = decodeURIComponent(encoded);
@@ -575,10 +622,16 @@ ${categoriesForPrompt}
           const { text, photos } = await this.fetchWithPlaywright(url);
 
           if (text.length > 0) {
-            const validateText = await this.validateParseProductInfo(text, name, photos, barcode);
+            const validateText = await this.validateParseProductInfo(
+              text,
+              name,
+              photos,
+              barcode,
+            );
 
             if (
-              (validateText.data.length > 0 && validateText.error.length === 0) ||
+              (validateText.data.length > 0 &&
+                validateText.error.length === 0) ||
               (validateText.error.length > 0 && validateText.photos.length > 0)
             ) {
               data.push({
@@ -592,7 +645,7 @@ ${categoriesForPrompt}
         } catch (error) {
           data.push({
             url,
-            data: "",
+            data: '',
             error: `playwright: ${error}`,
             photos: [],
           });
@@ -618,7 +671,7 @@ ${categoriesForPrompt}
 
 Входные ориентиры:
 - Ожидаемое название товара: ${expectedName}
-- Штрихкод: ${barcode ? barcode : "Отсутствует"}
+- Штрихкод: ${barcode ? barcode : 'Отсутствует'}
 - Список фото: ${JSON.stringify(photos)}
 
 Твоя задача:
@@ -657,18 +710,24 @@ ${categoriesForPrompt}
 
         return {
           data:
-            json && Object.hasOwn(json, "data") && typeof json.data === "string" ? json.data : "",
+            json && Object.hasOwn(json, 'data') && typeof json.data === 'string'
+              ? json.data
+              : '',
           error:
-            json && Object.hasOwn(json, "error") && typeof json.error === "string"
+            json &&
+            Object.hasOwn(json, 'error') &&
+            typeof json.error === 'string'
               ? json.error
-              : "",
+              : '',
           photos:
-            json && Object.hasOwn(json, "photos") && Array.isArray(json.photos) ? json.photos : [],
+            json && Object.hasOwn(json, 'photos') && Array.isArray(json.photos)
+              ? json.photos
+              : [],
         };
       })
       .catch((error) => {
         return {
-          data: "",
+          data: '',
           error: `Ошибка вызова LLM: ${error instanceof Error ? error.message : String(error)}`,
           photos: [],
         };
@@ -688,11 +747,11 @@ ${categoriesForPrompt}
     }
 
     if (source_names.length === 0) {
-      throw "По данному штрих-коду не удалось найти название товара. Укажите другое название товара или измените название";
+      throw 'По данному штрих-коду не удалось найти название товара. Укажите другое название товара или измените название';
     }
 
-    let clear_name = "";
-    let error = "";
+    let clear_name = '';
+    let error = '';
 
     const generateName = await this.determineName(source_names);
 
@@ -708,13 +767,13 @@ ${categoriesForPrompt}
   }
 
   async getEanNames(code: string, names: string[]) {
-    const response = await fetch("https://ean-online.ru/match.php", {
-      method: "POST",
+    const response = await fetch('https://ean-online.ru/match.php', {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "X-Requested-With": "XMLHttpRequest",
-        Referer: "https://ean-online.ru/",
-        "User-Agent": "Mozilla/5.0 ...",
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-Requested-With': 'XMLHttpRequest',
+        Referer: 'https://ean-online.ru/',
+        'User-Agent': 'Mozilla/5.0 ...',
       },
       body: `barcode=${code}`,
     });
@@ -729,7 +788,8 @@ ${categoriesForPrompt}
   async getDisaiNames(code: string, names: string[]) {
     const response = await fetch(`https://ru.disai.org/?search_query=${code}`, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
     });
     const html = await response.text();
@@ -739,10 +799,10 @@ ${categoriesForPrompt}
       const items: string[] = [];
 
       $(row)
-        .find("td:first-child font")
+        .find('td:first-child font')
         .contents()
         .each((_, node) => {
-          if (node.type === "text") {
+          if (node.type === 'text') {
             const text = $(node).text().trim();
             if (text) items.push(text);
           }
@@ -759,7 +819,8 @@ ${categoriesForPrompt}
       `https://barcode-list.ru/barcode/RU/Поиск.htm?barcode=${barcode}`,
       {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
       },
     );
@@ -767,28 +828,33 @@ ${categoriesForPrompt}
     const html = await response.text();
     const $ = cheerio.load(html);
 
-    $("table.randomBarcodes tr.even, table.randomBarcodes tr.odd").each((_, row) => {
-      const name = $(row).find("td:nth-child(3)").text().trim();
-      if (name) {
-        names.push(name);
-      }
-    });
+    $('table.randomBarcodes tr.even, table.randomBarcodes tr.odd').each(
+      (_, row) => {
+        const name = $(row).find('td:nth-child(3)').text().trim();
+        if (name) {
+          names.push(name);
+        }
+      },
+    );
   }
 
   async getYandexNames(code: string, names: string[]) {
-    const response = await fetch(`https://market.yandex.ru/search?text=${code}`, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "ru-RU,ru;q=0.9",
+    const response = await fetch(
+      `https://market.yandex.ru/search?text=${code}`,
+      {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept-Language': 'ru-RU,ru;q=0.9',
+        },
       },
-    });
+    );
 
     const html = await response.text();
     const $ = cheerio.load(html);
 
     $('script[type="application/ld+json"]').each((_, el) => {
-      const json = JSON.parse($(el).html() ?? "");
+      const json = JSON.parse($(el).html() ?? '');
       if (json.itemListElement) {
         json.itemListElement.forEach((item: any) => {
           const name = item.item?.name?.trim();
@@ -800,8 +866,11 @@ ${categoriesForPrompt}
     });
   }
 
-  async determineName(names: string[]): Promise<{ name: string; error: string }> {
-    if (names.length === 0) return { name: "", error: "Нет названий для товара" };
+  async determineName(
+    names: string[],
+  ): Promise<{ name: string; error: string }> {
+    if (names.length === 0)
+      return { name: '', error: 'Нет названий для товара' };
 
     const validAnswer = `"{ "name": "Название товара", "error": "если не удалось сформировать название - Ошибка: причина коротко" }"`;
 
@@ -835,25 +904,25 @@ ${categoriesForPrompt}
         const json = match ? JSON.parse(match[0]) : null;
 
         return {
-          name: json && Object.hasOwn(json, "name") ? json?.name : "",
+          name: json && Object.hasOwn(json, 'name') ? json?.name : '',
           error:
-            json && Object.hasOwn(json, "error")
+            json && Object.hasOwn(json, 'error')
               ? json.error
-              : json && !Object.hasOwn(json, "name")
-                ? "Не удалось сгенерировать название для товара"
-                : "",
+              : json && !Object.hasOwn(json, 'name')
+                ? 'Не удалось сгенерировать название для товара'
+                : '',
         };
       })
       .catch((error) => {
         return {
-          name: "",
+          name: '',
           error: `Ошибка вызова LLM: ${error instanceof Error ? error.message : String(error)}`,
         };
       });
   }
 
   async formattedName(name: string, names: string[]) {
-    if (name.length === 0) return "";
+    if (name.length === 0) return '';
 
     const prompt = `
 Есть произвольное название товара: ${name}
@@ -885,7 +954,9 @@ ${categoriesForPrompt}
         const json = match ? JSON.parse(match[0]) : null;
 
         const currentName =
-          json && Object.hasOwn(json, "name") && json?.name?.length > 0 ? json?.name : "";
+          json && Object.hasOwn(json, 'name') && json?.name?.length > 0
+            ? json?.name
+            : '';
 
         if (currentName.length > 0) {
           names.push(currentName);
@@ -893,7 +964,7 @@ ${categoriesForPrompt}
 
         return currentName;
       })
-      .catch(() => "");
+      .catch(() => '');
   }
 
   async findRecord(value: string) {
@@ -932,7 +1003,7 @@ ${categoriesForPrompt}
       await this.productSourceRecordRepository.update(existing.id, {
         clear_name: payload.clear_name,
         product: payload.product,
-        error_message: "",
+        error_message: '',
       });
 
       return this.findRecord(value);
@@ -943,7 +1014,7 @@ ${categoriesForPrompt}
       source_names: [],
       clear_name: payload.clear_name,
       product: payload.product,
-      error_message: "",
+      error_message: '',
     });
   }
 
@@ -952,17 +1023,25 @@ ${categoriesForPrompt}
     productInfo: { url: string; data: any; error: string; photos: string[] }[],
     barcode: string,
   ): Promise<{ error?: string; name?: string; code?: string } | null> {
-    const allPhotos = [...new Set(productInfo.flatMap((p) => p.photos))].filter((url) => {
-      if (url.includes("abt-challenge")) return false;
-      if (url.includes("yastatic.net") || url.includes("favicon")) return false;
-      if (url.includes("spritesheet") || url.includes("specials-bg") || url.includes("xarus-logo"))
-        return false;
-      if (url.includes("replain.cc") || url.includes("404")) return false;
-      if (url.includes("imgtmb") || url.includes("countries_flags")) return false;
-      if (url.match(/\/\d{1,2}x\d{1,2}\//)) return false;
-      if (url.match(/\/60_60_/)) return false;
-      return true;
-    });
+    const allPhotos = [...new Set(productInfo.flatMap((p) => p.photos))].filter(
+      (url) => {
+        if (url.includes('abt-challenge')) return false;
+        if (url.includes('yastatic.net') || url.includes('favicon'))
+          return false;
+        if (
+          url.includes('spritesheet') ||
+          url.includes('specials-bg') ||
+          url.includes('xarus-logo')
+        )
+          return false;
+        if (url.includes('replain.cc') || url.includes('404')) return false;
+        if (url.includes('imgtmb') || url.includes('countries_flags'))
+          return false;
+        if (url.match(/\/\d{1,2}x\d{1,2}\//)) return false;
+        if (url.match(/\/60_60_/)) return false;
+        return true;
+      },
+    );
 
     const formattedInfo =
       productInfo
@@ -970,14 +1049,14 @@ ${categoriesForPrompt}
           let text = `\n=== Источник ${i + 1}: ${p.url} ===\n`;
           if (p.error) text += `Ошибка: ${p.error}\n`;
           if (p.data) {
-            const clean = p.data.replace(/\s+/g, " ").trim();
+            const clean = p.data.replace(/\s+/g, ' ').trim();
             text += clean.substring(0, 5000);
           }
           return text;
         })
-        .join("\n\n") +
+        .join('\n\n') +
       `\n\n=== ФОТОГРАФИИ ТОВАРА (предварительно отфильтрованы) ===\n` +
-      allPhotos.join("\n");
+      allPhotos.join('\n');
 
     const prompt = `Товар с названием "${name}", 
     И то что удалось извлечь из интернета (все данные по этому товару) - ${formattedInfo}
@@ -1077,12 +1156,14 @@ ${categoriesForPrompt}
       .catch(() => null);
   }
 
-  async applySuggestCategory(create_categories: { name: string; parent_id: number | null }[]) {
+  async applySuggestCategory(
+    create_categories: { name: string; parent_id: number | null }[],
+  ) {
     const isValidChainCategory =
       await this.categoryService.validateCategoryChain(create_categories);
 
     if (!isValidChainCategory) {
-      throw "Не удалось добавить категорию, не валидный список категорий";
+      throw 'Не удалось добавить категорию, не валидный список категорий';
     }
 
     let lastCreatedId: number | null = null;
@@ -1092,12 +1173,15 @@ ${categoriesForPrompt}
 
       const parentId =
         i === 0
-          ? typeof category.parent_id === "number" && category.parent_id > 0
+          ? typeof category.parent_id === 'number' && category.parent_id > 0
             ? category.parent_id
             : null
           : lastCreatedId;
 
-      const parentChildren = await this.categoryService.getChildren(parentId, "user");
+      const parentChildren = await this.categoryService.getChildren(
+        parentId,
+        'user',
+      );
 
       const newCategory = await this.categoryService.create({
         name: category.name.trim(),

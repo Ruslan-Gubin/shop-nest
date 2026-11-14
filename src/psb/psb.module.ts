@@ -1,5 +1,5 @@
-import { Module } from "@nestjs/common";
-import { PsbSbpService } from "./psb.service";
+import { Module } from '@nestjs/common';
+import { PsbSbpService } from './psb.service';
 
 @Module({
   providers: [PsbSbpService],

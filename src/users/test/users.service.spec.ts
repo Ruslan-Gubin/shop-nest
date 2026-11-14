@@ -4,6 +4,8 @@ import { UsersService } from '../users.service';
 import { User } from '../entities/user.entity';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user-dto';
+import { PhotoService } from '../../photo/photo.service';
+import { StorageService } from '../../storage/storage.service';
 import * as argon from 'argon2';
 
 jest.mock('argon2', () => ({
@@ -23,7 +25,7 @@ describe('UsersService', () => {
     password: 'hashedPassword123',
     department_id: 1,
     role: 'user',
-    photo: 'avatar.jpg',
+    photo: null,
     created_at: new Date('2024-01-01'),
     updated_at: null,
   };
@@ -37,6 +39,20 @@ describe('UsersService', () => {
     delete: jest.fn(),
   };
 
+  const mockPhotoService = {
+    findByParent: jest.fn().mockResolvedValue([]),
+    findForParents: jest.fn().mockResolvedValue([]),
+    createAndSetPosition: jest.fn(),
+    update: jest.fn(),
+    findOne: jest.fn(),
+    remove: jest.fn(),
+  };
+
+  const mockStorageService = {
+    saveAvatar: jest.fn(),
+    deleteByUrl: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -45,12 +61,22 @@ describe('UsersService', () => {
           provide: getRepositoryToken(User),
           useValue: mockRepository,
         },
+        {
+          provide: PhotoService,
+          useValue: mockPhotoService,
+        },
+        {
+          provide: StorageService,
+          useValue: mockStorageService,
+        },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
 
     jest.clearAllMocks();
+    mockPhotoService.findByParent.mockResolvedValue([]);
+    mockPhotoService.findForParents.mockResolvedValue([]);
   });
 
   afterEach(() => {

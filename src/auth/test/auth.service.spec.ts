@@ -27,7 +27,7 @@ describe('AuthService', () => {
     password: 'hashedPassword123',
     department_id: 1,
     role: 'user',
-    photo: 'avatar.jpg',
+    photo: null,
     created_at: new Date('2024-01-01'),
     updated_at: null,
   };

@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Brackets, Repository } from "typeorm";
-import { CreateProductQuestionDto } from "./dto/create-product-question.dto";
-import { UpdateProductQuestionDto } from "./dto/update-product-question.dto";
-import { ProductQuestion } from "./entities/product-question.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Brackets, Repository } from 'typeorm';
+import { CreateProductQuestionDto } from './dto/create-product-question.dto';
+import { UpdateProductQuestionDto } from './dto/update-product-question.dto';
+import { ProductQuestion } from './entities/product-question.entity';
 
 @Injectable()
 export class ProductQuestionService {
@@ -17,30 +17,37 @@ export class ProductQuestionService {
       .save({
         product: { id: createDto.product_id },
         question: createDto.question,
-        create_user_id: createDto.create_user_id ? createDto.create_user_id : null,
+        create_user_id: createDto.create_user_id
+          ? createDto.create_user_id
+          : null,
       })
       .catch((error) => {
         throw `Не удалось добавить вопрос, ${error.message}`;
       });
   }
 
-  async findByProductId(id: number, page: number, limit: number, create_user_id?: number) {
+  async findByProductId(
+    id: number,
+    page: number,
+    limit: number,
+    create_user_id?: number,
+  ) {
     const skip = (Number(page) - 1) * Number(limit);
 
     const query = this.productQuestionRepository
-      .createQueryBuilder("pq")
-      .where("pq.product_id = :id", { id })
+      .createQueryBuilder('pq')
+      .where('pq.product_id = :id', { id })
       .andWhere(
         new Brackets((qb) => {
           qb.where("pq.answer != ''");
           if (create_user_id) {
-            qb.orWhere("pq.create_user_id = :create_user_id", {
+            qb.orWhere('pq.create_user_id = :create_user_id', {
               create_user_id,
             });
           }
         }),
       )
-      .orderBy("pq.id", "DESC")
+      .orderBy('pq.id', 'DESC')
       .skip(skip)
       .take(Number(limit));
 
@@ -59,8 +66,8 @@ export class ProductQuestionService {
     return this.productQuestionRepository
       .findAndCount({
         where: { create_user_id: userId },
-        relations: ["product"],
-        order: { id: "DESC" },
+        relations: ['product'],
+        order: { id: 'DESC' },
         skip,
         take: limit,
       })
@@ -80,7 +87,7 @@ export class ProductQuestionService {
     return this.productQuestionRepository
       .findAndCount({
         where: { product: { id: product_id }, create_user_id },
-        order: { id: "DESC" },
+        order: { id: 'DESC' },
         skip,
         take: limit,
       })
@@ -93,9 +100,12 @@ export class ProductQuestionService {
     const skip = (Number(page) - 1) * Number(limit);
 
     return this.productQuestionRepository
-      .createQueryBuilder("pq")
-      .orderBy("CASE WHEN COALESCE(pq.answer, '') = '' THEN 0 ELSE 1 END", "ASC")
-      .addOrderBy("pq.id", "DESC")
+      .createQueryBuilder('pq')
+      .orderBy(
+        "CASE WHEN COALESCE(pq.answer, '') = '' THEN 0 ELSE 1 END",
+        'ASC',
+      )
+      .addOrderBy('pq.id', 'DESC')
       .skip(skip)
       .take(Number(limit))
       .getManyAndCount()
@@ -111,9 +121,9 @@ export class ProductQuestionService {
       .findAndCount({
         skip,
         take: Number(limit),
-        where: { answer: "" },
-        relations: ["product"],
-        order: { id: "DESC" },
+        where: { answer: '' },
+        relations: ['product'],
+        order: { id: 'DESC' },
       })
       .catch((error) => {
         throw `Не удалось получить неотвеченные вопросы, ${error.message}`;
@@ -122,16 +132,18 @@ export class ProductQuestionService {
 
   async findOne(id: number) {
     return this.productQuestionRepository
-      .findOne({ where: { id }, relations: ["product"] })
+      .findOne({ where: { id }, relations: ['product'] })
       .catch((error) => {
         throw `Не удалось получить вопрос, ${error.message}`;
       });
   }
 
   async update(id: number, updateDto: UpdateProductQuestionDto) {
-    return this.productQuestionRepository.update(id, updateDto).catch((error) => {
-      throw `Не удалось обновить вопрос, ${error.message}`;
-    });
+    return this.productQuestionRepository
+      .update(id, updateDto)
+      .catch((error) => {
+        throw `Не удалось обновить вопрос, ${error.message}`;
+      });
   }
 
   async remove(id: number) {

@@ -1,8 +1,8 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { type Repository } from "typeorm";
-import { Payment, PaymentStatus } from "./entities/payment.entity";
-import { PsbPaymentStatusResult, PsbSbpService } from "src/psb/psb.service";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { type Repository } from 'typeorm';
+import { Payment, PaymentStatus } from './entities/payment.entity';
+import { PsbPaymentStatusResult, PsbSbpService } from 'src/psb/psb.service';
 
 @Injectable()
 export class PaymentsService {
@@ -21,15 +21,15 @@ export class PaymentsService {
       amount,
       order_number,
       `Оплата заказа ${order_number} на сумму: ${order_number}`,
-      "gubin_ruslan@rambler.ru",
+      'gubin_ruslan@rambler.ru',
     );
 
     return this.paymentsRepository
       .save({
         order: { id: order_id },
         amount,
-        provider: "psb",
-        status: "pending",
+        provider: 'psb',
+        status: 'pending',
         qr_id: createPaymentBank.qr_id,
         qr_data: createPaymentBank.qr_data,
         qr_psb_id: createPaymentBank.qr_psb_id,
@@ -47,20 +47,23 @@ export class PaymentsService {
     }
 
     if (findPayment && !findPayment.sbp_tran_id) {
-      throw "Не удалось получить sbp tran id для возврата";
+      throw 'Не удалось получить sbp tran id для возврата';
     }
 
     if (amount > findPayment.amount) {
-      throw "Сумма возврата не должна превышать суммы заказа";
+      throw 'Сумма возврата не должна превышать суммы заказа';
     }
 
-    const refund = await this.psbService.refund(findPayment.sbp_tran_id, amount);
+    const refund = await this.psbService.refund(
+      findPayment.sbp_tran_id,
+      amount,
+    );
 
     await this.paymentsRepository
       .update(findPayment.id, {
-        status: refund.result === "SUCCESS" ? "refunded" : "failed",
+        status: refund.result === 'SUCCESS' ? 'refunded' : 'failed',
         error_message:
-          refund.message !== "SUCCESS" &&
+          refund.message !== 'SUCCESS' &&
           refund.message.length > 0 &&
           refund.message !== findPayment.error_message
             ? refund.message
@@ -81,10 +84,10 @@ export class PaymentsService {
       });
 
     if (!payment) {
-      throw "Не удалось получить платеж заказа";
+      throw 'Не удалось получить платеж заказа';
     }
 
-    if (payment.status !== "paid") {
+    if (payment.status !== 'paid') {
       const updateStatus = await this.checkBankPayment(
         payment.qr_id,
         payment.id,

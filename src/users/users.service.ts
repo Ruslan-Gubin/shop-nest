@@ -7,6 +7,9 @@ import type { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateUserDto } from "./dto/update-user-dto";
 import type { UpdateProfileDto } from "./dto/update-profile.dto";
 import type { UpdatePasswordDto } from "./dto/update-password.dto";
+import { PhotoService } from "src/photo/photo.service";
+import { Photo } from "src/photo/entities/photo.entity";
+import { StorageService } from "src/storage/storage.service";
 import * as argon from "argon2";
 
 @Injectable()
@@ -14,15 +17,19 @@ export class UsersService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private readonly photoService: PhotoService,
+    private readonly storageService: StorageService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
     const hashedPassword = await this.hash(createUserDto.password ?? "");
     createUserDto.password = hashedPassword;
 
-    return this.userRepository.save(createUserDto).catch((error) => {
+    const user = await this.userRepository.save(createUserDto).catch((error) => {
       throw `Не удалось создать пользователей, ${error.message}`;
     });
+    await this.attachPhoto(user);
+    return user;
   }
 
   async getAllUsers(page: string, limit: string, name: string): Promise<User[]> {
@@ -34,7 +41,7 @@ export class UsersService {
       whereCondition.name = ILike(`%${name}%`);
     }
 
-    return this.userRepository
+    const users = await this.userRepository
       .find({
         skip,
         take: Number(limit),
@@ -44,6 +51,8 @@ export class UsersService {
       .catch((error) => {
         throw `Не удалось получить список пользователей, ${error.message}`;
       });
+    await this.attachPhotos(users);
+    return users;
   }
 
   async getTotalCount(name: string) {
@@ -59,33 +68,39 @@ export class UsersService {
   }
 
   async findById(id: number): Promise<User | null> {
-    return this.userRepository
+    const user = await this.userRepository
       .findOne({
         where: { id },
       })
       .catch((error) => {
         throw `Не удалось получить пользователя по id, ${error.message}`;
       });
+    if (user) await this.attachPhoto(user);
+    return user;
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    return this.userRepository
+    const user = await this.userRepository
       .findOne({
         where: { email },
       })
       .catch((error) => {
         throw `Не удалось получить пользователя, ${error.message}`;
       });
+    if (user) await this.attachPhoto(user);
+    return user;
   }
 
   async findByPhone(phone: string): Promise<User | null> {
-    return this.userRepository.findOne({ where: { phone } }).catch((error) => {
+    const user = await this.userRepository.findOne({ where: { phone } }).catch((error) => {
       throw `Не удалось получить пользователя по телефону, ${error.message}`;
     });
+    if (user) await this.attachPhoto(user);
+    return user;
   }
 
   async createPhoneUser(phone: string): Promise<User> {
-    return this.userRepository
+    const user = await this.userRepository
       .save({
         phone,
         email: null,
@@ -96,6 +111,8 @@ export class UsersService {
       .catch((error) => {
         throw `Не удалось создать пользователя по телефону, ${error.message}`;
       });
+    await this.attachPhoto(user);
+    return user;
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
@@ -143,6 +160,79 @@ export class UsersService {
       .catch((error) => {
         throw `Не удалось изменить пароль, ${error}`;
       });
+  }
+
+  async upsertAvatar(userId: number, file: Express.Multer.File): Promise<Photo> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw "Пользователь не найден";
+    }
+
+    const existing = await this.getAvatarPhoto(userId);
+    const url = await this.storageService.saveImage(file, {
+      folder: "avatars",
+      width: 512,
+      height: 512,
+      fit: "cover",
+      withoutEnlargement: false,
+      quality: 82,
+    });
+
+    if (existing) {
+      await this.storageService.deleteByUrl(existing.url);
+      await this.photoService.update(existing.id, { url });
+      const updated = await this.photoService.findOne(existing.id);
+      if (!updated) {
+        throw "Не удалось обновить фото";
+      }
+      return updated;
+    }
+
+    return await this.photoService.createAndSetPosition({
+      url,
+      parent_type: "user",
+      parent_id: userId,
+      position: 1,
+    });
+  }
+
+  async removeAvatar(userId: number): Promise<void> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw "Пользователь не найден";
+    }
+
+    const existing = await this.getAvatarPhoto(userId);
+    if (!existing) {
+      return;
+    }
+
+    await this.storageService.deleteByUrl(existing.url);
+    await this.photoService.remove(existing.id);
+  }
+
+  private async getAvatarPhoto(userId: number): Promise<Photo | null> {
+    const photos = await this.photoService.findByParent("user", userId);
+    return photos[0] ?? null;
+  }
+
+  private async attachPhoto(user: User): Promise<void> {
+    user.photo = await this.getAvatarPhoto(user.id);
+  }
+
+  private async attachPhotos(users: User[]): Promise<void> {
+    if (users.length === 0) return;
+    const ids = users.map((u) => u.id);
+    const photos = await this.photoService.findForParents("user", ids);
+    const byParent = new Map<number, Photo>();
+    for (const photo of photos) {
+      if (!byParent.has(photo.parent_id)) {
+        byParent.set(photo.parent_id, photo);
+      }
+    }
+    for (const user of users) {
+      user.photo = byParent.get(user.id) ?? null;
+    }
   }
 
   private async hash(data: string) {
