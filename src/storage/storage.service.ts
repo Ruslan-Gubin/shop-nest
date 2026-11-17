@@ -52,26 +52,36 @@ export class StorageService {
       throw `Не удалось сохранить файл, ${error.message}`;
     });
 
-    return `/uploads/${options.folder}/${fileName}`;
+    return `uploads/${options.folder}/${fileName}`;
   }
 
   async deleteByUrl(url?: string | null): Promise<void> {
-    if (!url) return;
+    const filePath = typeof url === "string" ? resolve(process.cwd(), url) : null;
 
-    const normalized = url.startsWith("/") ? url.slice(1) : url;
-    if (!normalized.startsWith("uploads/")) return;
-
-    const filePath = resolve(process.cwd(), normalized);
-    const uploadsRoot = resolve(this.uploadsRoot) + sep;
-
-    if (!filePath.startsWith(uploadsRoot)) {
-      return;
+    if (
+      typeof url === "string" &&
+      filePath &&
+      url.includes("uploads") &&
+      filePath.startsWith(resolve(this.uploadsRoot) + sep) &&
+      (await this.isExistingFile(filePath))
+    ) {
+      await fs.unlink(filePath).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") {
+          throw `Не удалось удалить файл, ${error.message}`;
+        }
+      });
     }
+  }
 
-    await fs.unlink(filePath).catch((error: NodeJS.ErrnoException) => {
-      if (error.code !== "ENOENT") {
-        throw `Не удалось удалить файл, ${error.message}`;
+  private async isExistingFile(filePath: string): Promise<boolean> {
+    const stats = await fs.stat(filePath).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") {
+        return null;
       }
+
+      throw `Не удалось проверить файл, ${error.message}`;
     });
+
+    return stats?.isFile() ?? false;
   }
 }

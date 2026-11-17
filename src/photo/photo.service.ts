@@ -1,27 +1,23 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, type Repository } from 'typeorm';
-import {
-  CreatePhotoAndPositionDto,
-  CreatePhotoDto,
-} from './dto/create-photo.dto';
-import { UpdatePhotoDto } from './dto/update-photo.dto';
-import { Photo } from './entities/photo.entity';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { In, type Repository } from "typeorm";
+import { CreatePhotoAndPositionDto, CreatePhotoDto } from "./dto/create-photo.dto";
+import { UpdatePhotoDto } from "./dto/update-photo.dto";
+import { Photo } from "./entities/photo.entity";
+import { StorageService } from "src/storage/storage.service";
 
 @Injectable()
 export class PhotoService {
   constructor(
     @InjectRepository(Photo)
     private photoRepository: Repository<Photo>,
+    private readonly storageService: StorageService,
   ) {}
 
   async create(createPhotoDto: CreatePhotoDto) {
     const photo = {
       ...createPhotoDto,
-      position: await this.getNextPosition(
-        createPhotoDto.parent_type,
-        createPhotoDto.parent_id,
-      ),
+      position: await this.getNextPosition(createPhotoDto.parent_type, createPhotoDto.parent_id),
     };
 
     return this.photoRepository.save(photo).catch((error) => {
@@ -57,7 +53,7 @@ export class PhotoService {
     return this.photoRepository
       .find({
         where: whereCondition,
-        order: { position: 'ASC', id: 'ASC' },
+        order: { position: "ASC", id: "ASC" },
       })
       .catch((error) => {
         throw `Не удалось получить список фото, ${error.message}`;
@@ -74,7 +70,7 @@ export class PhotoService {
     return this.photoRepository
       .find({
         where: { parent_type: parentType, parent_id: In(parentIds) },
-        order: { position: 'ASC', id: 'ASC' },
+        order: { position: "ASC", id: "ASC" },
       })
       .catch((error) => {
         throw `Не удалось получить список фото, ${error.message}`;
@@ -100,12 +96,19 @@ export class PhotoService {
   async remove(id: number) {
     const photo = await this.findOne(id);
 
-    if (!photo) return;
+    if (!photo) {
+      throw "Не удалось найти фото";
+    }
+
+    if (photo.url.includes("uploads/")) {
+      await this.storageService.deleteByUrl(photo.url);
+    }
 
     await this.photoRepository.delete(id).catch((error) => {
       throw `Не удалось удалить фото, ${error.message}`;
     });
 
+    //TODO надо проверить
     // await this.renumber(photo.parent_type, photo.parent_id);
   }
 

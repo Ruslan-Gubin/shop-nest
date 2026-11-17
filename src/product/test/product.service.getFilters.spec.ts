@@ -13,6 +13,7 @@ const createService = (query: QueryMock) =>
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
 
 const createQueryMock = ({

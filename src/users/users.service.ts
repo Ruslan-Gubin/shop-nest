@@ -28,7 +28,9 @@ export class UsersService {
     const user = await this.userRepository.save(createUserDto).catch((error) => {
       throw `Не удалось создать пользователей, ${error.message}`;
     });
+
     await this.attachPhoto(user);
+
     return user;
   }
 
@@ -162,13 +164,13 @@ export class UsersService {
       });
   }
 
-  async upsertAvatar(userId: number, file: Express.Multer.File): Promise<Photo> {
-    const user = await this.userRepository.findOne({ where: { id: userId } });
+  async upsertAvatar(user_id: number, file: Express.Multer.File): Promise<Photo> {
+    const user = await this.userRepository.findOne({ where: { id: user_id } });
     if (!user) {
       throw "Пользователь не найден";
     }
 
-    const existing = await this.getAvatarPhoto(userId);
+    const existing = await this.getAvatarPhoto(user_id);
     const url = await this.storageService.saveImage(file, {
       folder: "avatars",
       width: 512,
@@ -181,17 +183,14 @@ export class UsersService {
     if (existing) {
       await this.storageService.deleteByUrl(existing.url);
       await this.photoService.update(existing.id, { url });
-      const updated = await this.photoService.findOne(existing.id);
-      if (!updated) {
-        throw "Не удалось обновить фото";
-      }
-      return updated;
+
+      return existing;
     }
 
     return await this.photoService.createAndSetPosition({
       url,
       parent_type: "user",
-      parent_id: userId,
+      parent_id: user_id,
       position: 1,
     });
   }
@@ -203,11 +202,11 @@ export class UsersService {
     }
 
     const existing = await this.getAvatarPhoto(userId);
+
     if (!existing) {
       return;
     }
 
-    await this.storageService.deleteByUrl(existing.url);
     await this.photoService.remove(existing.id);
   }
 
