@@ -54,8 +54,6 @@ export class ProductService {
   async uploadPhoto(file: Express.Multer.File, body: PhotoUploadDto): Promise<Photo | null> {
     const url = await this.storageService.saveImage(file, {
       folder: "products",
-      width: 469,
-      height: 626,
       fit: "cover",
       withoutEnlargement: false,
       quality: 82,

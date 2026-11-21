@@ -22,10 +22,10 @@ import { ResponseData, responseData } from "src/helpers/response";
 import { CurrentUser } from "src/auth/decorators/current-user.decorator";
 import { CurrentStrategyUser } from "src/auth/types/current-user";
 import { UpdateUserDto } from "./dto/update-user-dto";
-import { CreateUserDto } from "./dto/create-user.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
 import { UpdatePasswordDto } from "./dto/update-password.dto";
 import { Photo } from "src/photo/entities/photo.entity";
+import { CreateUserDto } from "./dto/create-user.dto";
 
 @Controller("users")
 export class UsersController {
@@ -34,20 +34,33 @@ export class UsersController {
   @Post("create")
   @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
-  async create(@Body() createUserDto: CreateUserDto): Promise<ResponseData<User | null>> {
-    const findUserByEmail = await this.usersService.findByEmail(createUserDto.email);
+  async create(@Body() payload: CreateUserDto): Promise<ResponseData<User | null>> {
+    if (typeof payload.email === "string" && payload.email.length > 0) {
+      const userEmail = await this.usersService.findByEmail(payload.email);
 
-    if (findUserByEmail) {
+      if (userEmail) {
+        return responseData(
+          null,
+          "error",
+          [{ key: "email", message: "Эта почта уже зарегистрирована" }],
+          "Эта почта уже зарегистрирована",
+        );
+      }
+    }
+
+    const findUserByPhone = await this.usersService.findByPhone(payload.phone);
+
+    if (findUserByPhone) {
       return responseData(
         null,
         "error",
-        [{ key: "email", message: "Эта почта уже зарегистрирована" }],
-        "",
+        [{ key: "phone", message: "Номер телефона уже занят" }],
+        "Номер телефона уже занят",
       );
     }
 
     try {
-      const user = await this.usersService.create(createUserDto);
+      const user = await this.usersService.create(payload);
       return responseData(user, "success", [], "Пользователь успешно добавлен");
     } catch (error) {
       return responseData(null, "error", [], error);
@@ -219,21 +232,31 @@ export class UsersController {
     }
   }
 
+  @Patch(":id")
   @Roles("admin", "moderator")
   @UseGuards(RolesGuard)
-  @Patch(":id")
   async update(
     @Param("id") id: string,
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<ResponseData<null>> {
     const findUserByEmail = await this.usersService.findByEmail(updateUserDto.email);
+    const findUserByPhone = await this.usersService.findByPhone(updateUserDto.phone);
 
     if (findUserByEmail && findUserByEmail.id !== Number(id)) {
       return responseData(
         null,
         "error",
         [{ key: "email", message: "Эта почта уже зарегистрирована" }],
-        "",
+        "Эта почта уже зарегистрирована",
+      );
+    }
+
+    if (findUserByPhone && findUserByPhone.id !== Number(id)) {
+      return responseData(
+        null,
+        "error",
+        [{ key: "phone", message: "Номер телефона уже занят" }],
+        "Номер телефона уже занят",
       );
     }
 

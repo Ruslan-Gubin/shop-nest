@@ -21,11 +21,11 @@ export class UsersService {
     private readonly storageService: StorageService,
   ) {}
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const hashedPassword = await this.hash(createUserDto.password ?? "");
-    createUserDto.password = hashedPassword;
+  async create(payload: CreateUserDto): Promise<User> {
+    const hashedPassword = await this.hash(payload.password ?? "");
+    payload.password = hashedPassword;
 
-    const user = await this.userRepository.save(createUserDto).catch((error) => {
+    const user = await this.userRepository.save(payload).catch((error) => {
       throw `Не удалось создать пользователей, ${error.message}`;
     });
 
