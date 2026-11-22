@@ -1,139 +1,67 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Param,
-  Delete,
-  Patch,
-  UseGuards,
-} from '@nestjs/common';
-import { OrderProductService } from './order-product.service';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { ResponseData, responseData } from 'src/helpers/response';
-import { OrderProduct } from './entities/order-product.entity';
-import { OrderProductDto } from './dto/create-order-product.dto';
-import { UpdateOrderProductDto } from './dto/update-order-product.dto';
-import { CurrentStrategyUser } from 'src/auth/types/current-user';
-import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { ProductService } from 'src/product/product.service';
-import { ProductPriceService } from 'src/product-price/product-price.service';
+import { Controller, Get, Body, Param, Delete, Patch, UseGuards } from "@nestjs/common";
+import { OrderProductService } from "./order-product.service";
+import { RolesGuard } from "../auth/guards/roles.guard";
+import { Roles } from "../auth/decorators/roles.decorator";
+import { ResponseData, responseData } from "src/helpers/response";
+import { OrderProduct } from "./entities/order-product.entity";
+import { UpdateOrderProductDto } from "./dto/update-order-product.dto";
 
-@Controller('order-product')
+@Controller("order-product")
 export class OrderProductController {
-  constructor(
-    private readonly orderProductService: OrderProductService,
-    private readonly productService: ProductService,
-    private readonly productPriceService: ProductPriceService,
-  ) {}
+  constructor(private readonly orderProductService: OrderProductService) {}
 
-  @Post('create')
-  @Roles('admin')
-  @UseGuards(RolesGuard)
-  async create(
-    @Body() orderProductDto: OrderProductDto,
-    @CurrentUser() user: CurrentStrategyUser,
-  ): Promise<ResponseData<OrderProduct | null>> {
-    try {
-      const product = await this.productService.findOne(
-        orderProductDto.product_id,
-      );
-
-      if (!product) {
-        throw 'Не удалось получить товар';
-      }
-
-      const price = await this.productPriceService.getCurrentPrice(
-        orderProductDto.product_id,
-        orderProductDto.quantity,
-        user.role,
-      );
-
-      if (price === 0) {
-        throw 'Не удалось получить цену товара для пользователя';
-      }
-
-      const orderProduct = await this.orderProductService.create({
-        ...product,
-        price,
-        product_id: orderProductDto.product_id,
-        quantity: orderProductDto.quantity,
-        order_id: 1, // get order_id
-      });
-
-      return responseData(
-        orderProduct,
-        'success',
-        [],
-        'Товар успешно добавлен в заказ',
-      );
-    } catch (error) {
-      return responseData(null, 'error', [], error);
-    }
-  }
-
-  @Get('order/:order_id')
-  async findAll(
-    @Param('order_id') order_id: string,
-  ): Promise<ResponseData<OrderProduct[] | null>> {
+  @Get("order/:order_id")
+  async findAll(@Param("order_id") order_id: string): Promise<ResponseData<OrderProduct[] | null>> {
     try {
       const id =
-        typeof Number(order_id) === 'number' && !Number.isNaN(Number(order_id))
+        typeof Number(order_id) === "number" && !Number.isNaN(Number(order_id))
           ? Number(order_id)
           : 0;
       const orderProducts = await this.orderProductService.findAll(id);
 
-      return responseData(
-        orderProducts,
-        'success',
-        [],
-        'Список товаров заказа получен',
-      );
+      return responseData(orderProducts, "success", [], "Список товаров заказа получен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-  ): Promise<ResponseData<OrderProduct | null>> {
+  @Get(":id")
+  async findOne(@Param("id") id: string): Promise<ResponseData<OrderProduct | null>> {
     try {
       const orderProduct = await this.orderProductService.findOne(Number(id));
 
-      return responseData(orderProduct, 'success', [], 'Товар заказа получен');
+      return responseData(orderProduct, "success", [], "Товар заказа получен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Patch(':id')
-  @Roles('admin')
+  @Patch(":id")
+  @Roles("admin")
   @UseGuards(RolesGuard)
   async update(
-    @Param('id') id: string,
+    @Param("id") id: string,
     @Body() updateOrderProductDto: UpdateOrderProductDto,
   ): Promise<ResponseData<null>> {
     try {
       await this.orderProductService.update(Number(id), updateOrderProductDto);
 
-      return responseData(null, 'success', [], 'Товар заказа успешно обновлен');
+      return responseData(null, "success", [], "Товар заказа успешно обновлен");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 
-  @Delete(':id')
-  @Roles('admin')
+  @Delete(":id")
+  @Roles("admin")
   @UseGuards(RolesGuard)
-  async remove(@Param('id') id: string): Promise<ResponseData<null>> {
+  async remove(@Param("id") id: string): Promise<ResponseData<null>> {
     try {
       await this.orderProductService.remove(Number(id));
 
-      return responseData(null, 'success', [], 'Товар заказа успешно удален');
+      return responseData(null, "success", [], "Товар заказа успешно удален");
     } catch (error) {
-      return responseData(null, 'error', [], error);
+      return responseData(null, "error", [], error);
     }
   }
 }

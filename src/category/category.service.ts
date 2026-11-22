@@ -372,4 +372,37 @@ export class CategoryService {
 
     return isValid;
   }
+
+  async applySuggestCategory(create_categories: { name: string; parent_id: number | null }[]) {
+    const isValidChainCategory = await this.validateCategoryChain(create_categories);
+
+    if (!isValidChainCategory) {
+      throw "Не удалось добавить категорию, не валидный список категорий";
+    }
+
+    let lastCreatedId: number | null = null;
+
+    for (let i = 0; i < create_categories.length; i++) {
+      const category = create_categories[i];
+
+      const parentId =
+        i === 0
+          ? typeof category.parent_id === "number" && category.parent_id > 0
+            ? category.parent_id
+            : null
+          : lastCreatedId;
+
+      const parentChildren = await this.getChildren(parentId, "user");
+
+      const newCategory = await this.create({
+        name: category.name.trim(),
+        parent_id: parentId,
+        position: parentChildren ? parentChildren.length + 1 : 1,
+      });
+
+      lastCreatedId = newCategory.id;
+    }
+
+    return lastCreatedId;
+  }
 }

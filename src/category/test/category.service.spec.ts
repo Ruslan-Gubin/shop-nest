@@ -1,13 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { IsNull, Repository, SelectQueryBuilder } from 'typeorm';
-import { CategoryService } from '../category.service';
-import { Category } from '../entities/category.entity';
-import { CreateCategoryDto } from '../dto/create-category.dto';
-import { UpdateCategoryDto } from '../dto/update-category.dto';
-import { UpdatePositionCategoryDto } from '../dto/update-position-category-dto';
+import { Test, TestingModule } from "@nestjs/testing";
+import { getRepositoryToken } from "@nestjs/typeorm";
+import { IsNull, Repository, SelectQueryBuilder } from "typeorm";
+import { CategoryService } from "../category.service";
+import { Category } from "../entities/category.entity";
+import { CreateCategoryDto } from "../dto/create-category.dto";
+import { UpdateCategoryDto } from "../dto/update-category.dto";
+import { UpdatePositionCategoryDto } from "../dto/update-position-category-dto";
 
-describe('CategoryService', () => {
+describe("CategoryService", () => {
   let service: CategoryService;
   let repository: jest.Mocked<Repository<Category>>;
 
@@ -19,11 +19,11 @@ describe('CategoryService', () => {
     is_active: true,
     created_user_id: 1,
     createdBy: null as never,
-    name: 'Электроника',
-    description: 'Категория электроники',
-    image: 'electronics.jpg',
+    name: "Электроника",
+    description: "Категория электроники",
+    image: "electronics.jpg",
     product_count: 10,
-    created_at: new Date('2024-01-01'),
+    created_at: new Date("2024-01-01"),
     updated_at: null,
   };
 
@@ -56,24 +56,22 @@ describe('CategoryService', () => {
     }).compile();
 
     service = module.get<CategoryService>(CategoryService);
-    repository = module.get<jest.Mocked<Repository<Category>>>(
-      getRepositoryToken(Category),
-    );
+    repository = module.get<jest.Mocked<Repository<Category>>>(getRepositoryToken(Category));
 
     jest.clearAllMocks();
   });
 
-  describe('create', () => {
+  describe("create", () => {
     const createDto: CreateCategoryDto = {
-      name: 'Электроника',
-      description: 'Категория электроники',
-      image: 'electronics.jpg',
+      name: "Электроника",
+      description: "Категория электроники",
+      image: "electronics.jpg",
       parent_id: null as unknown as number,
       position: 1,
       created_user_id: 1,
     };
 
-    it('должен создать категорию', async () => {
+    it("должен создать категорию", async () => {
       mockRepository.save.mockResolvedValue(mockCategory);
 
       const result = await service.create(createDto);
@@ -83,21 +81,21 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('findAll', () => {
-    it('должен вернуть все категории', async () => {
+  describe("findAll", () => {
+    it("должен вернуть все категории", async () => {
       mockRepository.find.mockResolvedValue([mockCategory]);
 
       const result = await service.findAll();
 
       expect(result).toEqual([mockCategory]);
       expect(mockRepository.find).toHaveBeenCalledWith({
-        order: { position: 'ASC', created_at: 'ASC' },
+        order: { position: "ASC", created_at: "ASC" },
       });
     });
   });
 
-  describe('findCategoriesWithProducts', () => {
-    it('должен оставить только категории, в которых есть товары', async () => {
+  describe("findCategoriesWithProducts", () => {
+    it("должен оставить только категории, в которых есть товары", async () => {
       const parentCategory: Category = {
         ...mockCategory,
         id: 1,
@@ -118,43 +116,39 @@ describe('CategoryService', () => {
       };
 
       mockRepository.query.mockResolvedValue([{ id: 1 }, { id: 2 }]);
-      mockRepository.find.mockResolvedValue([
-        parentCategory,
-        childWithProducts,
-        emptyCategory,
-      ]);
+      mockRepository.find.mockResolvedValue([parentCategory, childWithProducts, emptyCategory]);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
-      const result = await service.findCategoriesWithProducts();
+      const result = await service.findCategoriesWithProducts("user");
 
       expect(result).toHaveLength(2);
       expect(result.map((category) => category.id)).toEqual([1, 2]);
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
 
-    it('должен вернуть пустой список, если товаров нет ни в одной категории', async () => {
+    it("должен вернуть пустой список, если товаров нет ни в одной категории", async () => {
       mockRepository.query.mockResolvedValue([]);
 
-      const result = await service.findCategoriesWithProducts();
+      const result = await service.findCategoriesWithProducts("user");
 
       expect(result).toEqual([]);
       expect(mockRepository.find).not.toHaveBeenCalled();
     });
 
-    it('должен выбросить ошибку при неудачном запросе категорий с товарами', async () => {
-      mockRepository.query.mockRejectedValue(new Error('db error'));
+    it("должен выбросить ошибку при неудачном запросе категорий с товарами", async () => {
+      mockRepository.query.mockRejectedValue(new Error("db error"));
 
-      await expect(service.findCategoriesWithProducts()).rejects.toContain(
-        'Не удалось получить список категорий с товарами',
+      await expect(service.findCategoriesWithProducts("user")).rejects.toContain(
+        "Не удалось получить список категорий с товарами",
       );
     });
   });
 
-  describe('sortedCategories', () => {
-    it('должен возвращать категории отсортированные по позиции', async () => {
+  describe("sortedCategories", () => {
+    it("должен возвращать категории отсортированные по позиции", async () => {
       const categories: Category[] = [
-        { ...mockCategory, id: 1, position: 2, name: 'Category 2' },
-        { ...mockCategory, id: 2, position: 1, name: 'Category 1' },
+        { ...mockCategory, id: 1, position: 2, name: "Category 2" },
+        { ...mockCategory, id: 2, position: 1, name: "Category 1" },
       ];
 
       mockRepository.find.mockResolvedValue(categories);
@@ -165,7 +159,7 @@ describe('CategoryService', () => {
       expect(result.length).toBe(2);
     });
 
-    it('должен строить дерево категорий с детьми', async () => {
+    it("должен строить дерево категорий с детьми", async () => {
       const parentCategory: Category = {
         ...mockCategory,
         id: 1,
@@ -190,8 +184,8 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('updateCategoriesGroupPosition', () => {
-    it('не должен обновлять позиции если категории уже в правильном порядке', async () => {
+  describe("updateCategoriesGroupPosition", () => {
+    it("не должен обновлять позиции если категории уже в правильном порядке", async () => {
       const categories: Category[] = [
         { ...mockCategory, id: 1, position: 1, product_count: 5 },
         { ...mockCategory, id: 2, position: 2, product_count: 3 },
@@ -204,8 +198,8 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('changePosition', () => {
-    it('должен изменить позицию категории', async () => {
+  describe("changePosition", () => {
+    it("должен изменить позицию категории", async () => {
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       await service.changePosition(1, 5);
@@ -214,13 +208,13 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('update', () => {
+  describe("update", () => {
     const updateDto: UpdateCategoryDto = {
-      name: 'Обновленная категория',
-      description: 'Новое описание',
+      name: "Обновленная категория",
+      description: "Новое описание",
     };
 
-    it('должен обновить категорию', async () => {
+    it("должен обновить категорию", async () => {
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       await service.update(1, updateDto);
@@ -229,13 +223,13 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('updatePosition', () => {
+  describe("updatePosition", () => {
     const updatePositionDto: UpdatePositionCategoryDto = {
       parent_id: 1,
       position: 2,
     };
 
-    it('должен обновить позицию категории', async () => {
+    it("должен обновить позицию категории", async () => {
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       await service.updatePosition(1, updatePositionDto);
@@ -244,8 +238,8 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('delete', () => {
-    it('должен удалить категорию', async () => {
+  describe("delete", () => {
+    it("должен удалить категорию", async () => {
       mockRepository.delete.mockResolvedValue({ affected: 1 } as any);
 
       await service.delete(1);
@@ -254,8 +248,8 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('changeChildrenParentId', () => {
-    it('должен менять parent_id у дочерних категорий', async () => {
+  describe("changeChildrenParentId", () => {
+    it("должен менять parent_id у дочерних категорий", async () => {
       mockRepository.find
         .mockResolvedValueOnce([{ ...mockCategory, id: 2, parent_id: 1 }])
         .mockResolvedValueOnce([]);
@@ -266,7 +260,7 @@ describe('CategoryService', () => {
       expect(mockRepository.update).toHaveBeenCalled();
     });
 
-    it('не должен делать ничего если нет дочерних категорий', async () => {
+    it("не должен делать ничего если нет дочерних категорий", async () => {
       mockRepository.find.mockResolvedValue([]);
 
       await service.changeChildrenParentId(1, 2);
@@ -275,8 +269,8 @@ describe('CategoryService', () => {
     });
   });
 
-  describe('getChildren', () => {
-    it('должен вернуть дочерние категории', async () => {
+  describe("getChildren", () => {
+    it("должен вернуть дочерние категории", async () => {
       const children = [{ ...mockCategory, parent_id: 1 }];
       mockRepository.find.mockResolvedValue(children);
 
@@ -285,11 +279,11 @@ describe('CategoryService', () => {
       expect(result).toEqual(children);
       expect(mockRepository.find).toHaveBeenCalledWith({
         where: { parent_id: 1 },
-        order: { position: 'ASC' },
+        order: { position: "ASC" },
       });
     });
 
-    it('должен вернуть корневые категории при parent_id = null', async () => {
+    it("должен вернуть корневые категории при parent_id = null", async () => {
       const roots = [{ ...mockCategory, parent_id: null }];
       mockRepository.find.mockResolvedValue(roots);
 
@@ -298,13 +292,13 @@ describe('CategoryService', () => {
       expect(result).toEqual(roots);
       expect(mockRepository.find).toHaveBeenCalledWith({
         where: { parent_id: IsNull() },
-        order: { position: 'ASC' },
+        order: { position: "ASC" },
       });
     });
   });
 
-  describe('changeParent', () => {
-    it('должен изменить родителя категории', async () => {
+  describe("changeParent", () => {
+    it("должен изменить родителя категории", async () => {
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       await service.changeParent(1, 2);
@@ -312,7 +306,7 @@ describe('CategoryService', () => {
       expect(mockRepository.update).toHaveBeenCalledWith(1, { parent_id: 2 });
     });
 
-    it('должен позволить сделать категорию корневой', async () => {
+    it("должен позволить сделать категорию корневой", async () => {
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       await service.changeParent(1, null);

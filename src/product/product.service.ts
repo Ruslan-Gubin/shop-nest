@@ -1406,8 +1406,8 @@ export class ProductService {
       : [];
   }
 
-  async create(createProductDto: CreateProductDto) {
-    return this.productRepository.save(createProductDto).catch((error) => {
+  async create(payload: CreateProductDto) {
+    return this.productRepository.save(payload).catch((error) => {
       throw `Не удалось добавить товаров, ${error.message}`;
     });
   }

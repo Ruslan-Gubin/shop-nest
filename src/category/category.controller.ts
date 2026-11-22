@@ -34,6 +34,21 @@ export class CategoryController {
     }
   }
 
+  @Post('apply-suggestion')
+  @Roles('admin', 'moderator')
+  @UseGuards(RolesGuard)
+  async applySuggestCategory(
+    @Body() payload: { name: string; parent_id: number | null }[],
+  ) {
+    try {
+      const id = await this.categoryService.applySuggestCategory(payload);
+
+      return responseData(id, 'success', [], 'Категории успешно добавлены');
+    } catch (error) {
+      return responseData(null, 'error', [], error);
+    }
+  }
+
   @Patch(":id")
   @Roles("admin")
   @UseGuards(RolesGuard)
