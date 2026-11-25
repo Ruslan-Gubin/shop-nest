@@ -274,7 +274,7 @@ describe("CategoryService", () => {
       const children = [{ ...mockCategory, parent_id: 1 }];
       mockRepository.find.mockResolvedValue(children);
 
-      const result = await service.getChildren(1);
+      const result = await service.getChildren(1, "admin");
 
       expect(result).toEqual(children);
       expect(mockRepository.find).toHaveBeenCalledWith({
@@ -287,7 +287,7 @@ describe("CategoryService", () => {
       const roots = [{ ...mockCategory, parent_id: null }];
       mockRepository.find.mockResolvedValue(roots);
 
-      const result = await service.getChildren(null);
+      const result = await service.getChildren(null, "admin");
 
       expect(result).toEqual(roots);
       expect(mockRepository.find).toHaveBeenCalledWith({
