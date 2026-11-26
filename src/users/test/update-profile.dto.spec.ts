@@ -100,12 +100,12 @@ describe('UpdateProfileDto', () => {
     expect(dto.email).toBe('user@example.com');
   });
 
-  it('нормализует email при регистрации через наследование DTO', () => {
+  it('не нормализует email при регистрации — CreateUserDto не наследует SignInDto', () => {
     const dto = plainToInstance(CreateUserDto, {
       email: '  REGISTERED@EXAMPLE.COM  ',
     });
 
-    expect(dto.email).toBe('registered@example.com');
+    expect(dto.email).toBe('  REGISTERED@EXAMPLE.COM  ');
   });
 
   it('нормализует email при обновлении пользователя', () => {

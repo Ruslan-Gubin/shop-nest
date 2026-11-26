@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseArrayPipe, Post, UseGuards } from "@nestjs/common";
 import { ProductSourceRecordService } from "./product-source-record.service";
 import { CheckImportItemDto } from "./dto/check-import-items.dto";
 import { CreateProductFromRecordDto } from "./dto/create-product-from-record.dto";
@@ -37,7 +37,9 @@ export class ProductSourceRecordController {
   }
 
   @Post("check-import-items")
-  async checkImportItems(@Body() items: CheckImportItemDto[]) {
+  async checkImportItems(
+    @Body(new ParseArrayPipe({ items: CheckImportItemDto })) items: CheckImportItemDto[],
+  ) {
     try {
       const result = await this.productSourceRecordService.checkImportItems(items);
 

@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Matches } from "class-validator";
 
 export class CheckImportItemDto {
   @IsInt()
@@ -8,6 +8,8 @@ export class CheckImportItemDto {
   name: string;
 
   @IsString()
+  @IsNotEmpty({ message: "Укажите штрих-код" })
+  @Matches(/^\d{8,14}$/, { message: "Некорректный штрих-код" })
   barcode: string;
 
   @IsOptional()

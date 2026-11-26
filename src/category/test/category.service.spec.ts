@@ -1,6 +1,6 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { getRepositoryToken } from "@nestjs/typeorm";
-import { IsNull, Repository, SelectQueryBuilder } from "typeorm";
+import { Repository } from "typeorm";
 import { CategoryService } from "../category.service";
 import { Category } from "../entities/category.entity";
 import { CreateCategoryDto } from "../dto/create-category.dto";
@@ -27,14 +27,6 @@ describe("CategoryService", () => {
     updated_at: null,
   };
 
-  const createMockQueryBuilder = () => {
-    const queryBuilder = {
-      where: jest.fn().mockReturnThis(),
-      getMany: jest.fn().mockResolvedValue([]),
-    } as unknown as jest.Mocked<SelectQueryBuilder<Category>>;
-    return queryBuilder;
-  };
-
   const mockRepository = {
     save: jest.fn(),
     find: jest.fn(),
@@ -58,7 +50,9 @@ describe("CategoryService", () => {
     service = module.get<CategoryService>(CategoryService);
     repository = module.get<jest.Mocked<Repository<Category>>>(getRepositoryToken(Category));
 
-    jest.clearAllMocks();
+    // clearAllMocks сбрасывает только вызовы, но не реализации:
+    // mockRejectedValue из одного теста протекал в последующие.
+    jest.resetAllMocks();
   });
 
   describe("create", () => {
@@ -108,21 +102,15 @@ describe("CategoryService", () => {
         parent_id: 1,
         position: 1,
       };
-      const emptyCategory: Category = {
-        ...mockCategory,
-        id: 3,
-        parent_id: null,
-        position: 2,
-      };
-
-      mockRepository.query.mockResolvedValue([{ id: 1 }, { id: 2 }]);
-      mockRepository.find.mockResolvedValue([parentCategory, childWithProducts, emptyCategory]);
+      mockRepository.query.mockResolvedValue([parentCategory, childWithProducts]);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
       const result = await service.findCategoriesWithProducts("user");
 
-      expect(result).toHaveLength(2);
-      expect(result.map((category) => category.id)).toEqual([1, 2]);
+      // findAllAvailableCategories возвращает плоский список, а sortedCategories
+      // собирает из него дерево: дочерняя категория уходит в children родителя.
+      expect(result).toHaveLength(1);
+      expect(result).toMatchObject([{ id: 1, children: [{ id: 2 }] }]);
       expect(mockRepository.update).not.toHaveBeenCalled();
     });
 
@@ -132,14 +120,15 @@ describe("CategoryService", () => {
       const result = await service.findCategoriesWithProducts("user");
 
       expect(result).toEqual([]);
-      expect(mockRepository.find).not.toHaveBeenCalled();
+      expect(mockRepository.update).not.toHaveBeenCalled();
     });
 
     it("должен выбросить ошибку при неудачном запросе категорий с товарами", async () => {
       mockRepository.query.mockRejectedValue(new Error("db error"));
 
+      // Ошибка приходит из findAllAvailableCategories, который вызывается первым.
       await expect(service.findCategoriesWithProducts("user")).rejects.toContain(
-        "Не удалось получить список категорий с товарами",
+        "Не удалось получить все доступные категории",
       );
     });
   });
@@ -250,7 +239,8 @@ describe("CategoryService", () => {
 
   describe("changeChildrenParentId", () => {
     it("должен менять parent_id у дочерних категорий", async () => {
-      mockRepository.find
+      // changeChildrenParentId читает детей через query (getChildren), а не через find.
+      mockRepository.query
         .mockResolvedValueOnce([{ ...mockCategory, id: 2, parent_id: 1 }])
         .mockResolvedValueOnce([]);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
@@ -261,7 +251,7 @@ describe("CategoryService", () => {
     });
 
     it("не должен делать ничего если нет дочерних категорий", async () => {
-      mockRepository.find.mockResolvedValue([]);
+      mockRepository.query.mockResolvedValue([]);
 
       await service.changeChildrenParentId(1, 2);
 
@@ -272,28 +262,28 @@ describe("CategoryService", () => {
   describe("getChildren", () => {
     it("должен вернуть дочерние категории", async () => {
       const children = [{ ...mockCategory, parent_id: 1 }];
-      mockRepository.find.mockResolvedValue(children);
+      mockRepository.query.mockResolvedValue(children);
 
       const result = await service.getChildren(1, "admin");
 
       expect(result).toEqual(children);
-      expect(mockRepository.find).toHaveBeenCalledWith({
-        where: { parent_id: 1 },
-        order: { position: "ASC" },
-      });
+      expect(mockRepository.query).toHaveBeenCalledWith(
+        expect.stringContaining("c.parent_id = $1"),
+        [1],
+      );
     });
 
     it("должен вернуть корневые категории при parent_id = null", async () => {
       const roots = [{ ...mockCategory, parent_id: null }];
-      mockRepository.find.mockResolvedValue(roots);
+      mockRepository.query.mockResolvedValue(roots);
 
       const result = await service.getChildren(null, "admin");
 
       expect(result).toEqual(roots);
-      expect(mockRepository.find).toHaveBeenCalledWith({
-        where: { parent_id: IsNull() },
-        order: { position: "ASC" },
-      });
+      expect(mockRepository.query).toHaveBeenCalledWith(
+        expect.stringContaining("c.parent_id IS NULL"),
+        [],
+      );
     });
   });
 

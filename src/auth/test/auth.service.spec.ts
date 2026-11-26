@@ -138,12 +138,12 @@ describe("AuthService", () => {
       );
     });
 
-    it("должен вернуть null если пользователь не найден", async () => {
+    it("должен выбросить ошибку если пользователь не найден", async () => {
       mockUsersService.findByEmail.mockResolvedValue(null);
 
-      const result = await service.signIn(signInDto);
-
-      expect(result).toBeNull();
+      await expect(service.signIn(signInDto)).rejects.toBe(
+        "Неверный адрес электронной почты или пароль",
+      );
     });
   });
 

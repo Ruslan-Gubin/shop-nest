@@ -1,5 +1,5 @@
 import { type ExecutionContext, UnauthorizedException } from '@nestjs/common';
-import * as passport from 'passport';
+import passport from 'passport';
 import * as jwt from 'jsonwebtoken';
 import type { Request as ExpressRequest } from 'express';
 import { OptionalJwtAuthGuard } from './optional-jwt-auth.guard';

@@ -1,111 +1,21 @@
-# API: Установка проблемных остатков (shortage_stocks)
+# Дефицит остатков: админка
 
-## PATCH /orders/:id/shortage
+`PATCH /orders/shortage/:id` —JWT + роли `admin`/`moderator`. `:id` — ID заказа.
 
-Эндпоинт для администратора/модератора. Позволяет указать реальное количество товаров на складе, если оно отличается от заказанного.
-
-## Аутентификация
-
-- Требуется JWT токен
-- Роль: `admin` или `moderator`
-
-## URL Parameters
-
-| Параметр | Тип | Описание |
-| -------- | --- | -------- |
-| id | int | ID заказа |
-
-## Request Body
+## Тело
 
 ```json
-{
-  "shortage_stocks": [
-    { "id": 123, "quantity": 12 },
-    { "id": 456, "quantity": 0 }
-  ]
-}
+{ "items": [{ "id": 123, "quantity": 12, "warehouse_id": 1, "stock_id": 45 }] }
 ```
 
-### Поля
+`id` — `order_product.id`, `quantity` ≥ 0, `warehouse_id` обязателен, `stock_id` опционален в DTO, но нужен сервису для сопоставления резервации. Дубли `stock_id` запрещены.
 
-| Поле | Тип | Описание |
-| ---- | --- | -------- |
-| shortage_stocks | array | Массив проблемных позиций |
-| shortage_stocks[].id | int | ID товара заказа (`order_product.id`) |
-| shortage_stocks[].quantity | int | Реальное количество на складе (0 если закончился) |
+## Правила
 
-## Валидация
+- Статус заказа: `new` или `processing`.
+- Дефицит хранится на товаре заказа (`order_product.shortage_stocks`) как `{ stock_id, warehouse_id, quantity }`, а не на заказе.
+- Повторная установка объединяется по `(stock_id, warehouse_id)`; при `quantity`, равном резервации, запись дефицита удаляется.
+- Количество сравнивается с текущим `orderProduct.quantity`; проверки принадлежности позиции этому заказу нет.
+- Сама установка не меняет количество, цены и итоги заказа; клиент видит изменение через `GET /order-product/order/:order_id`.
 
-- Статус заказа должен быть `new` или `processing`
-- Каждый `id` должен существовать в `order_products` данного заказа
-- `quantity` должен быть >= 0 и <= исходного количества товара в заказе
-- Дубли `id` в массиве запрещены
-
-## Response (успех)
-
-```json
-{
-  "data": null,
-  "status": "success",
-  "errors": [],
-  "message": "Проблемные остатки обновлены"
-}
-```
-
-## Response (ошибка)
-
-```json
-{
-  "data": null,
-  "status": "error",
-  "errors": [],
-  "message": "Невозможно установить дефицит для заказа в статусе completed"
-}
-```
-
-## Примеры
-
-### Товара не хватает (12 из 20)
-
-```json
-PATCH /orders/42/shortage
-{
-  "shortage_stocks": [
-    { "id": 123, "quantity": 12 }
-  ]
-}
-```
-
-### Товар закончился
-
-```json
-PATCH /orders/42/shortage
-{
-  "shortage_stocks": [
-    { "id": 123, "quantity": 0 }
-  ]
-}
-```
-
-### Несколько позиций с дефицитом
-
-```json
-PATCH /orders/42/shortage
-{
-  "shortage_stocks": [
-    { "id": 123, "quantity": 12 },
-    { "id": 456, "quantity": 0 },
-    { "id": 789, "quantity": 3 }
-  ]
-}
-```
-
-### Повторное определение дефицита (перезапись)
-
-Предыдущее значение `shortage_stocks` перезаписывается новым.
-
-## Влияние на заказ
-
-- Установка `shortage_stocks` **не изменяет** количество, цены или итоги заказа
-- Поле `shortage_stocks` сохраняется в заказе и доступно клиенту
-- Клиент видит предложенные изменения на карточке заказа и принимает решение
+Успех: `message: "Запрос на изменение остатков обновлен"`. Ответ — стандартная обёртка `{ data, status, errors, message }` (`src/helpers/response.ts`).

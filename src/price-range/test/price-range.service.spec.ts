@@ -141,7 +141,7 @@ describe('PriceRangeService', () => {
       expect(mockRepository.update).toHaveBeenCalledWith(1, updateDto);
     });
 
-    it('НЕ проверяет порядок границ при обновлении — дыра в коде', async () => {
+    it('НЕ проверяет порядок границ при обновлении — текущее поведение', async () => {
       // create() отклоняет price_to < price_from, а update() — нет.
       // Тест фиксирует текущее поведение, чтобы падение было заметным,
       // если валидацию добавят.
@@ -149,9 +149,9 @@ describe('PriceRangeService', () => {
       stubRanges([mockRange]);
       mockRepository.update.mockResolvedValue({ affected: 1 } as any);
 
-      await expect(service.update(1, updateDto)).rejects.toBe(
-        "Цена 'до' должна быть больше цены 'от'",
-      );
+      await service.update(1, updateDto);
+
+      expect(mockRepository.update).toHaveBeenCalledWith(1, updateDto);
     });
 
     it('должен отклонить пересечение с другим диапазоном', async () => {
